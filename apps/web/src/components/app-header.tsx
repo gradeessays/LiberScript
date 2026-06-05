@@ -9,6 +9,7 @@ import {
   useActiveOrganization,
   useListOrganizations,
 } from '@liberscript/auth/client';
+import { ThemeToggle } from './theme-toggle';
 
 export function AppHeader({ userName }: { userName: string }) {
   const router = useRouter();
@@ -52,6 +53,7 @@ export function AppHeader({ userName }: { userName: string }) {
             ))}
           </select>
           <span className="hidden text-sm text-muted-foreground sm:inline">{userName}</span>
+          <ThemeToggle />
           <Button
             variant="outline"
             size="sm"

@@ -4,6 +4,10 @@ const nextConfig = {
   // Linting runs as a dedicated `turbo lint` task (with the Next.js plugin),
   // so skip Next's redundant build-time lint pass.
   eslint: { ignoreDuringBuilds: true },
+  experimental: {
+    // Tree-shake named imports from these packages for smaller bundles.
+    optimizePackageImports: ['@liberscript/ui', '@liberscript/format', '@liberscript/core'],
+  },
   // Internal workspace packages ship TypeScript source; let Next transpile them.
   transpilePackages: [
     '@liberscript/core',

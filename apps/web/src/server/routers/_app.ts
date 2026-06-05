@@ -5,6 +5,7 @@ import { projectRouter } from './project';
 import { uploadRouter } from './upload';
 import { chapterRouter } from './chapter';
 import { formattingRouter } from './formatting';
+import { coverRouter } from './cover';
 
 export const appRouter = router({
   health: healthRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   upload: uploadRouter,
   chapter: chapterRouter,
   formatting: formattingRouter,
+  cover: coverRouter,
 });
 
 export type AppRouter = typeof appRouter;

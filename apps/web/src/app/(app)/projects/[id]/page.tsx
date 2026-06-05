@@ -53,6 +53,12 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
           <h1 className="text-2xl font-semibold tracking-tight">{data.title}</h1>
           <div className="flex gap-2">
             <Link
+              href={`/projects/${id}/cover`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              Cover Studio
+            </Link>
+            <Link
               href={`/projects/${id}/design`}
               className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >

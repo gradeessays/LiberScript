@@ -301,6 +301,14 @@ export function renderFrontMatter(meta: BookMeta, watermark: boolean): string {
   );
 }
 
+export type ReadingMode = 'light' | 'sepia' | 'dark';
+
+const READING_MODE: Record<ReadingMode, { page: string; book: string; text: string }> = {
+  light: { page: '#fafafa', book: '#ffffff', text: '#111111' },
+  sepia: { page: '#efe6d2', book: '#faf3e0', text: '#3a2f25' },
+  dark: { page: '#15171a', book: '#1f2226', text: '#e6e6e6' },
+};
+
 export interface RenderBookInput {
   theme: BookTheme;
   target: RenderTarget;
@@ -312,6 +320,8 @@ export interface RenderBookInput {
   chapters?: RenderChapter[];
   typography?: TypographyOverrides;
   includeFrontMatter?: boolean;
+  /** Ebook reading theme (ignored for print). */
+  readingMode?: ReadingMode;
 }
 
 /** Full standalone HTML document used by the live preview and the exporters. */
@@ -356,6 +366,13 @@ export function renderBookDocument(input: RenderBookInput): string {
   const fontsHref = googleFontsHref(theme);
   const fontLink = fontsHref ? `<link rel="stylesheet" href="${fontsHref}">` : '';
 
+  // Ebook reading mode recolors the page; print always shows a paper surface.
+  const rm = target === 'ebook' && input.readingMode ? READING_MODE[input.readingMode] : null;
+  const pageBg = target === 'print' ? '#e9e9ee' : (rm?.page ?? '#fafafa');
+  const readingCss = rm
+    ? `.book { background: ${rm.book} !important; color: ${rm.text} !important; } .book .chapter-subtitle, .book blockquote { color: ${rm.text}; opacity: 0.8; }`
+    : '';
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -364,9 +381,10 @@ export function renderBookDocument(input: RenderBookInput): string {
 <title>${esc(meta.title)}</title>
 ${fontLink}
 <style>
-html, body { margin: 0; padding: 0; background: ${target === 'print' ? '#e9e9ee' : '#fafafa'}; }
+html, body { margin: 0; padding: 0; background: ${pageBg}; }
 body { padding: ${target === 'print' ? '24px' : '0'}; }
 ${themeCss(theme, target)}
+${readingCss}
 </style>
 </head>
 <body>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { countWords } from '@liberscript/core';
 import { computeStats } from '../stats';
-import { assembleChapters, isChapterHeading, chapterText } from '../chapters';
+import { assembleChapters, isChapterHeading, matchChapterHeading, chapterText } from '../chapters';
 import { htmlToBlocks, textToBlocks } from '../blocks';
 import { htmlToText } from '../html';
 import { blocksToTiptap } from '../tiptap';
@@ -15,10 +15,50 @@ describe('isChapterHeading', () => {
     expect(isChapterHeading('Part 2')).toBe(true);
     expect(isChapterHeading('Prologue')).toBe(true);
   });
-  it('does NOT match arbitrary sub-headings or numbers', () => {
+  it('does NOT match arbitrary sub-headings or bare numbers (strong mode)', () => {
     expect(isChapterHeading('A Quiet Morning')).toBe(false);
     expect(isChapterHeading('1.2 Background')).toBe(false);
     expect(isChapterHeading('THE END OF DAYS')).toBe(false);
+    expect(isChapterHeading('1')).toBe(false); // bare not allowed in strong mode
+  });
+});
+
+describe('matchChapterHeading (naming scenarios)', () => {
+  it('parses prefixed numbers, romans, and words', () => {
+    expect(matchChapterHeading('Chapter 1')).toEqual({ title: 'Chapter 1', subtitle: undefined });
+    expect(matchChapterHeading('Chapter I')).toEqual({ title: 'Chapter I', subtitle: undefined });
+    expect(matchChapterHeading('Chapter One')).toEqual({ title: 'Chapter One', subtitle: undefined });
+  });
+  it('splits inline titles after : — – or spaced hyphen', () => {
+    expect(matchChapterHeading('Chapter 1: The Beginning')).toEqual({
+      title: 'Chapter 1',
+      subtitle: 'The Beginning',
+    });
+    expect(matchChapterHeading('Chapter I — A New Dawn')).toEqual({
+      title: 'Chapter I',
+      subtitle: 'A New Dawn',
+    });
+    expect(matchChapterHeading('Chapter 3 - Homecoming')).toEqual({
+      title: 'Chapter 3',
+      subtitle: 'Homecoming',
+    });
+  });
+  it('keeps hyphenated number words intact', () => {
+    expect(matchChapterHeading('Chapter Twenty-One')).toEqual({
+      title: 'Chapter Twenty-One',
+      subtitle: undefined,
+    });
+  });
+  it('recognizes bare numbers/romans/words only when allowed', () => {
+    expect(matchChapterHeading('1', true)).toEqual({ title: '1', subtitle: undefined });
+    expect(matchChapterHeading('IV', true)).toEqual({ title: 'IV', subtitle: undefined });
+    expect(matchChapterHeading('Three', true)).toEqual({ title: 'Three', subtitle: undefined });
+    expect(matchChapterHeading('1: Dawn', true)).toEqual({ title: '1', subtitle: 'Dawn' });
+    expect(matchChapterHeading('1', false)).toBeNull();
+  });
+  it('rejects ordinary words that look vaguely roman', () => {
+    expect(matchChapterHeading('Mix', true)).toBeNull();
+    expect(matchChapterHeading('A Quiet Morning', true)).toBeNull();
   });
 });
 

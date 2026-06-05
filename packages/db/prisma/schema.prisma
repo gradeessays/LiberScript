@@ -268,6 +268,8 @@ model Project {
   // Formatting/design: selected theme + overrides (publisher, logo, fonts).
   themeKey    String    @default("novel-classic")
   formatting  Json?
+  // Cover Studio: front image, dominant color, spine/page settings, blurb.
+  cover       Json?
   // Owner is a user OR an organization (team-shared project).
   ownerType   OwnerType
   ownerId     String

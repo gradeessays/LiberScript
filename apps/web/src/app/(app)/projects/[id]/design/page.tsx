@@ -2,10 +2,11 @@
 
 import { use, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { THEMES, FONTS, getTheme, renderBookDocument } from '@liberscript/format';
+import { THEMES, FONTS, getTheme, renderBookDocument, type ReadingMode } from '@liberscript/format';
 import { KDP_TRIM_SIZES, type TypographyOverrides } from '@liberscript/core';
 import { Button, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 
 type Target = 'print' | 'ebook';
 
@@ -18,6 +19,7 @@ export default function DesignPage({ params }: { params: Promise<{ id: string }>
 
   const [themeKey, setThemeKey] = useState('novel-classic');
   const [target, setTarget] = useState<Target>('print');
+  const [readingMode, setReadingMode] = useState<ReadingMode>('light');
   const [publisher, setPublisher] = useState('');
   const [author, setAuthor] = useState('');
   const [typo, setTypo] = useState<TypographyOverrides>({});
@@ -42,6 +44,7 @@ export default function DesignPage({ params }: { params: Promise<{ id: string }>
     return renderBookDocument({
       theme: getTheme(themeKey),
       target,
+      readingMode,
       watermark: preview.data.watermark,
       typography: typo,
       meta: {
@@ -58,7 +61,8 @@ export default function DesignPage({ params }: { params: Promise<{ id: string }>
         content: e.content,
       })),
     });
-  }, [preview.data, themeKey, target, publisher, author, typo]);
+  }, [preview.data, themeKey, target, readingMode, publisher, author, typo]);
+  const debouncedHtml = useDebouncedValue(html, 350);
 
   async function onLogoFile(file: File) {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png';
@@ -296,24 +300,42 @@ export default function DesignPage({ params }: { params: Promise<{ id: string }>
 
         {/* Preview */}
         <section className="space-y-2">
-          <div className="flex gap-1">
-            {(['print', 'ebook'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTarget(t)}
-                className={cn(
-                  'rounded-md px-3 py-1 text-sm',
-                  target === t ? 'bg-primary text-primary-foreground' : 'border hover:bg-accent',
-                )}
-              >
-                {t === 'print' ? 'Print' : 'E-book'}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1">
+              {(['print', 'ebook'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTarget(t)}
+                  className={cn(
+                    'rounded-md px-3 py-1 text-sm',
+                    target === t ? 'bg-primary text-primary-foreground' : 'border hover:bg-accent',
+                  )}
+                >
+                  {t === 'print' ? 'Print' : 'E-book'}
+                </button>
+              ))}
+            </div>
+            {target === 'ebook' && (
+              <div className="flex gap-1">
+                {(['light', 'sepia', 'dark'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setReadingMode(m)}
+                    className={cn(
+                      'rounded-md border px-2 py-1 text-xs capitalize',
+                      readingMode === m ? 'bg-accent font-medium' : 'hover:bg-accent',
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <iframe
             title="Book preview"
             className="h-[80vh] w-full rounded-lg border bg-white"
-            srcDoc={html}
+            srcDoc={debouncedHtml}
             sandbox="allow-same-origin"
           />
         </section>
