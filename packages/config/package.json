@@ -1,0 +1,28 @@
+{
+  "name": "@liberscript/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": ["tsconfig", "eslint"],
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
+    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./tsconfig/react-library.json": "./tsconfig/react-library.json",
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/react": "./eslint/react.js",
+    "./eslint/next": "./eslint/next.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.12.0",
+    "@next/eslint-plugin-next": "^15.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.8.1",
+    "@typescript-eslint/parser": "^8.8.1",
+    "eslint": "^9.12.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.1",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^15.11.0",
+    "typescript-eslint": "^8.8.1"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@liberscript/config/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "prisma/**/*.ts"]
+}

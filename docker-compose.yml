@@ -1,0 +1,75 @@
+# Local development infrastructure for Liberscript.
+# Usage: `docker compose up -d` then `pnpm db:migrate && pnpm db:seed`.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: liberscript-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: liberscript
+      POSTGRES_PASSWORD: liberscript
+      POSTGRES_DB: liberscript
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U liberscript']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: liberscript-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - ./.data/redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: liberscript-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: liberscript
+      MINIO_ROOT_PASSWORD: liberscript
+    ports:
+      - '9000:9000' # S3 API
+      - '9001:9001' # Web console
+    volumes:
+      - ./.data/minio:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Creates the app bucket on startup so presigned uploads work out of the box.
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 liberscript liberscript &&
+      mc mb --ignore-existing local/liberscript &&
+      mc anonymous set none local/liberscript;
+      exit 0;
+      "
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: liberscript-mailhog
+    restart: unless-stopped
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI

@@ -1,0 +1,11 @@
+{
+  "extends": "@liberscript/config/tsconfig/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}

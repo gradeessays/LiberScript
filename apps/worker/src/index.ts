@@ -1,0 +1,41 @@
+import { Worker, type Job } from 'bullmq';
+import { getRedisConnection, JobName, QUEUE_NAME } from '@liberscript/jobs';
+import { logger } from './logger';
+import { handlePing } from './handlers/ping';
+import { handleParseManuscript } from './handlers/parse-manuscript';
+
+/**
+ * The single Liberscript background worker. Routes each job by name to its
+ * handler. New job types (analysis, export, AI) register here.
+ */
+async function processor(job: Job): Promise<unknown> {
+  switch (job.name) {
+    case JobName.PING:
+      return handlePing(job.data);
+    case JobName.PARSE_MANUSCRIPT:
+      return handleParseManuscript(job.data);
+    default:
+      throw new Error(`No handler registered for job "${job.name}"`);
+  }
+}
+
+const worker = new Worker(QUEUE_NAME, processor, {
+  connection: getRedisConnection(),
+  concurrency: 5,
+});
+
+worker.on('completed', (job) => logger.info({ jobId: job.id, name: job.name }, 'job completed'));
+worker.on('failed', (job, err) =>
+  logger.error({ jobId: job?.id, name: job?.name, err: err.message }, 'job failed'),
+);
+
+logger.info(`Liberscript worker listening on queue "${QUEUE_NAME}"`);
+
+async function shutdown(signal: string) {
+  logger.info({ signal }, 'shutting down worker');
+  await worker.close();
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

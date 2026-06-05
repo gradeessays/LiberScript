@@ -1,0 +1,504 @@
+// Liberscript data model — one unified product (write → analyze → format →
+// export → publish). Ownership is by USER or ORGANIZATION (team sharing),
+// NOT tenant isolation. Auth/team tables follow better-auth's expected shapes
+// and are reconciled with `@better-auth/cli generate` in Phase 1.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+// Mirror @liberscript/core constants — keep string values in sync.
+
+enum OwnerType {
+  USER
+  ORGANIZATION
+}
+
+// NOTE: member/invitation roles and invitation status are stored as STRINGS
+// (not Prisma enums) because better-auth's organization plugin manages these
+// values ("owner"/"admin"/"editor"/"viewer", "pending"/"accepted"/…). The
+// canonical value sets live in @liberscript/core (MemberRole, InvitationStatus).
+
+enum PlanTier {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+enum AiProvider {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  OPENROUTER
+}
+
+enum ExportFormat {
+  EPUB
+  PDF
+  DOCX
+}
+
+enum SourceFormat {
+  DOCX
+  EPUB
+  MARKDOWN
+  TXT
+  PDF
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum FindingCategory {
+  ADVERB
+  PASSIVE_VOICE
+  REPETITION
+  CLICHE
+  DIALOGUE_TAG
+  SENTENCE_VARIATION
+  FILLER_WORD
+  PACING
+  SHOW_VS_TELL
+}
+
+enum FindingSeverity {
+  INFO
+  SUGGESTION
+  WARNING
+}
+
+enum UsageMetric {
+  PROJECTS
+  WORDS_PROCESSED
+  ANALYSIS_RUNS
+  EXPORTS
+  COLLABORATORS
+}
+
+// ─────────────────────── Identity & teams (better-auth) ───────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions     Session[]
+  accounts     Account[]
+  memberships  Member[]
+  invitations  Invitation[] @relation("InvitedBy")
+  apiKeys      ApiKey[]
+  auditLogs    AuditLog[]
+  projects     Project[]    @relation("ProjectCreatedBy")
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  // Active team context for this session (organization plugin).
+  activeOrganizationId String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  // Hashed password for the email/password provider.
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  members     Member[]
+  invitations Invitation[]
+
+  @@map("organization")
+}
+
+model Member {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("editor")
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("member")
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String           @default("editor")
+  status         String           @default("pending")
+  expiresAt      DateTime
+  inviterId      String
+  inviter        User             @relation("InvitedBy", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitation")
+}
+
+// ───────────────────────────── Billing ─────────────────────────────
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  ownerType            OwnerType
+  ownerId              String
+  tier                 PlanTier           @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@unique([ownerType, ownerId])
+  @@map("subscription")
+}
+
+model UsageRecord {
+  id        String      @id @default(cuid())
+  ownerType OwnerType
+  ownerId   String
+  metric    UsageMetric
+  quantity  Int         @default(1)
+  // Billing period bucket, e.g. "2026-06" — for monthly limit windows.
+  period    String
+  createdAt DateTime    @default(now())
+
+  @@index([ownerType, ownerId, period])
+  @@map("usage_record")
+}
+
+// ───────────────────────── Projects & content ─────────────────────────
+
+model Project {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String
+  subtitle    String?
+  description String?
+  // Owner is a user OR an organization (team-shared project).
+  ownerType   OwnerType
+  ownerId     String
+  createdById String
+  createdBy   User      @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  manuscript   Manuscript?
+  metadata     Metadata?
+  analysisRuns AnalysisRun[]
+  exportJobs   ExportJob[]
+  assets       Asset[]
+
+  @@unique([ownerType, ownerId, slug])
+  @@index([ownerType, ownerId])
+  @@map("project")
+}
+
+model Manuscript {
+  id           String        @id @default(cuid())
+  projectId    String        @unique
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceFormat SourceFormat?
+  // Cached aggregate stats (recomputed on edit/parse).
+  wordCount    Int           @default(0)
+  charCount    Int           @default(0)
+  readingMinutes Int         @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  chapters  Chapter[]
+  snapshots DocumentSnapshot[]
+
+  @@map("manuscript")
+}
+
+model Chapter {
+  id           String     @id @default(cuid())
+  manuscriptId String
+  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  title        String
+  subtitle     String?
+  order        Int
+  // Rich content as TipTap/ProseMirror JSON.
+  content      Json
+  wordCount    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  findings Finding[]
+
+  @@unique([manuscriptId, order])
+  @@index([manuscriptId])
+  @@map("chapter")
+}
+
+model DocumentSnapshot {
+  id           String     @id @default(cuid())
+  manuscriptId String
+  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  label        String?
+  // Full serialized manuscript content at snapshot time.
+  content      Json
+  wordCount    Int        @default(0)
+  createdById  String?
+  createdAt    DateTime   @default(now())
+
+  @@index([manuscriptId])
+  @@map("document_snapshot")
+}
+
+// ───────────────────────────── Analysis ─────────────────────────────
+
+model AnalysisRun {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status      JobStatus @default(QUEUED)
+  // Whether AI-enhanced passes ran (BYO key) in addition to deterministic NLP.
+  aiEnhanced  Boolean   @default(false)
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  report   AnalysisReport?
+  findings Finding[]
+
+  @@index([projectId])
+  @@map("analysis_run")
+}
+
+model AnalysisReport {
+  id             String      @id @default(cuid())
+  analysisRunId  String      @unique
+  analysisRun    AnalysisRun @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+  readinessScore Int         @default(0)
+  // Per-category scores and recommendation payload.
+  summary        Json
+  createdAt      DateTime    @default(now())
+
+  @@map("analysis_report")
+}
+
+model Finding {
+  id            String          @id @default(cuid())
+  analysisRunId String
+  analysisRun   AnalysisRun     @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+  chapterId     String?
+  chapter       Chapter?        @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  category      FindingCategory
+  severity      FindingSeverity @default(SUGGESTION)
+  message       String
+  suggestion    String?
+  // Character offsets within the chapter text for inline highlighting.
+  startOffset   Int?
+  endOffset     Int?
+  excerpt       String?
+  createdAt     DateTime        @default(now())
+
+  @@index([analysisRunId])
+  @@index([chapterId])
+  @@map("finding")
+}
+
+// ──────────────────────── Publishing & metadata ────────────────────────
+
+model Metadata {
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorName  String?
+  blurb       String?
+  keywords    String[]
+  categories  String[]
+  isbn        String?
+  language    String   @default("en")
+  publisher   String?
+  // Per-platform overrides keyed by platform profile id.
+  platformOverrides Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("metadata")
+}
+
+model PlatformProfile {
+  id            String   @id @default(cuid())
+  // e.g. "kdp", "apple", "kobo", "ingramspark". Global reference data.
+  key           String   @unique
+  name          String
+  // Validation limits (title length, keyword count, category rules…).
+  rules         Json
+  createdAt     DateTime @default(now())
+
+  @@map("platform_profile")
+}
+
+// ───────────────────────────── Export ─────────────────────────────
+
+model ExportJob {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  format      ExportFormat
+  // Template/theme key (formatting preset).
+  template    String       @default("default")
+  status      JobStatus    @default(QUEUED)
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  artifact ExportArtifact?
+
+  @@index([projectId])
+  @@map("export_job")
+}
+
+model ExportArtifact {
+  id          String    @id @default(cuid())
+  exportJobId String    @unique
+  exportJob   ExportJob @relation(fields: [exportJobId], references: [id], onDelete: Cascade)
+  // S3 object key + metadata.
+  storageKey  String
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  createdAt   DateTime  @default(now())
+
+  @@map("export_artifact")
+}
+
+// ────────────────────────── AI keys (BYO) ──────────────────────────
+
+model ApiKey {
+  id          String     @id @default(cuid())
+  // Owned by a user or shared with an organization.
+  ownerType   OwnerType
+  ownerId     String
+  createdById String
+  createdBy   User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  provider    AiProvider
+  label       String?
+  // AES-256-GCM ciphertext (never the plaintext key) + last 4 for display.
+  ciphertext  String
+  iv          String
+  authTag     String
+  last4       String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([ownerType, ownerId])
+  @@map("api_key")
+}
+
+// ─────────────────────────── Files & audit ───────────────────────────
+
+model Asset {
+  id          String   @id @default(cuid())
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // S3 object key + upload metadata.
+  storageKey  String   @unique
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  // Whether the presigned upload has been confirmed complete.
+  uploaded    Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([projectId])
+  @@map("asset")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  // Target resource type + id, plus arbitrary context.
+  target    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@map("audit_log")
+}
