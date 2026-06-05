@@ -194,12 +194,13 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
               {cover.frontImageStorageKey ? 'Replace front cover' : 'Upload front cover'}
             </Button>
             <div className="flex gap-1">
-              {([['centered', 'Centered'], ['full', 'Full-bleed']] as const).map(([v, label]) => {
-                const active = (v === 'full') === Boolean(cover.frontFullBleed);
+              {([['fill', 'Fill'], ['centered', 'Centered']] as const).map(([v, label]) => {
+                const fill = cover.frontFullBleed !== false;
+                const active = (v === 'fill') === fill;
                 return (
                   <button
                     key={v}
-                    onClick={() => set({ frontFullBleed: v === 'full' })}
+                    onClick={() => set({ frontFullBleed: v === 'fill' })}
                     className={cn(
                       'rounded-md border px-2 py-1 text-xs',
                       active ? 'bg-accent font-medium' : 'hover:bg-accent',
@@ -211,8 +212,8 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Centered: art floats inside the front, background fills the rest. Full-bleed: art
-              covers the whole front.
+              Fill: art covers the whole front (to the trim edges &amp; spine). Centered: art floats
+              inside, background fills the rest.
             </p>
           </section>
 

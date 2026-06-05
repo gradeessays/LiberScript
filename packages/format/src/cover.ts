@@ -106,6 +106,7 @@ export function renderCoverHtml(input: CoverInput): string {
   const wrapPx = dims.wrapIn * IN;
   const safePx = (dims.wrapIn + SAFE_MARGIN_IN) * IN;
   const gap = 0.12 * IN; // lift the barcode off the safe line
+  const pad = 0.09 * IN; // slight inset of back text from the safe margin
   const barcodeW = BARCODE_W_IN * IN;
   const barcodeH = BARCODE_H_IN * IN;
 
@@ -118,9 +119,11 @@ export function renderCoverHtml(input: CoverInput): string {
   const defaultSpine = input.pageCount >= 100 ? `${input.title}${input.author ? ` — ${input.author}` : ''}` : '';
   const spineText = input.spineText !== undefined ? input.spineText : defaultSpine;
 
-  const frontStyle = input.frontFullBleed
-    ? 'width:100%;height:100%;object-fit:cover;display:block;'
-    : 'max-width:82%;max-height:88%;object-fit:contain;box-shadow:0 6px 22px rgba(0,0,0,0.35);';
+  // Default: fill the front panel proportionally (to trim edges + spine fold).
+  // `frontFullBleed === false` opts into a centered/framed front instead.
+  const frontStyle = input.frontFullBleed === false
+    ? 'max-width:82%;max-height:88%;object-fit:contain;box-shadow:0 6px 22px rgba(0,0,0,0.35);'
+    : 'width:100%;height:100%;object-fit:cover;display:block;';
   const frontPanel = input.frontImageUrl
     ? `<img src="${esc(input.frontImageUrl)}" alt="Front cover" style="${frontStyle}" />`
     : `<div style="color:${fg};text-align:center;padding:0 8%;"><div style="font-size:1.6rem;font-weight:800;">${esc(input.title)}</div>${input.author ? `<div style="margin-top:1rem;">${esc(input.author)}</div>` : ''}</div>`;
@@ -153,7 +156,7 @@ export function renderCoverHtml(input: CoverInput): string {
   .wrap{position:absolute;inset:0;display:flex;}
   .panel{height:100%;box-sizing:border-box;position:relative;overflow:hidden;}
   .back{width:${backPx}px;background:${bg};color:${fg};}
-  .back .blurb{position:absolute;left:${safePx}px;top:${safePx}px;right:${safePx}px;bottom:${blurbBottom}px;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;}
+  .back .blurb{position:absolute;left:${safePx + pad}px;top:${safePx + pad}px;right:${safePx + pad}px;bottom:${blurbBottom}px;text-align:left;overflow:hidden;}
   .back .blurb span{font-size:0.82rem;line-height:1.55;white-space:pre-wrap;}
   .spine{width:${spinePx}px;background:${spineBg};color:${fg};display:flex;align-items:center;justify-content:center;}
   .spine .txt{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-weight:600;font-size:0.8rem;}
