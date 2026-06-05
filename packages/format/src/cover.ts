@@ -65,8 +65,10 @@ export interface CoverInput {
   /** Optional background/pattern image — fills back, spine, and front margins. */
   backgroundImageUrl?: string;
   spineColor?: string;
-  /** Front-cover artwork, centered within the front panel (not full-bleed). */
+  /** Front-cover artwork. Centered within the front panel unless full-bleed. */
   frontImageUrl?: string;
+  /** When true, the front art bleeds to the edges instead of being centered. */
+  frontFullBleed?: boolean;
   backText?: string;
   textColor?: string;
   /** Spine text. undefined → auto (title — author at 100+ pages); '' → blank. */
@@ -103,7 +105,9 @@ export function renderCoverHtml(input: CoverInput): string {
   const frontPx = dims.frontWidthIn * IN;
   const wrapPx = dims.wrapIn * IN;
   const safePx = (dims.wrapIn + SAFE_MARGIN_IN) * IN;
-  const safeIn = SAFE_MARGIN_IN * IN;
+  const gap = 0.12 * IN; // lift the barcode off the safe line
+  const barcodeW = BARCODE_W_IN * IN;
+  const barcodeH = BARCODE_H_IN * IN;
 
   const fg = input.textColor ?? '#ffffff';
   const bg = input.backgroundImageUrl
@@ -114,14 +118,21 @@ export function renderCoverHtml(input: CoverInput): string {
   const defaultSpine = input.pageCount >= 100 ? `${input.title}${input.author ? ` — ${input.author}` : ''}` : '';
   const spineText = input.spineText !== undefined ? input.spineText : defaultSpine;
 
+  const frontStyle = input.frontFullBleed
+    ? 'width:100%;height:100%;object-fit:cover;display:block;'
+    : 'max-width:82%;max-height:88%;object-fit:contain;box-shadow:0 6px 22px rgba(0,0,0,0.35);';
   const frontPanel = input.frontImageUrl
-    ? `<img src="${esc(input.frontImageUrl)}" alt="Front cover" style="max-width:82%;max-height:88%;object-fit:contain;box-shadow:0 6px 22px rgba(0,0,0,0.35);" />`
+    ? `<img src="${esc(input.frontImageUrl)}" alt="Front cover" style="${frontStyle}" />`
     : `<div style="color:${fg};text-align:center;padding:0 8%;"><div style="font-size:1.6rem;font-weight:800;">${esc(input.title)}</div>${input.author ? `<div style="margin-top:1rem;">${esc(input.author)}</div>` : ''}</div>`;
 
-  // Barcode keep-out: bottom-RIGHT of the back panel (toward the spine), with a
-  // safe-margin gap from the spine fold and the bottom trim — per KDP.
+  // Back blurb is centered within the back panel's safe area; on a mockup it
+  // reserves space for the barcode below so they never overlap.
+  const blurbBottom = showGuides ? safePx + barcodeH + gap * 2 : safePx;
+
+  // Barcode keep-out: bottom-RIGHT of the back panel (toward the spine), lifted
+  // off the safe lines so it touches neither the bottom nor the spine margin.
   const barcode = showGuides
-    ? `<div style="position:absolute;right:${safeIn}px;bottom:${safePx}px;width:${BARCODE_W_IN * IN}px;height:${BARCODE_H_IN * IN}px;background:#fff;border:1px solid #bbb;border-radius:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#222;">
+    ? `<div style="position:absolute;right:${safePx + gap}px;bottom:${safePx + gap}px;width:${barcodeW}px;height:${barcodeH}px;background:#fff;border:1px solid #bbb;border-radius:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#222;">
         <div style="height:48px;display:flex;align-items:flex-end;gap:0;">${barcodeBars()}</div>
         <div style="font:600 10px/1.2 monospace;margin-top:4px;">ISBN ${esc(input.isbn ?? '978-1-23456-789-0')}</div>
       </div>`
@@ -137,19 +148,20 @@ export function renderCoverHtml(input: CoverInput): string {
     : '';
 
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-  html,body{margin:0;padding:0;background:#fff;}
-  .stage{position:relative;width:${W}px;height:${H}px;font-family:system-ui,sans-serif;}
+  html,body{margin:0;padding:0;background:#fff;overflow:hidden;}
+  .stage{position:relative;width:${W}px;height:${H}px;overflow:hidden;font-family:system-ui,sans-serif;}
   .wrap{position:absolute;inset:0;display:flex;}
-  .panel{height:100%;box-sizing:border-box;position:relative;}
-  .back{width:${backPx}px;background:${bg};color:${fg};padding:${safePx}px;}
-  .back .blurb{font-size:0.82rem;line-height:1.5;white-space:pre-wrap;max-width:74%;}
+  .panel{height:100%;box-sizing:border-box;position:relative;overflow:hidden;}
+  .back{width:${backPx}px;background:${bg};color:${fg};}
+  .back .blurb{position:absolute;left:${safePx}px;top:${safePx}px;right:${safePx}px;bottom:${blurbBottom}px;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;}
+  .back .blurb span{font-size:0.82rem;line-height:1.55;white-space:pre-wrap;}
   .spine{width:${spinePx}px;background:${spineBg};color:${fg};display:flex;align-items:center;justify-content:center;}
   .spine .txt{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-weight:600;font-size:0.8rem;}
-  .front{width:${frontPx}px;background:${bg};display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .front{width:${frontPx}px;background:${bg};display:flex;align-items:center;justify-content:center;}
   </style></head><body>
   <div class="stage">
     <div class="wrap">
-      <div class="panel back"><div class="blurb">${esc(input.backText ?? 'Your back-cover description appears here.')}</div>${barcode}</div>
+      <div class="panel back"><div class="blurb"><span>${esc(input.backText ?? 'Your back-cover description appears here.')}</span></div>${barcode}</div>
       <div class="panel spine">${spineText ? `<div class="txt">${esc(spineText)}</div>` : ''}</div>
       <div class="panel front">${frontPanel}</div>
     </div>

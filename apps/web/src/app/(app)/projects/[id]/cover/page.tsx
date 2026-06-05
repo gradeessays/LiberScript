@@ -13,6 +13,7 @@ import { ScaledStage } from '@/components/scaled-stage';
 interface CoverState {
   frontImageStorageKey?: string;
   backgroundImageStorageKey?: string;
+  frontFullBleed?: boolean;
   dominantColor?: string;
   spineColor?: string;
   textColor?: string;
@@ -150,6 +151,7 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
       backText: cover.backText,
       spineText: cover.spineText,
       frontImageUrl: query.data.frontImageUrl,
+      frontFullBleed: cover.frontFullBleed,
       backgroundImageUrl: query.data.backgroundImageUrl,
     });
   }, [query.data, cover, trim.widthIn, trim.heightIn, binding]);
@@ -191,8 +193,26 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
             <Button variant="outline" size="sm" onClick={() => frontInput.current?.click()}>
               {cover.frontImageStorageKey ? 'Replace front cover' : 'Upload front cover'}
             </Button>
+            <div className="flex gap-1">
+              {([['centered', 'Centered'], ['full', 'Full-bleed']] as const).map(([v, label]) => {
+                const active = (v === 'full') === Boolean(cover.frontFullBleed);
+                return (
+                  <button
+                    key={v}
+                    onClick={() => set({ frontFullBleed: v === 'full' })}
+                    className={cn(
+                      'rounded-md border px-2 py-1 text-xs',
+                      active ? 'bg-accent font-medium' : 'hover:bg-accent',
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
             <p className="text-xs text-muted-foreground">
-              The front art is centered in the front panel; the background fills the rest.
+              Centered: art floats inside the front, background fills the rest. Full-bleed: art
+              covers the whole front.
             </p>
           </section>
 
