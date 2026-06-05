@@ -5,3 +5,5 @@ export * from './ids';
 export * from './formats';
 export * from './text';
 export * from './tiptap';
+export * from './book';
+export * from './copyright';

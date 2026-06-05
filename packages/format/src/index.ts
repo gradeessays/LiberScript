@@ -3,6 +3,7 @@ export { FONTS, THEMES, THEME_BY_KEY, DEFAULT_THEME_KEY, getTheme } from './them
 export { tiptapToHtml } from './tiptap-html';
 export {
   googleFontsHref,
+  applyTypography,
   themeCss,
   renderChapter,
   renderFrontMatter,

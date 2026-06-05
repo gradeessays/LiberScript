@@ -26,7 +26,14 @@ export const projectRouter = router({
           include: {
             chapters: {
               orderBy: { order: 'asc' },
-              select: { id: true, title: true, subtitle: true, order: true, wordCount: true },
+              select: {
+                id: true,
+                kind: true,
+                title: true,
+                subtitle: true,
+                order: true,
+                wordCount: true,
+              },
             },
           },
         },

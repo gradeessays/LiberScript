@@ -1,9 +1,38 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { MemberRole, tiptapText, countWords, type TiptapDoc } from '@liberscript/core';
-import type { Prisma, PrismaClient } from '@liberscript/db';
+import {
+  MemberRole,
+  tiptapText,
+  countWords,
+  ChapterKind,
+  KIND_LABELS,
+  groupOfKind,
+  type TiptapDoc,
+} from '@liberscript/core';
+import type { ChapterKind as PrismaChapterKind, Prisma, PrismaClient } from '@liberscript/db';
 import { protectedProcedure, router } from '../trpc';
 import { requireChapterAccess, requireProjectAccess } from '../lib/ownership';
+
+const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] };
+const GROUP_RANK: Record<string, number> = { front: 0, body: 1, back: 2 };
+
+/** Place every element at the end of its section group (front → body → back). */
+async function regroupOrder(tx: Prisma.TransactionClient, manuscriptId: string) {
+  const chapters = await tx.chapter.findMany({
+    where: { manuscriptId },
+    orderBy: { order: 'asc' },
+    select: { id: true, kind: true },
+  });
+  const sorted = [...chapters].sort(
+    (a, b) => (GROUP_RANK[groupOfKind(a.kind)] ?? 1) - (GROUP_RANK[groupOfKind(b.kind)] ?? 1),
+  );
+  await Promise.all(
+    sorted.map((c, i) => tx.chapter.update({ where: { id: c.id }, data: { order: 1000 + i } })),
+  );
+  await Promise.all(
+    sorted.map((c, i) => tx.chapter.update({ where: { id: c.id }, data: { order: i } })),
+  );
+}
 
 /** TipTap doc — validated loosely (a JSON object); the editor owns the shape. */
 const tiptapDoc = z.record(z.any());
@@ -87,9 +116,15 @@ export const chapterRouter = router({
       return { ok: true };
     }),
 
-  /** Append a new empty chapter to a project's manuscript. */
+  /** Add a typed element (chapter or front/back-matter), placed in its group. */
   create: protectedProcedure
-    .input(z.object({ projectId: z.string(), title: z.string().min(1).max(300).default('New chapter') }))
+    .input(
+      z.object({
+        projectId: z.string(),
+        kind: z.nativeEnum(ChapterKind).default(ChapterKind.CHAPTER),
+        title: z.string().min(1).max(300).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       await requireProjectAccess(ctx, input.projectId, MemberRole.EDITOR);
       const manuscript = await ctx.prisma.manuscript.upsert({
@@ -102,14 +137,39 @@ export const chapterRouter = router({
         orderBy: { order: 'desc' },
         select: { order: true },
       });
-      return ctx.prisma.chapter.create({
-        data: {
-          manuscriptId: manuscript.id,
-          title: input.title,
-          order: (last?.order ?? -1) + 1,
-          content: { type: 'doc', content: [{ type: 'paragraph' }] },
-        },
+      const title =
+        input.title ??
+        (input.kind === ChapterKind.CHAPTER ? 'New chapter' : KIND_LABELS[input.kind]);
+      const defaultData =
+        input.kind === ChapterKind.COPYRIGHT ? { genre: 'fiction' } : undefined;
+
+      const created = await ctx.prisma.$transaction(async (tx) => {
+        const chapter = await tx.chapter.create({
+          data: {
+            manuscriptId: manuscript.id,
+            kind: input.kind as PrismaChapterKind,
+            title,
+            order: (last?.order ?? -1) + 1,
+            content: EMPTY_DOC,
+            ...(defaultData ? { data: defaultData } : {}),
+          },
+        });
+        await regroupOrder(tx, manuscript.id);
+        return chapter;
       });
+      return created;
+    }),
+
+  /** Update structured data for form-based elements (title page, copyright). */
+  updateData: protectedProcedure
+    .input(z.object({ id: z.string(), data: z.record(z.any()).nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireChapterAccess(ctx, input.id, MemberRole.EDITOR);
+      await ctx.prisma.chapter.update({
+        where: { id: input.id },
+        data: { data: (input.data ?? undefined) as Prisma.InputJsonValue | undefined },
+      });
+      return { ok: true };
     }),
 
   /** Delete a chapter and re-number the rest. */

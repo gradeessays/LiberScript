@@ -1,38 +1,69 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { JSONContent } from '@tiptap/react';
-import { Button, buttonVariants, cn, Input } from '@liberscript/ui';
+import {
+  ChapterKind,
+  KIND_LABELS,
+  groupOfKind,
+  AUTO_KINDS,
+  type SectionGroup,
+} from '@liberscript/core';
+import { Button, buttonVariants, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
 import { ManuscriptEditor } from '@/components/editor/manuscript-editor';
+import { TitlePageForm } from '@/components/editor/title-page-form';
+import { CopyrightForm } from '@/components/editor/copyright-form';
+
+const ADDABLE: ChapterKind[] = [
+  ChapterKind.TITLE_PAGE,
+  ChapterKind.COPYRIGHT,
+  ChapterKind.EPIGRAPH,
+  ChapterKind.DEDICATION,
+  ChapterKind.TOC,
+  ChapterKind.PROLOGUE,
+  ChapterKind.INTRODUCTION,
+  ChapterKind.PART,
+  ChapterKind.ACKNOWLEDGMENTS,
+  ChapterKind.ABOUT_AUTHOR,
+  ChapterKind.ALSO_BY,
+];
+
+const GROUP_TITLES: Record<SectionGroup, string> = {
+  front: 'Front matter',
+  body: 'Chapters',
+  back: 'Back matter',
+};
 
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const utils = trpc.useUtils();
   const project = trpc.project.get.useQuery({ id });
-  const chapters = project.data?.manuscript?.chapters ?? [];
+  const elements = useMemo(() => project.data?.manuscript?.chapters ?? [], [project.data]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   useEffect(() => {
-    if (!selectedId && chapters[0]) setSelectedId(chapters[0].id);
-  }, [chapters, selectedId]);
+    if (!selectedId && elements[0]) setSelectedId(elements[0].id);
+  }, [elements, selectedId]);
 
   const chapter = trpc.chapter.get.useQuery(
     { id: selectedId ?? '' },
     { enabled: Boolean(selectedId) },
   );
 
-  const refresh = async () => {
-    await Promise.all([utils.project.get.invalidate({ id }), utils.chapter.get.invalidate()]);
-  };
+  const refresh = () =>
+    Promise.all([utils.project.get.invalidate({ id }), utils.chapter.get.invalidate()]);
 
   const updateContent = trpc.chapter.updateContent.useMutation();
   const updateMeta = trpc.chapter.updateMeta.useMutation({ onSuccess: refresh });
-  const createChapter = trpc.chapter.create.useMutation({
+  const updateData = trpc.chapter.updateData.useMutation({ onSuccess: refresh });
+  const create = trpc.chapter.create.useMutation({
     onSuccess: async (c) => {
       await refresh();
       setSelectedId(c.id);
+      setAddOpen(false);
     },
   });
   const removeChapter = trpc.chapter.remove.useMutation({ onSuccess: refresh });
@@ -50,7 +81,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     },
   });
 
-  // Chapter meta (title/subtitle) local form, synced when the chapter loads.
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   useEffect(() => {
@@ -61,12 +91,18 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   }, [chapter.data]);
 
   function move(index: number, dir: -1 | 1) {
-    const next = [...chapters];
+    const next = [...elements];
     const target = index + dir;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target]!, next[index]!];
     reorder.mutate({ projectId: id, orderedIds: next.map((c) => c.id) });
   }
+
+  const groups: SectionGroup[] = ['front', 'body', 'back'];
+  let chapterNo = 0;
+
+  const selectedKind = chapter.data?.kind as ChapterKind | undefined;
+  const data = (chapter.data?.data ?? {}) as Record<string, unknown>;
 
   return (
     <div className="space-y-4">
@@ -75,63 +111,123 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           <Link href={`/projects/${id}`} className="text-sm text-muted-foreground hover:underline">
             ← {project.data?.title ?? 'Project'}
           </Link>
-          <h1 className="text-xl font-semibold tracking-tight">Editor</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Book builder</h1>
         </div>
-        <Button size="sm" onClick={() => createChapter.mutate({ projectId: id })}>
-          + Add chapter
-        </Button>
+        <div className="flex gap-2">
+          <Link
+            href={`/projects/${id}/design`}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            Design &amp; preview
+          </Link>
+          <Button size="sm" onClick={() => create.mutate({ projectId: id, kind: ChapterKind.CHAPTER })}>
+            + Chapter
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[260px_1fr]">
-        {/* Chapter list */}
-        <aside className="h-fit rounded-lg border">
-          {chapters.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">
-              No chapters yet. Upload a manuscript or add one.
-            </p>
-          ) : (
-            <ul className="divide-y">
-              {chapters.map((c, i) => (
-                <li
-                  key={c.id}
-                  className={cn(
-                    'flex items-center gap-1 px-2 py-2 text-sm',
-                    c.id === selectedId && 'bg-accent',
-                  )}
-                >
+      <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+        {/* Sectioned outline */}
+        <aside className="h-fit space-y-3 rounded-lg border p-2">
+          {groups.map((g) => {
+            const items = elements.filter((e) => groupOfKind(e.kind as ChapterKind) === g);
+            return (
+              <div key={g}>
+                <div className="px-1 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {GROUP_TITLES[g]}
+                </div>
+                <ul>
+                  {items.map((c) => {
+                    const globalIndex = elements.findIndex((e) => e.id === c.id);
+                    if (c.kind === ChapterKind.CHAPTER) chapterNo += 1;
+                    const label =
+                      c.kind === ChapterKind.CHAPTER
+                        ? `${chapterNo}. ${c.title}`
+                        : KIND_LABELS[c.kind as ChapterKind] ?? c.title;
+                    return (
+                      <li
+                        key={c.id}
+                        className={cn(
+                          'flex items-center gap-1 rounded px-2 py-1.5 text-sm',
+                          c.id === selectedId && 'bg-accent',
+                        )}
+                      >
+                        <button
+                          className="flex-1 truncate text-left"
+                          onClick={() => setSelectedId(c.id)}
+                          title={c.title}
+                        >
+                          {label}
+                        </button>
+                        <button
+                          className="px-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
+                          disabled={globalIndex === 0}
+                          onClick={() => move(globalIndex, -1)}
+                          aria-label="Move up"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          className="px-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
+                          disabled={globalIndex === elements.length - 1}
+                          onClick={() => move(globalIndex, 1)}
+                          aria-label="Move down"
+                        >
+                          ↓
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+
+          {/* Add element */}
+          <div className="relative px-1">
+            <Button variant="outline" size="sm" className="w-full" onClick={() => setAddOpen((o) => !o)}>
+              + Add element
+            </Button>
+            {addOpen && (
+              <div className="absolute z-10 mt-1 w-full rounded-md border bg-background p-1 shadow-md">
+                {ADDABLE.map((k) => (
                   <button
-                    className="flex-1 truncate text-left"
-                    onClick={() => setSelectedId(c.id)}
-                    title={c.title}
+                    key={k}
+                    className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    onClick={() => create.mutate({ projectId: id, kind: k })}
                   >
-                    <span className="text-muted-foreground">{i + 1}.</span> {c.title}
-                    {c.subtitle && <span className="text-muted-foreground"> — {c.subtitle}</span>}
+                    {KIND_LABELS[k]}
                   </button>
-                  <button
-                    className="px-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    disabled={i === 0}
-                    onClick={() => move(i, -1)}
-                    aria-label="Move up"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    className="px-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    disabled={i === chapters.length - 1}
-                    onClick={() => move(i, 1)}
-                    aria-label="Move down"
-                  >
-                    ↓
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </aside>
 
         {/* Editing pane */}
         <section className="space-y-3">
-          {selectedId && chapter.data ? (
+          {!selectedId || !chapter.data ? (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+              Select an element, add a chapter, or build your front matter.
+            </div>
+          ) : AUTO_KINDS.includes(selectedKind as ChapterKind) ? (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">Table of Contents</p>
+              Auto-generated from your parts and chapters. It updates as you add or rename
+              chapters — no editing needed.
+            </div>
+          ) : selectedKind === ChapterKind.TITLE_PAGE ? (
+            <TitlePageForm
+              data={data}
+              onSave={(d) => updateData.mutate({ id: selectedId, data: d })}
+            />
+          ) : selectedKind === ChapterKind.COPYRIGHT ? (
+            <CopyrightForm
+              bookTitle={project.data?.title ?? ''}
+              data={data}
+              onSave={(d) => updateData.mutate({ id: selectedId, data: d })}
+            />
+          ) : (
             <>
               <div className="space-y-2 rounded-lg border p-3">
                 <Input
@@ -139,33 +235,70 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   onChange={(e) => setTitle(e.target.value)}
                   onBlur={() => title.trim() && updateMeta.mutate({ id: selectedId, title, subtitle })}
                   className="text-lg font-semibold"
-                  placeholder="Chapter title"
+                  placeholder="Title"
                 />
-                <Input
-                  value={subtitle}
-                  onChange={(e) => setSubtitle(e.target.value)}
-                  onBlur={() =>
-                    updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })
-                  }
-                  placeholder="Subtitle (optional)"
-                />
+                {selectedKind === ChapterKind.CHAPTER && (
+                  <Input
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                    onBlur={() =>
+                      updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })
+                    }
+                    placeholder="Subtitle (optional)"
+                  />
+                )}
+                {selectedKind === ChapterKind.EPIGRAPH && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label>Attribution</Label>
+                      <Input
+                        defaultValue={(data.attribution as string) ?? ''}
+                        onBlur={(e) =>
+                          updateData.mutate({
+                            id: selectedId,
+                            data: { ...data, attribution: e.target.value },
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Style</Label>
+                      <select
+                        className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        defaultValue={(data.style as string) ?? 'centered'}
+                        onChange={(e) =>
+                          updateData.mutate({
+                            id: selectedId,
+                            data: { ...data, style: e.target.value },
+                          })
+                        }
+                      >
+                        <option value="centered">Centered italic</option>
+                        <option value="bordered">Rule-bordered</option>
+                        <option value="large">Large quote</option>
+                        <option value="plain">Plain</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => mergeUp.mutate({ id: selectedId })}
-                    disabled={chapters.findIndex((c) => c.id === selectedId) === 0}
-                  >
-                    Merge into previous
-                  </Button>
+                  {selectedKind === ChapterKind.CHAPTER && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => mergeUp.mutate({ id: selectedId })}
+                    >
+                      Merge into previous
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      if (confirm('Delete this chapter?')) removeChapter.mutate({ id: selectedId });
+                      if (confirm('Delete this element?')) removeChapter.mutate({ id: selectedId });
                     }}
                   >
-                    Delete chapter
+                    Delete
                   </Button>
                 </div>
               </div>
@@ -181,15 +314,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 }
               />
             </>
-          ) : (
-            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
-              {chapters.length > 0 ? 'Select a chapter to edit.' : 'Add a chapter to start writing.'}
-              <div className="mt-3">
-                <Link href={`/projects/${id}`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                  Back to project
-                </Link>
-              </div>
-            </div>
           )}
         </section>
       </div>

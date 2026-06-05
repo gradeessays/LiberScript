@@ -66,6 +66,22 @@ export interface RenderChapter {
   content: unknown;
 }
 
+/** A typed book element (front matter, body, or back matter). */
+export interface BookElement {
+  kind: string;
+  title?: string | null;
+  subtitle?: string | null;
+  /** Structured fields for form-based elements (title page, copyright). */
+  data?: Record<string, unknown> | null;
+  /** TipTap content for prose elements. */
+  content?: unknown;
+}
+
+export interface TocEntry {
+  index: number;
+  title: string;
+}
+
 export interface RenderOptions {
   theme: BookTheme;
   target: RenderTarget;

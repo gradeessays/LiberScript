@@ -10,6 +10,7 @@ interface Formatting {
   publisherName?: string;
   author?: string;
   logoStorageKey?: string;
+  typography?: Record<string, unknown>;
 }
 
 export const formattingRouter = router({
@@ -26,7 +27,14 @@ export const formattingRouter = router({
               include: {
                 chapters: {
                   orderBy: { order: 'asc' },
-                  select: { id: true, title: true, subtitle: true, content: true },
+                  select: {
+                    id: true,
+                    kind: true,
+                    title: true,
+                    subtitle: true,
+                    content: true,
+                    data: true,
+                  },
                 },
               },
             },
@@ -53,10 +61,12 @@ export const formattingRouter = router({
           publisherName: fmt.publisherName,
           logoUrl,
         },
-        chapters: (full.manuscript?.chapters ?? []).map((c, i) => ({
-          index: i + 1,
+        typography: (fmt.typography ?? null) as Record<string, unknown> | null,
+        elements: (full.manuscript?.chapters ?? []).map((c) => ({
+          kind: c.kind,
           title: c.title,
           subtitle: c.subtitle,
+          data: c.data as Record<string, unknown> | null,
           content: c.content,
         })),
       };
@@ -71,6 +81,7 @@ export const formattingRouter = router({
         publisherName: z.string().max(160).nullish(),
         author: z.string().max(160).nullish(),
         logoStorageKey: z.string().max(400).nullish(),
+        typography: z.record(z.any()).nullish(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -83,6 +94,7 @@ export const formattingRouter = router({
       if (input.publisherName !== undefined) fmt.publisherName = input.publisherName ?? undefined;
       if (input.author !== undefined) fmt.author = input.author ?? undefined;
       if (input.logoStorageKey !== undefined) fmt.logoStorageKey = input.logoStorageKey ?? undefined;
+      if (input.typography !== undefined) fmt.typography = input.typography ?? undefined;
 
       await ctx.prisma.project.update({
         where: { id: input.projectId },

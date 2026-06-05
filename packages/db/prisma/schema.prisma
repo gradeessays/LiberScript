@@ -25,6 +25,21 @@ enum OwnerType {
 // values ("owner"/"admin"/"editor"/"viewer", "pending"/"accepted"/…). The
 // canonical value sets live in @liberscript/core (MemberRole, InvitationStatus).
 
+enum ChapterKind {
+  TITLE_PAGE
+  COPYRIGHT
+  EPIGRAPH
+  DEDICATION
+  TOC
+  PROLOGUE
+  INTRODUCTION
+  PART
+  CHAPTER
+  ACKNOWLEDGMENTS
+  ABOUT_AUTHOR
+  ALSO_BY
+}
+
 enum PlanTier {
   FREE
   PRO
@@ -295,11 +310,15 @@ model Chapter {
   id           String     @id @default(cuid())
   manuscriptId String
   manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  // Element type: front matter (title page, copyright…), body (chapter/part), back matter.
+  kind         ChapterKind @default(CHAPTER)
   title        String
   subtitle     String?
   order        Int
   // Rich content as TipTap/ProseMirror JSON.
   content      Json
+  // Structured data for form-based elements (title page, copyright).
+  data         Json?
   wordCount    Int        @default(0)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
