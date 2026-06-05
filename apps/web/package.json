@@ -15,6 +15,7 @@
     "@liberscript/auth": "workspace:*",
     "@liberscript/core": "workspace:*",
     "@liberscript/db": "workspace:*",
+    "@liberscript/format": "workspace:*",
     "@liberscript/jobs": "workspace:*",
     "@liberscript/storage": "workspace:*",
     "@liberscript/ui": "workspace:*",

@@ -11,6 +11,7 @@ const nextConfig = {
     '@liberscript/jobs',
     '@liberscript/ui',
     '@liberscript/auth',
+    '@liberscript/format',
   ],
   // Node-only packages — keep them external instead of bundling into the server.
   // better-auth pulls in optional kysely/sqlite dialects that must not be bundled.

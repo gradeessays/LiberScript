@@ -123,7 +123,14 @@ export interface PlanLimits {
   collaboratorsPerProject: number | null;
   analysisRunsPerMonth: number | null;
   exportsPerMonth: number | null;
+  /** BYO-AI tools (content generation, AI critique). */
   aiEnabled: boolean;
+  /** Upload + embed custom fonts. */
+  customFonts: boolean;
+  /** Remove the "Made with Liberscript" attribution from exports. */
+  removeWatermark: boolean;
+  /** Access premium/advanced themes beyond the basic genre presets. */
+  premiumThemes: boolean;
 }
 
 export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
@@ -132,7 +139,10 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     collaboratorsPerProject: 1,
     analysisRunsPerMonth: 10,
     exportsPerMonth: 5,
-    aiEnabled: true,
+    aiEnabled: false,
+    customFonts: false,
+    removeWatermark: false,
+    premiumThemes: false,
   },
   PRO: {
     projects: null,
@@ -140,6 +150,9 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     analysisRunsPerMonth: 200,
     exportsPerMonth: null,
     aiEnabled: true,
+    customFonts: true,
+    removeWatermark: true,
+    premiumThemes: true,
   },
   TEAM: {
     projects: null,
@@ -147,6 +160,9 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     analysisRunsPerMonth: null,
     exportsPerMonth: null,
     aiEnabled: true,
+    customFonts: true,
+    removeWatermark: true,
+    premiumThemes: true,
   },
 };
 

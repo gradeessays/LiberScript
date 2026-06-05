@@ -51,9 +51,17 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
         </Link>
         <div className="mt-1 flex items-center justify-between gap-4">
           <h1 className="text-2xl font-semibold tracking-tight">{data.title}</h1>
-          <Link href={`/projects/${id}/edit`} className={buttonVariants({ size: 'sm' })}>
-            Open editor
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href={`/projects/${id}/design`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              Design &amp; preview
+            </Link>
+            <Link href={`/projects/${id}/edit`} className={buttonVariants({ size: 'sm' })}>
+              Open editor
+            </Link>
+          </div>
         </div>
         {manuscript && (
           <p className="text-muted-foreground">

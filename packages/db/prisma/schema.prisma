@@ -250,6 +250,9 @@ model Project {
   slug        String
   subtitle    String?
   description String?
+  // Formatting/design: selected theme + overrides (publisher, logo, fonts).
+  themeKey    String    @default("novel-classic")
+  formatting  Json?
   // Owner is a user OR an organization (team-shared project).
   ownerType   OwnerType
   ownerId     String
