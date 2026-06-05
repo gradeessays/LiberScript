@@ -210,90 +210,23 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             <div className="rounded-lg border p-6 text-sm text-muted-foreground">
               Select an element, add a chapter, or build your front matter.
             </div>
-          ) : AUTO_KINDS.includes(selectedKind as ChapterKind) ? (
-            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Table of Contents</p>
-              Auto-generated from your parts and chapters. It updates as you add or rename
-              chapters — no editing needed.
-            </div>
-          ) : selectedKind === ChapterKind.TITLE_PAGE ? (
-            <TitlePageForm
-              data={data}
-              onSave={(d) => updateData.mutate({ id: selectedId, data: d })}
-            />
-          ) : selectedKind === ChapterKind.COPYRIGHT ? (
-            <CopyrightForm
-              bookTitle={project.data?.title ?? ''}
-              data={data}
-              onSave={(d) => updateData.mutate({ id: selectedId, data: d })}
-            />
           ) : (
             <>
-              <div className="space-y-2 rounded-lg border p-3">
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onBlur={() => title.trim() && updateMeta.mutate({ id: selectedId, title, subtitle })}
-                  className="text-lg font-semibold"
-                  placeholder="Title"
-                />
-                {selectedKind === ChapterKind.CHAPTER && (
-                  <Input
-                    value={subtitle}
-                    onChange={(e) => setSubtitle(e.target.value)}
-                    onBlur={() =>
-                      updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })
-                    }
-                    placeholder="Subtitle (optional)"
-                  />
-                )}
-                {selectedKind === ChapterKind.EPIGRAPH && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label>Attribution</Label>
-                      <Input
-                        defaultValue={(data.attribution as string) ?? ''}
-                        onBlur={(e) =>
-                          updateData.mutate({
-                            id: selectedId,
-                            data: { ...data, attribution: e.target.value },
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Style</Label>
-                      <select
-                        className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
-                        defaultValue={(data.style as string) ?? 'centered'}
-                        onChange={(e) =>
-                          updateData.mutate({
-                            id: selectedId,
-                            data: { ...data, style: e.target.value },
-                          })
-                        }
-                      >
-                        <option value="centered">Centered italic</option>
-                        <option value="bordered">Rule-bordered</option>
-                        <option value="large">Large quote</option>
-                        <option value="plain">Plain</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
+              {/* Actions — available for every element kind */}
+              <div className="flex items-center justify-between rounded-lg border p-2">
+                <span className="text-sm font-medium">
+                  {KIND_LABELS[selectedKind as ChapterKind] ?? 'Element'}
+                </span>
                 <div className="flex gap-2">
                   {selectedKind === ChapterKind.CHAPTER && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => mergeUp.mutate({ id: selectedId })}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => mergeUp.mutate({ id: selectedId })}>
                       Merge into previous
                     </Button>
                   )}
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="text-destructive"
                     onClick={() => {
                       if (confirm('Delete this element?')) removeChapter.mutate({ id: selectedId });
                     }}
@@ -303,16 +236,88 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
 
-              <ManuscriptEditor
-                key={selectedId}
-                initialContent={chapter.data.content as JSONContent}
-                onSave={async (content) => {
-                  await updateContent.mutateAsync({ id: selectedId, content });
-                }}
-                onSplit={(before, after) =>
-                  split.mutate({ id: selectedId, before, after, newTitle: 'Untitled chapter' })
-                }
-              />
+              {AUTO_KINDS.includes(selectedKind as ChapterKind) ? (
+                <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">Table of Contents</p>
+                  Auto-generated from your parts and chapters. It updates as you add or rename
+                  chapters — no editing needed.
+                </div>
+              ) : selectedKind === ChapterKind.TITLE_PAGE ? (
+                <TitlePageForm data={data} onSave={(d) => updateData.mutate({ id: selectedId, data: d })} />
+              ) : selectedKind === ChapterKind.COPYRIGHT ? (
+                <CopyrightForm
+                  bookTitle={project.data?.title ?? ''}
+                  data={data}
+                  onSave={(d) => updateData.mutate({ id: selectedId, data: d })}
+                />
+              ) : (
+                <>
+                  <div className="space-y-2 rounded-lg border p-3">
+                    <Input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      onBlur={() => title.trim() && updateMeta.mutate({ id: selectedId, title, subtitle })}
+                      className="text-lg font-semibold"
+                      placeholder="Title"
+                    />
+                    {selectedKind === ChapterKind.CHAPTER && (
+                      <Input
+                        value={subtitle}
+                        onChange={(e) => setSubtitle(e.target.value)}
+                        onBlur={() =>
+                          updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })
+                        }
+                        placeholder="Subtitle (optional)"
+                      />
+                    )}
+                    {selectedKind === ChapterKind.EPIGRAPH && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label>Attribution</Label>
+                          <Input
+                            defaultValue={(data.attribution as string) ?? ''}
+                            onBlur={(e) =>
+                              updateData.mutate({
+                                id: selectedId,
+                                data: { ...data, attribution: e.target.value },
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Style</Label>
+                          <select
+                            className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                            defaultValue={(data.style as string) ?? 'centered'}
+                            onChange={(e) =>
+                              updateData.mutate({
+                                id: selectedId,
+                                data: { ...data, style: e.target.value },
+                              })
+                            }
+                          >
+                            <option value="centered">Centered italic</option>
+                            <option value="bordered">Rule-bordered</option>
+                            <option value="large">Large quote</option>
+                            <option value="plain">Plain</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <ManuscriptEditor
+                    key={selectedId}
+                    initialContent={chapter.data.content as JSONContent}
+                    onSave={async (content) => {
+                      await updateContent.mutateAsync({ id: selectedId, content });
+                    }}
+                    onSplit={(before, after) =>
+                      split.mutate({ id: selectedId, before, after, newTitle: 'Untitled chapter' })
+                    }
+                  />
+                </>
+              )}
             </>
           )}
         </section>

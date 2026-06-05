@@ -12,13 +12,16 @@ import { ScaledStage } from '@/components/scaled-stage';
 
 interface CoverState {
   frontImageStorageKey?: string;
+  backgroundImageStorageKey?: string;
   dominantColor?: string;
   spineColor?: string;
   textColor?: string;
   backText?: string;
+  spineText?: string;
   paper?: PaperType;
   pageCount?: number;
   trimKey?: string;
+  binding?: Binding;
 }
 
 function trimOf(trimKey?: string): { widthIn: number; heightIn: number } {
@@ -26,14 +29,47 @@ function trimOf(trimKey?: string): { widthIn: number; heightIn: number } {
   return t ? { widthIn: t.widthIn, heightIn: t.heightIn } : { widthIn: 6, heightIn: 9 };
 }
 
+/** Color picker + hex text input bound to the same value. */
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label>{label}</Label>
+      <div className="flex gap-1">
+        <input
+          type="color"
+          className="h-9 w-10 shrink-0 rounded border"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <Input
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v);
+          }}
+          className="h-9 font-mono text-xs"
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function CoverPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const utils = trpc.useUtils();
   const query = trpc.cover.get.useQuery({ projectId: id });
-  const fileInput = useRef<HTMLInputElement>(null);
+  const frontInput = useRef<HTMLInputElement>(null);
+  const bgInput = useRef<HTMLInputElement>(null);
 
   const [cover, setCover] = useState<CoverState>({ paper: 'white', pageCount: 200, trimKey: '6x9' });
-  const [binding, setBinding] = useState<Binding>('paperback');
   useEffect(() => {
     if (query.data) setCover((c) => ({ ...c, ...(query.data.cover as CoverState) }));
   }, [query.data]);
@@ -41,34 +77,46 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
   const update = trpc.cover.update.useMutation({
     onSuccess: () => utils.cover.get.invalidate({ projectId: id }),
   });
-  const frontUploadUrl = trpc.cover.frontUploadUrl.useMutation();
+  const assetUploadUrl = trpc.cover.assetUploadUrl.useMutation();
 
   const set = (patch: Partial<CoverState>) => setCover((c) => ({ ...c, ...patch }));
+  const binding: Binding = cover.binding ?? 'paperback';
 
-  async function onFront(file: File) {
+  async function uploadImage(file: File, kind: 'front' | 'background'): Promise<string> {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png';
-    const dominant = await extractDominantColor(file);
-    const { uploadUrl, storageKey } = await frontUploadUrl.mutateAsync({
+    const { uploadUrl, storageKey } = await assetUploadUrl.mutateAsync({
       projectId: id,
+      kind,
       contentType: file.type || 'image/png',
       ext,
     });
     await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-    set({
+    return storageKey;
+  }
+
+  async function onFront(file: File) {
+    const dominant = await extractDominantColor(file);
+    const storageKey = await uploadImage(file, 'front');
+    const patch = {
       frontImageStorageKey: storageKey,
-      dominantColor: dominant.color,
-      spineColor: dominant.color,
-      textColor: dominant.textColor,
-    });
-    await update.mutateAsync({
-      projectId: id,
-      cover: {
-        frontImageStorageKey: storageKey,
-        dominantColor: dominant.color,
-        spineColor: dominant.color,
-        textColor: dominant.textColor,
-      },
-    });
+      dominantColor: cover.dominantColor ?? dominant.color,
+      textColor: cover.textColor ?? dominant.textColor,
+    };
+    set(patch);
+    await update.mutateAsync({ projectId: id, cover: patch });
+  }
+
+  async function onBackground(file: File) {
+    const dominant = await extractDominantColor(file);
+    const storageKey = await uploadImage(file, 'background');
+    const patch = { backgroundImageStorageKey: storageKey, textColor: cover.textColor ?? dominant.textColor };
+    set(patch);
+    await update.mutateAsync({ projectId: id, cover: patch });
+  }
+
+  async function clearBackground() {
+    set({ backgroundImageStorageKey: undefined });
+    await update.mutateAsync({ projectId: id, cover: { backgroundImageStorageKey: null } });
   }
 
   const trim = trimOf(cover.trimKey);
@@ -79,6 +127,11 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
     paper: cover.paper ?? 'white',
     binding,
   });
+
+  const autoSpine =
+    (cover.pageCount ?? 0) >= 100 && query.data
+      ? `${query.data.title}${query.data.author ? ` — ${query.data.author}` : ''}`
+      : '';
 
   const html = useMemo(() => {
     if (!query.data) return '';
@@ -95,7 +148,9 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
       spineColor: cover.spineColor,
       textColor: cover.textColor,
       backText: cover.backText,
+      spineText: cover.spineText,
       frontImageUrl: query.data.frontImageUrl,
+      backgroundImageUrl: query.data.backgroundImageUrl,
     });
   }, [query.data, cover, trim.widthIn, trim.heightIn, binding]);
   const debouncedHtml = useDebouncedValue(html, 350);
@@ -124,7 +179,7 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
           <section className="space-y-2">
             <h2 className="text-sm font-medium">Front cover</h2>
             <input
-              ref={fileInput}
+              ref={frontInput}
               type="file"
               accept="image/*"
               className="hidden"
@@ -133,40 +188,63 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
                 if (f) void onFront(f);
               }}
             />
-            <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+            <Button variant="outline" size="sm" onClick={() => frontInput.current?.click()}>
               {cover.frontImageStorageKey ? 'Replace front cover' : 'Upload front cover'}
             </Button>
             <p className="text-xs text-muted-foreground">
-              We extract the dominant color for the back &amp; spine automatically.
+              The front art is centered in the front panel; the background fills the rest.
             </p>
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-sm font-medium">Colors</h2>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label>Back / dominant</Label>
-                <input
-                  type="color"
-                  className="h-9 w-full rounded border"
-                  value={cover.dominantColor ?? '#334155'}
-                  onChange={(e) => set({ dominantColor: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Spine</Label>
-                <input
-                  type="color"
-                  className="h-9 w-full rounded border"
-                  value={cover.spineColor ?? cover.dominantColor ?? '#334155'}
-                  onChange={(e) => set({ spineColor: e.target.value })}
-                />
-              </div>
+            <h2 className="text-sm font-medium">Background</h2>
+            <input
+              ref={bgInput}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void onBackground(f);
+              }}
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => bgInput.current?.click()}>
+                {cover.backgroundImageStorageKey ? 'Replace pattern' : 'Upload pattern / image'}
+              </Button>
+              {cover.backgroundImageStorageKey && (
+                <Button variant="ghost" size="sm" onClick={() => void clearBackground()}>
+                  Use color
+                </Button>
+              )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Use a pattern/image when a single color can&apos;t capture the background, or set exact
+              colors below.
+            </p>
+            {!cover.backgroundImageStorageKey && (
+              <div className="grid grid-cols-2 gap-2">
+                <ColorField
+                  label="Background"
+                  value={cover.dominantColor ?? '#334155'}
+                  onChange={(v) => set({ dominantColor: v })}
+                />
+                <ColorField
+                  label="Spine"
+                  value={cover.spineColor ?? cover.dominantColor ?? '#334155'}
+                  onChange={(v) => set({ spineColor: v })}
+                />
+              </div>
+            )}
+            <ColorField
+              label="Text color (back/spine)"
+              value={cover.textColor ?? '#ffffff'}
+              onChange={(v) => set({ textColor: v })}
+            />
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-sm font-medium">Specs (for spine width)</h2>
+            <h2 className="text-sm font-medium">Specs (spine width)</h2>
             <div className="space-y-1">
               <Label>Book size</Label>
               <select
@@ -205,7 +283,20 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
             </div>
             <p className="text-xs text-muted-foreground">
               Spine: {dims.spineIn.toFixed(3)} in · Full wrap: {dims.totalWidthIn.toFixed(2)} ×{' '}
-              {dims.totalHeightIn.toFixed(2)} in (incl. bleed)
+              {dims.totalHeightIn.toFixed(2)} in
+            </p>
+          </section>
+
+          <section className="space-y-1">
+            <Label htmlFor="spine">Spine text</Label>
+            <Input
+              id="spine"
+              value={cover.spineText ?? ''}
+              onChange={(e) => set({ spineText: e.target.value })}
+              placeholder={autoSpine || 'Blank under 100 pages'}
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank for an empty spine on export. Default shown as placeholder.
             </p>
           </section>
 
@@ -227,7 +318,7 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
               {(['paperback', 'hardcover'] as const).map((b) => (
                 <button
                   key={b}
-                  onClick={() => setBinding(b)}
+                  onClick={() => set({ binding: b })}
                   className={cn(
                     'rounded-md border px-3 py-1 text-sm capitalize',
                     binding === b ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
@@ -238,9 +329,9 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Mockup with guides — <span className="text-red-500">red = trim</span>,{' '}
-              <span className="text-blue-500">blue = safe margin</span>, dashed = spine folds.
-              These &amp; the barcode are removed on export.
+              Mockup guides — <span className="text-red-500">red = trim</span>,{' '}
+              <span className="text-blue-500">blue = safe</span>, dashed = spine folds. Guides &amp;
+              barcode are removed on export.
             </p>
           </div>
           <div className="rounded-lg border bg-muted/30 p-3">

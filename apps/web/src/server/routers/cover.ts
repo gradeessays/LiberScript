@@ -7,14 +7,17 @@ import { requireProjectAccess } from '../lib/ownership';
 
 interface CoverData {
   frontImageStorageKey?: string;
+  backgroundImageStorageKey?: string;
   dominantColor?: string;
   spineColor?: string;
   textColor?: string;
   backText?: string;
+  spineText?: string;
   paper?: 'white' | 'cream' | 'color';
   pageCount?: number;
   trimKey?: string;
   customTrim?: { widthIn: number; heightIn: number };
+  binding?: 'paperback' | 'hardcover';
 }
 
 export const coverRouter = router({
@@ -28,10 +31,15 @@ export const coverRouter = router({
       });
       const cover = (project.cover ?? {}) as CoverData;
       const author = (project.formatting as { author?: string } | null)?.author;
-      const frontImageUrl = cover.frontImageStorageKey
-        ? await presignDownload({ key: cover.frontImageStorageKey, fileName: 'cover' })
-        : undefined;
-      return { title: project.title, author, cover, frontImageUrl };
+      const [frontImageUrl, backgroundImageUrl] = await Promise.all([
+        cover.frontImageStorageKey
+          ? presignDownload({ key: cover.frontImageStorageKey, fileName: 'cover' })
+          : undefined,
+        cover.backgroundImageStorageKey
+          ? presignDownload({ key: cover.backgroundImageStorageKey, fileName: 'background' })
+          : undefined,
+      ]);
+      return { title: project.title, author, cover, frontImageUrl, backgroundImageUrl };
     }),
 
   update: protectedProcedure
@@ -55,17 +63,18 @@ export const coverRouter = router({
       return { ok: true };
     }),
 
-  frontUploadUrl: protectedProcedure
+  assetUploadUrl: protectedProcedure
     .input(
       z.object({
         projectId: z.string(),
+        kind: z.enum(['front', 'background']),
         contentType: z.string().regex(/^image\//, 'Must be an image'),
         ext: z.string().regex(/^[a-z0-9]{2,5}$/i),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectAccess(ctx, input.projectId, MemberRole.EDITOR);
-      const key = `${project.ownerType.toLowerCase()}/${project.ownerId}/projects/${project.id}/cover-${createId('x').slice(2, 10)}.${input.ext.toLowerCase()}`;
+      const key = `${project.ownerType.toLowerCase()}/${project.ownerId}/projects/${project.id}/${input.kind}-${createId('x').slice(2, 10)}.${input.ext.toLowerCase()}`;
       const uploadUrl = await presignUpload({ key, contentType: input.contentType });
       return { uploadUrl, storageKey: key };
     }),
