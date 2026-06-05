@@ -5,10 +5,11 @@ export {
   renderCoverHtml,
   coverDimensions,
   spineInches,
-  COVER_BLEED_IN,
   type CoverInput,
   type CoverDimensions,
   type PaperType,
+  type Binding,
+  type CoverMode,
 } from './cover';
 export {
   googleFontsHref,

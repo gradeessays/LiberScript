@@ -2,12 +2,13 @@
 
 import { use, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { coverDimensions, renderCoverHtml, type PaperType } from '@liberscript/format';
+import { coverDimensions, renderCoverHtml, type Binding, type PaperType } from '@liberscript/format';
 import { KDP_TRIM_SIZES } from '@liberscript/core';
-import { Button, Input, Label } from '@liberscript/ui';
+import { Button, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
 import { extractDominantColor } from '@/lib/dominant-color';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { ScaledStage } from '@/components/scaled-stage';
 
 interface CoverState {
   frontImageStorageKey?: string;
@@ -32,6 +33,7 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [cover, setCover] = useState<CoverState>({ paper: 'white', pageCount: 200, trimKey: '6x9' });
+  const [binding, setBinding] = useState<Binding>('paperback');
   useEffect(() => {
     if (query.data) setCover((c) => ({ ...c, ...(query.data.cover as CoverState) }));
   }, [query.data]);
@@ -75,6 +77,7 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
     trimHeightIn: trim.heightIn,
     pageCount: cover.pageCount ?? 0,
     paper: cover.paper ?? 'white',
+    binding,
   });
 
   const html = useMemo(() => {
@@ -86,14 +89,18 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
       trimHeightIn: trim.heightIn,
       pageCount: cover.pageCount ?? 0,
       paper: cover.paper ?? 'white',
+      binding,
+      mode: 'preview',
       dominantColor: cover.dominantColor ?? '#334155',
       spineColor: cover.spineColor,
       textColor: cover.textColor,
       backText: cover.backText,
       frontImageUrl: query.data.frontImageUrl,
     });
-  }, [query.data, cover, trim.widthIn, trim.heightIn]);
+  }, [query.data, cover, trim.widthIn, trim.heightIn, binding]);
   const debouncedHtml = useDebouncedValue(html, 350);
+  const naturalW = dims.totalWidthIn * 96;
+  const naturalH = dims.totalHeightIn * 96;
 
   if (query.isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (query.error) return <p className="text-destructive">{query.error.message}</p>;
@@ -215,16 +222,37 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
         </aside>
 
         <section className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            Full-wrap preview (back · spine · front) at KDP trim + bleed. The white box shows the
-            ISBN/barcode keep-out area. Spine text appears at 100+ pages.
-          </p>
-          <iframe
-            title="Cover preview"
-            className="h-[72vh] w-full rounded-lg border bg-white"
-            srcDoc={debouncedHtml}
-            sandbox="allow-same-origin"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1">
+              {(['paperback', 'hardcover'] as const).map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setBinding(b)}
+                  className={cn(
+                    'rounded-md border px-3 py-1 text-sm capitalize',
+                    binding === b ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
+                  )}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Mockup with guides — <span className="text-red-500">red = trim</span>,{' '}
+              <span className="text-blue-500">blue = safe margin</span>, dashed = spine folds.
+              These &amp; the barcode are removed on export.
+            </p>
+          </div>
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <ScaledStage width={naturalW} height={naturalH} maxHeight={560}>
+              <iframe
+                title="Cover preview"
+                srcDoc={debouncedHtml}
+                sandbox="allow-same-origin"
+                style={{ width: naturalW, height: naturalH, border: 0, display: 'block', background: '#fff' }}
+              />
+            </ScaledStage>
+          </div>
         </section>
       </div>
     </div>
