@@ -7,6 +7,7 @@ import { KDP_TRIM_SIZES, type TypographyOverrides } from '@liberscript/core';
 import { Button, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { DeviceFrame, type DeviceKind } from '@/components/device-frame';
 
 type Target = 'print' | 'ebook';
 
@@ -20,6 +21,7 @@ export default function DesignPage({ params }: { params: Promise<{ id: string }>
   const [themeKey, setThemeKey] = useState('novel-classic');
   const [target, setTarget] = useState<Target>('print');
   const [readingMode, setReadingMode] = useState<ReadingMode>('light');
+  const [device, setDevice] = useState<DeviceKind>('phone');
   const [publisher, setPublisher] = useState('');
   const [author, setAuthor] = useState('');
   const [typo, setTypo] = useState<TypographyOverrides>({});
@@ -316,28 +318,50 @@ export default function DesignPage({ params }: { params: Promise<{ id: string }>
               ))}
             </div>
             {target === 'ebook' && (
-              <div className="flex gap-1">
-                {(['light', 'sepia', 'dark'] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setReadingMode(m)}
-                    className={cn(
-                      'rounded-md border px-2 py-1 text-xs capitalize',
-                      readingMode === m ? 'bg-accent font-medium' : 'hover:bg-accent',
-                    )}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="flex gap-1">
+                  {(['light', 'sepia', 'dark'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setReadingMode(m)}
+                      className={cn(
+                        'rounded-md border px-2 py-1 text-xs capitalize',
+                        readingMode === m ? 'bg-accent font-medium' : 'hover:bg-accent',
+                      )}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+                <div className="ml-auto flex gap-1">
+                  {(['phone', 'tablet', 'pc'] as const).map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDevice(d)}
+                      className={cn(
+                        'rounded-md border px-2 py-1 text-xs',
+                        device === d ? 'bg-accent font-medium' : 'hover:bg-accent',
+                      )}
+                    >
+                      {d === 'phone' ? '📱 Phone' : d === 'tablet' ? '📲 Tablet' : '💻 PC'}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
-          <iframe
-            title="Book preview"
-            className="h-[80vh] w-full rounded-lg border bg-white"
-            srcDoc={debouncedHtml}
-            sandbox="allow-same-origin"
-          />
+          {target === 'ebook' ? (
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <DeviceFrame device={device} srcDoc={debouncedHtml} />
+            </div>
+          ) : (
+            <iframe
+              title="Book preview"
+              className="h-[80vh] w-full rounded-lg border bg-white"
+              srcDoc={debouncedHtml}
+              sandbox="allow-same-origin"
+            />
+          )}
         </section>
       </div>
     </div>

@@ -82,6 +82,22 @@ export function getServerEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv
   }
   const parsed = serverEnvSchema.safeParse(cleaned);
   if (!parsed.success) {
+    // During `next build` page-data collection, route modules are imported in
+    // workers that may not have the real env. Don't fail the build; fall back to
+    // safe placeholders. Dev and runtime (NEXT_PHASE != build) still validate
+    // strictly so misconfiguration fails fast at boot.
+    const buildPhase =
+      source.NEXT_PHASE === 'phase-production-build' || source.SKIP_ENV_VALIDATION === 'true';
+    if (buildPhase) {
+      return serverEnvSchema.parse({
+        ...cleaned,
+        DATABASE_URL: cleaned.DATABASE_URL ?? 'postgresql://build:build@localhost:5432/build',
+        REDIS_URL: cleaned.REDIS_URL ?? 'redis://localhost:6379',
+        AUTH_SECRET: cleaned.AUTH_SECRET ?? 'build-time-placeholder-secret-000000',
+        ENCRYPTION_KEY: cleaned.ENCRYPTION_KEY ?? 'build-time-placeholder-encryption-key-0',
+        STORAGE_DRIVER: cleaned.STORAGE_DRIVER ?? 'local',
+      });
+    }
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`)
       .join('\n');
