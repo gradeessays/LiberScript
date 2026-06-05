@@ -4,10 +4,6 @@ const nextConfig = {
   // Linting runs as a dedicated `turbo lint` task (with the Next.js plugin),
   // so skip Next's redundant build-time lint pass.
   eslint: { ignoreDuringBuilds: true },
-  experimental: {
-    // Tree-shake named imports from these packages for smaller bundles.
-    optimizePackageImports: ['@liberscript/ui', '@liberscript/format', '@liberscript/core'],
-  },
   // Internal workspace packages ship TypeScript source; let Next transpile them.
   transpilePackages: [
     '@liberscript/core',
@@ -18,7 +14,8 @@ const nextConfig = {
     '@liberscript/format',
   ],
   // Node-only packages — keep them external instead of bundling into the server.
-  // better-auth pulls in optional kysely/sqlite dialects that must not be bundled.
+  // better-auth pulls in optional kysely/sqlite dialects that must not be bundled;
+  // the AWS SDK (@smithy/*) is large and server-only.
   serverExternalPackages: [
     'bullmq',
     'ioredis',
@@ -27,6 +24,8 @@ const nextConfig = {
     '@better-auth/kysely-adapter',
     'kysely',
     'nodemailer',
+    '@aws-sdk/client-s3',
+    '@aws-sdk/s3-request-presigner',
   ],
 };
 
