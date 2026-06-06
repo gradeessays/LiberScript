@@ -46,6 +46,33 @@ ebook preview; the design panel exposes the toggle. Print is unaffected.
 - **Debounced live preview** (~350ms) — no font re-fetch thrash.
 - **Lazy editor**: TipTap loads only on the editor route (`next/dynamic`, ssr:false).
 
+### Instant actions — optimistic UI (implemented)
+Perceived speed ≠ server speed. The fix that survives into production regardless
+of how far the DB is: **apply the change to the local cache immediately, then
+reconcile with the server.** A failed call rolls the cache back.
+
+- **Pattern** (TanStack/tRPC `useMutation`):
+  `onMutate` → `utils.x.cancel()` + snapshot `getData()` + `setData()` the
+  optimistic value (return the snapshot as context); `onError` → restore the
+  snapshot; `onSettled` → `invalidate()` to confirm against the server.
+- **Where it's wired now**: project delete (dashboard list), chapter/section
+  **delete** and **reorder** (editor outline). Clicking delete removes the row
+  with zero perceived latency; ↑/↓ reorders instantly.
+- **Rule going forward**: every high-frequency, low-risk mutation (rename,
+  toggle, reorder, delete, add) should be optimistic. Reserve spinners for
+  genuinely slow/expensive operations (export, analysis, AI) which already run
+  on the worker and report status.
+- **Autosave** stays debounced + fire-and-forget (the editor already does this);
+  optimistic cache writes keep the outline in sync without a refetch.
+
+### One workspace: write ↔ preview
+The editor now hosts both **Write** and **Preview** in one route (no page hop).
+Preview replaces the editing pane with the **whole book** rendered from the
+sections you've added, and the **design controls** (theme, chapter style, fonts,
+size, trim, page-layout rules) sit beside it for real-time restyling. The same
+`<DesignStudio>` component powers the standalone `/design` route and the embedded
+preview, so there's a single source of truth for rendering + controls.
+
 ### Biggest production lever: DB latency
 Most "slow" comes from **round-trip latency to Postgres**. Two rules:
 - **Co-locate**: deploy the droplet in the **same region as Neon** (e.g. us-east).

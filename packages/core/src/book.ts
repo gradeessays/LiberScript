@@ -109,6 +109,10 @@ export interface TypographyOverrides {
   blockParagraphs?: boolean;
   /** Selected chapter-start design (from the chapter-style library). */
   chapterStyleKey?: string;
+  /** Each chapter/section starts on a fresh page (print). Default true. */
+  chaptersNewPage?: boolean;
+  /** Chapters/sections start on a right-hand (odd) page (print). */
+  sectionsRecto?: boolean;
 }
 
 /** Genres that drive the copyright/disclaimer template. */

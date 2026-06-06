@@ -11,13 +11,11 @@ import {
   type SectionGroup,
 } from '@liberscript/core';
 import dynamic from 'next/dynamic';
-import { getTheme, renderBookDocument } from '@liberscript/format';
-import type { TypographyOverrides } from '@liberscript/core';
-import { Button, buttonVariants, cn, Input, Label } from '@liberscript/ui';
+import { Button, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
-import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { TitlePageForm } from '@/components/editor/title-page-form';
 import { CopyrightForm } from '@/components/editor/copyright-form';
+import { DesignStudio } from '@/components/design-studio';
 
 // TipTap is heavy; load it only when the editor is actually shown.
 const ManuscriptEditor = dynamic(
@@ -85,8 +83,46 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       setAddOpen(false);
     },
   });
-  const removeChapter = trpc.chapter.remove.useMutation({ onSuccess: refresh });
-  const reorder = trpc.chapter.reorder.useMutation({ onSuccess: refresh });
+  // Optimistic: the element leaves the outline the instant you confirm.
+  const removeChapter = trpc.chapter.remove.useMutation({
+    onMutate: async ({ id: chapterId }) => {
+      await utils.project.get.cancel({ id });
+      const prev = utils.project.get.getData({ id });
+      utils.project.get.setData({ id }, (old) =>
+        old?.manuscript
+          ? {
+              ...old,
+              manuscript: {
+                ...old.manuscript,
+                chapters: old.manuscript.chapters.filter((c) => c.id !== chapterId),
+              },
+            }
+          : old,
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => ctx?.prev && utils.project.get.setData({ id }, ctx.prev),
+    onSettled: refresh,
+  });
+  // Optimistic: the outline re-orders immediately on ↑/↓.
+  const reorder = trpc.chapter.reorder.useMutation({
+    onMutate: async ({ orderedIds }) => {
+      await utils.project.get.cancel({ id });
+      const prev = utils.project.get.getData({ id });
+      utils.project.get.setData({ id }, (old) => {
+        if (!old?.manuscript) return old;
+        const byId = new Map(old.manuscript.chapters.map((c) => [c.id, c]));
+        const chapters = orderedIds.flatMap((cid) => {
+          const c = byId.get(cid);
+          return c ? [c] : [];
+        });
+        return { ...old, manuscript: { ...old.manuscript, chapters } };
+      });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => ctx?.prev && utils.project.get.setData({ id }, ctx.prev),
+    onSettled: refresh,
+  });
   const split = trpc.chapter.split.useMutation({
     onSuccess: async (c) => {
       await refresh();
@@ -100,12 +136,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     },
   });
 
+  const [view, setView] = useState<'write' | 'preview'>('write');
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [openingQuote, setOpeningQuote] = useState('');
   const [openingAttr, setOpeningAttr] = useState('');
-  const [liveContent, setLiveContent] = useState<JSONContent | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
   useEffect(() => {
     if (chapter.data) {
       setTitle(chapter.data.title);
@@ -113,7 +148,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       const d = (chapter.data.data ?? {}) as Record<string, unknown>;
       setOpeningQuote((d.openingQuote as string) ?? '');
       setOpeningAttr((d.openingQuoteAttribution as string) ?? '');
-      setLiveContent(null);
     }
   }, [chapter.data]);
 
@@ -124,30 +158,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       data: { ...data, openingQuote: quote || undefined, openingQuoteAttribution: attr || undefined },
     });
   }
-
-  // Live, single-chapter preview at the project's theme / typography / trim.
-  const previewHtml = useMemo(() => {
-    if (!showPreview || !chapter.data) return '';
-    const fmt = (project.data?.formatting ?? {}) as { typography?: TypographyOverrides };
-    return renderBookDocument({
-      theme: getTheme(project.data?.themeKey),
-      target: 'print',
-      watermark: false,
-      typography: fmt.typography,
-      includeFrontMatter: false,
-      meta: { title: project.data?.title ?? '' },
-      elements: [
-        {
-          kind: ChapterKind.CHAPTER,
-          title,
-          subtitle,
-          data: { openingQuote, openingQuoteAttribution: openingAttr },
-          content: liveContent ?? chapter.data.content,
-        },
-      ],
-    });
-  }, [showPreview, chapter.data, project.data, title, subtitle, openingQuote, openingAttr, liveContent]);
-  const debouncedPreview = useDebouncedValue(previewHtml, 400);
 
   function move(index: number, dir: -1 | 1) {
     const next = [...elements];
@@ -172,19 +182,34 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           </Link>
           <h1 className="text-xl font-semibold tracking-tight">Book builder</h1>
         </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/projects/${id}/design`}
-            className={buttonVariants({ variant: 'outline', size: 'sm' })}
-          >
-            Design &amp; preview
-          </Link>
-          <Button size="sm" onClick={() => create.mutate({ projectId: id, kind: ChapterKind.CHAPTER })}>
-            + Chapter
-          </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border p-0.5 text-sm">
+            {(['write', 'preview'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={cn(
+                  'rounded px-3 py-1 capitalize',
+                  view === v ? 'bg-accent font-medium' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          {view === 'write' && (
+            <Button size="sm" onClick={() => create.mutate({ projectId: id, kind: ChapterKind.CHAPTER })}>
+              + Chapter
+            </Button>
+          )}
         </div>
       </div>
 
+      {/* Preview replaces the editor entirely: the whole book, rendered from the
+          sections you've added, with the design controls beside it. */}
+      {view === 'preview' ? (
+        <DesignStudio projectId={id} embedded />
+      ) : (
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
         {/* Sectioned outline */}
         <aside className="h-fit space-y-3 rounded-lg border p-2">
@@ -287,7 +312,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     size="sm"
                     className="text-destructive"
                     onClick={() => {
-                      if (confirm('Delete this element?')) removeChapter.mutate({ id: selectedId });
+                      if (confirm('Delete this element?')) {
+                        removeChapter.mutate({ id: selectedId });
+                        setSelectedId(null);
+                      }
                     }}
                   >
                     Delete
@@ -387,7 +415,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     key={selectedId}
                     initialContent={chapter.data.content as JSONContent}
                     onSave={async (content) => {
-                      setLiveContent(content);
                       await updateContent.mutateAsync({ id: selectedId, content });
                     }}
                     onSplit={(before, after) =>
@@ -395,25 +422,17 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     }
                   />
 
-                  <div>
-                    <Button variant="outline" size="sm" onClick={() => setShowPreview((s) => !s)}>
-                      {showPreview ? 'Hide preview' : 'Preview this chapter'}
-                    </Button>
-                    {showPreview && (
-                      <iframe
-                        title="Chapter preview"
-                        className="mt-2 h-[70vh] w-full rounded-lg border bg-white"
-                        srcDoc={debouncedPreview}
-                        sandbox="allow-same-origin"
-                      />
-                    )}
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Switch to <span className="font-medium">Preview</span> (top right) to see the whole
+                    book and adjust styles, fonts, and chapter designs live.
+                  </p>
                 </>
               )}
             </>
           )}
         </section>
       </div>
+      )}
     </div>
   );
 }

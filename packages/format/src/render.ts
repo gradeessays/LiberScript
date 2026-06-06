@@ -97,8 +97,7 @@ function chapterStartCss(theme: BookTheme): string {
 }
 
 function frontMatterCss(theme: BookTheme): string {
-  return `.book .frontmatter, .book .backmatter { break-after: page; }
-.book .title-page { text-align: center; padding-top: 26%; }
+  return `.book .title-page { text-align: center; padding-top: 26%; }
 .book .title-page .book-title { font-family: ${theme.headingFont.stack}; font-size: 2.4em; font-weight: 800; line-height: 1.1; }
 .book .title-page .book-subtitle { font-family: ${theme.headingFont.stack}; font-size: 1.2em; font-style: italic; color: #444; margin-top: 0.6em; }
 .book .title-page .book-author { margin-top: 1.4em; font-size: 1.2em; }
@@ -120,14 +119,28 @@ function frontMatterCss(theme: BookTheme): string {
 .book .toc h1 { text-align: center; margin-bottom: 1.4em; }
 .book .toc ol { list-style: none; padding: 0; margin: 0; }
 .book .toc li { display: flex; justify-content: space-between; padding: 0.25em 0; border-bottom: 1px dotted #ddd; }
-.book .part { text-align: center; padding-top: 34%; break-before: page; }
+.book .part { text-align: center; padding-top: 34%; }
 .book .part h1 { font-size: 2.4em; font-weight: 800; }`;
 }
 
+/** Page-break behavior for chapters/sections (print only). */
+export interface PageBreakRule {
+  /** Each chapter/section starts on a fresh page. Default true. */
+  newPage?: boolean;
+  /** Start chapters/sections on a right-hand (odd) page. */
+  recto?: boolean;
+}
+
 /** Stylesheet for a theme + render target. */
-export function themeCss(theme: BookTheme, target: RenderTarget, style?: ChapterStartStyle): string {
+export function themeCss(
+  theme: BookTheme,
+  target: RenderTarget,
+  style?: ChapterStartStyle,
+  breaks?: PageBreakRule,
+): string {
   const p = theme.paragraph;
   const { widthIn: pageW, heightIn: pageH } = theme.trim;
+  const bb = breaks?.newPage === false ? 'auto' : breaks?.recto ? 'right' : 'page';
   const base = `.book {
   font-family: ${theme.bodyFont.stack};
   font-size: ${theme.baseFontPt}pt;
@@ -141,8 +154,6 @@ ${p.firstParaPlain ? '.book .chapter-body > p:first-of-type { text-indent: 0; }'
 .book h3 { font-family: ${theme.headingFont.stack}; font-size: 1.12em; margin: 1.2em 0 0.4em; }
 .book blockquote { margin: 0 0 1em; padding-left: 1em; border-left: 3px solid #ddd; color: #444; }
 .book ul, .book ol { margin: 0 0 1em 1.5em; }
-.book .chapter { break-before: page; }
-.book .chapter:first-child { break-before: avoid; }
 .book .chapter-opening-quote { font-style: italic; text-align: center; margin: 0 0 1.6em; color: #444; }
 .book .chapter-opening-quote .attr { display: block; font-style: normal; font-variant: small-caps; color: #666; margin-top: 0.4em; font-size: 0.9em; }
 ${style ? chapterStyleCss(style, theme) : chapterStartCss(theme)}
@@ -150,9 +161,11 @@ ${sceneBreakCss(theme)}
 ${frontMatterCss(theme)}`;
 
   const print = `@page { size: ${pageW}in ${pageH}in; margin: ${theme.marginsIn.top}in ${theme.marginsIn.outer}in ${theme.marginsIn.bottom}in ${theme.marginsIn.inner}in; }
-.book { width: ${pageW}in; min-height: ${pageH}in; margin: 0 auto; padding: ${theme.marginsIn.top}in ${theme.marginsIn.outer}in ${theme.marginsIn.bottom}in ${theme.marginsIn.inner}in; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.12); box-sizing: border-box; }`;
+.book { width: ${pageW}in; min-height: ${pageH}in; margin: 0 auto; padding: ${theme.marginsIn.top}in ${theme.marginsIn.outer}in ${theme.marginsIn.bottom}in ${theme.marginsIn.inner}in; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.12); box-sizing: border-box; }
+.book .chapter, .book .part, .book .frontmatter, .book .prose-section { break-before: ${bb}; }
+.book > *:first-child { break-before: avoid; }`;
   const ebook = `.book { max-width: 38rem; margin: 0 auto; padding: 1.5rem; background: #fff; }
-.book .chapter, .book .part { break-before: auto; padding-top: 1.5rem; }
+.book .chapter, .book .part, .book .frontmatter, .book .prose-section { break-before: auto; padding-top: 1.5rem; }
 .book .epigraph, .book .dedication, .book .title-page, .book .copyright-page { padding-top: 1.5rem; }`;
   return `${base}\n${target === 'print' ? print : ebook}`;
 }
@@ -395,6 +408,10 @@ export function renderBookDocument(input: RenderBookInput): string {
   }
 
   const style = getChapterStyle(input.typography?.chapterStyleKey);
+  const breaks: PageBreakRule = {
+    newPage: input.typography?.chaptersNewPage,
+    recto: input.typography?.sectionsRecto,
+  };
 
   let idx = 0;
   const body = elements
@@ -424,7 +441,7 @@ ${fontLink}
 <style>
 html, body { margin: 0; padding: 0; background: ${pageBg}; }
 body { padding: ${target === 'print' ? '24px' : '0'}; }
-${themeCss(theme, target, style)}
+${themeCss(theme, target, style, breaks)}
 ${readingCss}
 </style>
 </head>

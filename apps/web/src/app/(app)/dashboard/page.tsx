@@ -27,8 +27,19 @@ export default function DashboardPage() {
       void utils.project.list.invalidate();
     },
   });
+  // Optimistic delete: the row disappears instantly, rolling back only if the
+  // server rejects it.
   const archive = trpc.project.archive.useMutation({
-    onSuccess: () => void utils.project.list.invalidate(),
+    onMutate: async ({ id }) => {
+      await utils.project.list.cancel();
+      const prev = utils.project.list.getData();
+      utils.project.list.setData(undefined, (old) => old?.filter((p) => p.id !== id));
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) utils.project.list.setData(undefined, ctx.prev);
+    },
+    onSettled: () => void utils.project.list.invalidate(),
   });
 
   return (
@@ -109,7 +120,6 @@ export default function DashboardPage() {
                       variant="ghost"
                       size="sm"
                       className="text-destructive"
-                      disabled={archive.isPending}
                       onClick={() => {
                         if (confirm(`Delete “${p.title}”? This removes it from your workspace.`)) {
                           archive.mutate({ id: p.id });
