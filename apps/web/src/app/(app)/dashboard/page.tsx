@@ -13,6 +13,7 @@ import {
   Input,
 } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
+import { DashboardUpload } from '@/components/dashboard-upload';
 
 export default function DashboardPage() {
   const utils = trpc.useUtils();
@@ -67,6 +68,11 @@ export default function DashboardPage() {
             </Button>
           </form>
           {create.error && <p className="mt-2 text-sm text-destructive">{create.error.message}</p>}
+
+          <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+          </div>
+          <DashboardUpload />
         </CardContent>
       </Card>
 

@@ -1,10 +1,10 @@
 import pdfParse from 'pdf-parse';
 import { textToBlocks } from '../blocks';
-import { assembleChapters, isChapterHeading } from '../chapters';
-import type { ParsedChapter } from '../types';
+import { isSectionHeading } from '../chapters';
+import type { ContentBlock } from '../types';
 
-/** Extract text from a PDF and assemble chapters by chapter-heading lines. */
-export async function parsePdf(buffer: Buffer): Promise<ParsedChapter[]> {
+/** Extract text from a PDF into blocks; section-keyword lines become headings. */
+export async function parsePdf(buffer: Buffer): Promise<ContentBlock[]> {
   const data = await pdfParse(buffer);
-  return assembleChapters(textToBlocks(data.text, isChapterHeading));
+  return textToBlocks(data.text, isSectionHeading);
 }

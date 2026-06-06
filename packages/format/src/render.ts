@@ -1,6 +1,7 @@
 import {
   ChapterKind,
   generateCopyright,
+  groupOfKind,
   KDP_TRIM_SIZES,
   KIND_LABELS,
   type BookGenre,
@@ -299,16 +300,19 @@ function renderElement(theme: BookTheme, el: BookElement, ctx: ElementCtx): stri
       return renderToc(ctx.toc);
     case ChapterKind.PART:
       return renderPart(el);
+    case ChapterKind.FOREWORD:
+    case ChapterKind.PREFACE:
     case ChapterKind.PROLOGUE:
     case ChapterKind.INTRODUCTION:
+    case ChapterKind.EPILOGUE:
+    case ChapterKind.AFTERWORD:
     case ChapterKind.ACKNOWLEDGMENTS:
     case ChapterKind.ABOUT_AUTHOR:
     case ChapterKind.ALSO_BY:
+    case ChapterKind.APPENDIX:
       return renderProseSection(
         el,
-        el.kind === ChapterKind.ACKNOWLEDGMENTS || el.kind === ChapterKind.ABOUT_AUTHOR || el.kind === ChapterKind.ALSO_BY
-          ? 'backmatter'
-          : 'prologue',
+        groupOfKind(el.kind as ChapterKind) === 'back' ? 'backmatter' : 'prologue',
         KIND_LABELS[el.kind as keyof typeof KIND_LABELS] ?? 'Section',
       );
     case ChapterKind.CHAPTER:

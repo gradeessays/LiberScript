@@ -36,12 +36,17 @@ const ADDABLE: ChapterKind[] = [
   ChapterKind.EPIGRAPH,
   ChapterKind.DEDICATION,
   ChapterKind.TOC,
+  ChapterKind.FOREWORD,
+  ChapterKind.PREFACE,
   ChapterKind.PROLOGUE,
   ChapterKind.INTRODUCTION,
   ChapterKind.PART,
+  ChapterKind.EPILOGUE,
+  ChapterKind.AFTERWORD,
   ChapterKind.ACKNOWLEDGMENTS,
   ChapterKind.ABOUT_AUTHOR,
   ChapterKind.ALSO_BY,
+  ChapterKind.APPENDIX,
 ];
 
 const GROUP_TITLES: Record<SectionGroup, string> = {

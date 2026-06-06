@@ -1,8 +1,7 @@
 import JSZip from 'jszip';
 import { XMLParser } from 'fast-xml-parser';
 import { htmlToBlocks } from '../blocks';
-import { assembleChapters } from '../chapters';
-import type { ContentBlock, ParsedChapter } from '../types';
+import type { ContentBlock } from '../types';
 
 const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
 
@@ -16,8 +15,8 @@ function dirname(path: string): string {
   return i === -1 ? '' : path.slice(0, i + 1);
 }
 
-/** Parse an EPUB: collect content from the OPF spine, then assemble chapters. */
-export async function parseEpub(buffer: Buffer): Promise<ParsedChapter[]> {
+/** Parse an EPUB: collect ordered content blocks from the OPF spine. */
+export async function parseEpub(buffer: Buffer): Promise<ContentBlock[]> {
   const zip = await JSZip.loadAsync(buffer);
 
   const containerXml = await zip.file('META-INF/container.xml')?.async('string');
@@ -46,5 +45,5 @@ export async function parseEpub(buffer: Buffer): Promise<ParsedChapter[]> {
     if (content) blocks.push(...htmlToBlocks(content));
   }
 
-  return assembleChapters(blocks);
+  return blocks;
 }

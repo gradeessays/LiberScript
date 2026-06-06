@@ -1,10 +1,9 @@
 import mammoth from 'mammoth';
 import { htmlToBlocks } from '../blocks';
-import { assembleChapters } from '../chapters';
-import type { ParsedChapter } from '../types';
+import type { ContentBlock } from '../types';
 
-/** Parse a .docx buffer into chapters, anchoring on Word heading structure. */
-export async function parseDocx(buffer: Buffer): Promise<ParsedChapter[]> {
+/** Parse a .docx buffer into ordered content blocks (headings + paragraphs). */
+export async function parseDocx(buffer: Buffer): Promise<ContentBlock[]> {
   const { value: html } = await mammoth.convertToHtml({ buffer });
-  return assembleChapters(htmlToBlocks(html));
+  return htmlToBlocks(html);
 }

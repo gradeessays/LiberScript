@@ -1,5 +1,5 @@
 import { parseManuscriptPayload } from '@liberscript/jobs';
-import { prisma } from '@liberscript/db';
+import { prisma, type ChapterKind, type Prisma } from '@liberscript/db';
 import { getObjectBuffer } from '@liberscript/storage';
 import { chapterText, chapterToDoc, countWords, parseManuscript } from '@liberscript/analysis';
 import { logger } from '../logger';
@@ -39,18 +39,32 @@ export async function handleParseManuscript(data: unknown): Promise<{ chapters: 
       },
     });
 
-    // Replace existing chapters with the freshly parsed set.
+    // Replace existing chapters with the freshly parsed, typed sections.
     await tx.chapter.deleteMany({ where: { manuscriptId: manuscript.id } });
     await tx.chapter.createMany({
       data: parsed.chapters.map((chapter, index) => ({
         manuscriptId: manuscript.id,
+        kind: chapter.kind as ChapterKind,
         title: chapter.title,
         subtitle: chapter.subtitle ?? null,
         order: index,
         content: chapterToDoc(chapter) as object,
+        data: (chapter.data ?? undefined) as Prisma.InputJsonValue | undefined,
         wordCount: countWords(`${chapter.title} ${chapter.subtitle ?? ''} ${chapterText(chapter)}`),
       })),
     });
+
+    // Auto-detected book title/author → project + metadata.
+    if (parsed.title) {
+      await tx.project.update({ where: { id: projectId }, data: { title: parsed.title } });
+    }
+    if (parsed.author) {
+      await tx.metadata.upsert({
+        where: { projectId },
+        create: { projectId, authorName: parsed.author },
+        update: { authorName: parsed.author },
+      });
+    }
   });
 
   return { chapters: parsed.chapters.length };

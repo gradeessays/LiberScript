@@ -1,6 +1,13 @@
 export * from './types';
 export { computeStats } from './stats';
-export { isChapterHeading, matchChapterHeading, assembleChapters, chapterText } from './chapters';
+export {
+  isChapterHeading,
+  isSectionHeading,
+  matchChapterHeading,
+  classifyHeading,
+  assembleSections,
+  chapterText,
+} from './chapters';
 export { htmlToBlocks, textToBlocks } from './blocks';
 export { htmlToText, splitHtmlByHeadings } from './html';
 export { blocksToTiptap, textToTiptap } from './tiptap';

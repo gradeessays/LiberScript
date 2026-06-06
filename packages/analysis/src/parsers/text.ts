@@ -1,14 +1,14 @@
 import { textToBlocks } from '../blocks';
-import { assembleChapters, isChapterHeading } from '../chapters';
-import type { ContentBlock, ParsedChapter } from '../types';
+import { isSectionHeading } from '../chapters';
+import type { ContentBlock } from '../types';
 
-/** Parse plain text: lines beginning with a chapter keyword start chapters. */
-export function parseTxt(buffer: Buffer): ParsedChapter[] {
-  return assembleChapters(textToBlocks(buffer.toString('utf8'), isChapterHeading));
+/** Parse plain text into blocks; section-keyword lines become headings. */
+export function parseTxt(buffer: Buffer): ContentBlock[] {
+  return textToBlocks(buffer.toString('utf8'), isSectionHeading);
 }
 
-/** Parse Markdown: ATX headings become blocks; chapter keywords start chapters. */
-export function parseMarkdown(buffer: Buffer): ParsedChapter[] {
+/** Parse Markdown into blocks; ATX headings become heading blocks. */
+export function parseMarkdown(buffer: Buffer): ContentBlock[] {
   const raw = buffer.toString('utf8').replace(/\r\n/g, '\n');
   const blocks: ContentBlock[] = [];
   let para: string[] = [];
@@ -36,8 +36,7 @@ export function parseMarkdown(buffer: Buffer): ParsedChapter[] {
     }
   }
   flush();
-
-  return assembleChapters(blocks.filter((b) => b.text.length > 0));
+  return blocks.filter((b) => b.text.length > 0);
 }
 
 function stripInlineMarkdown(text: string): string {

@@ -5,13 +5,18 @@ export const ChapterKind = {
   EPIGRAPH: 'EPIGRAPH',
   DEDICATION: 'DEDICATION',
   TOC: 'TOC',
+  FOREWORD: 'FOREWORD',
+  PREFACE: 'PREFACE',
   PROLOGUE: 'PROLOGUE',
   INTRODUCTION: 'INTRODUCTION',
   PART: 'PART',
   CHAPTER: 'CHAPTER',
+  EPILOGUE: 'EPILOGUE',
+  AFTERWORD: 'AFTERWORD',
   ACKNOWLEDGMENTS: 'ACKNOWLEDGMENTS',
   ABOUT_AUTHOR: 'ABOUT_AUTHOR',
   ALSO_BY: 'ALSO_BY',
+  APPENDIX: 'APPENDIX',
 } as const;
 export type ChapterKind = (typeof ChapterKind)[keyof typeof ChapterKind];
 
@@ -21,14 +26,19 @@ export const FRONT_MATTER_KINDS: ChapterKind[] = [
   ChapterKind.EPIGRAPH,
   ChapterKind.DEDICATION,
   ChapterKind.TOC,
+  ChapterKind.FOREWORD,
+  ChapterKind.PREFACE,
   ChapterKind.PROLOGUE,
   ChapterKind.INTRODUCTION,
 ];
 export const BODY_KINDS: ChapterKind[] = [ChapterKind.PART, ChapterKind.CHAPTER];
 export const BACK_MATTER_KINDS: ChapterKind[] = [
+  ChapterKind.EPILOGUE,
+  ChapterKind.AFTERWORD,
   ChapterKind.ACKNOWLEDGMENTS,
   ChapterKind.ABOUT_AUTHOR,
   ChapterKind.ALSO_BY,
+  ChapterKind.APPENDIX,
 ];
 
 export type SectionGroup = 'front' | 'body' | 'back';
@@ -50,13 +60,18 @@ export const KIND_LABELS: Record<ChapterKind, string> = {
   EPIGRAPH: 'Epigraph',
   DEDICATION: 'Dedication',
   TOC: 'Table of Contents',
+  FOREWORD: 'Foreword',
+  PREFACE: 'Preface',
   PROLOGUE: 'Prologue',
   INTRODUCTION: 'Introduction',
   PART: 'Part',
   CHAPTER: 'Chapter',
+  EPILOGUE: 'Epilogue',
+  AFTERWORD: 'Afterword',
   ACKNOWLEDGMENTS: 'Acknowledgments',
   ABOUT_AUTHOR: 'About the Author',
   ALSO_BY: 'Also By',
+  APPENDIX: 'Appendix',
 };
 
 /** Standard KDP trim sizes (inches) plus the option of a custom size. */
