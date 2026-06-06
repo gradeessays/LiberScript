@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { tiptapToHtml } from '../tiptap-html';
 import { getTheme, THEMES, DEFAULT_THEME_KEY } from '../themes';
 import { renderBookDocument, renderChapter, themeCss } from '../render';
-import { CHAPTER_STYLES, chapterHeadingHtml, getChapterStyle } from '../chapter-styles';
+import { CHAPTER_STYLES, chapterHeadingHtml, chapterStyleCss, getChapterStyle } from '../chapter-styles';
+import {
+  OPENING_QUOTE_STYLES,
+  BLOCKQUOTE_STYLES,
+  openingQuoteCss,
+  blockQuoteCss,
+} from '../prose-styles';
 
 const sampleDoc = {
   type: 'doc',
@@ -139,6 +145,46 @@ describe('chapter styles', () => {
     );
     expect(html).toContain('chapter-opening-quote');
     expect(html).toContain('Bard');
+  });
+  it('renders divider, frame and spacing styles', () => {
+    const theme = getTheme('novel-classic');
+    const orn = getChapterStyle('div-orn-fleuron')!;
+    expect(chapterHeadingHtml(orn, { index: 1, title: 'X' })).toContain('cs-div-ornament');
+    expect(chapterStyleCss(orn, theme)).toContain('cs-div-ornament::before');
+    const tapered = getChapterStyle('div-tapered')!;
+    expect(chapterHeadingHtml(tapered, { index: 1, title: 'X' })).toContain('cs-div-tapered');
+    const boxed = getChapterStyle('frame-box')!;
+    expect(chapterStyleCss(boxed, theme)).toContain('border:1.5px solid currentColor');
+    const sunk = getChapterStyle('sunk-plain')!;
+    expect(chapterStyleCss(sunk, theme)).toContain('12%');
+  });
+});
+
+describe('prose styles (opening quotes & block quotes)', () => {
+  const theme = getTheme('novel-classic');
+  it('offers multiple opening-quote and block-quote variations', () => {
+    expect(OPENING_QUOTE_STYLES.length).toBeGreaterThanOrEqual(10);
+    expect(BLOCKQUOTE_STYLES.length).toBeGreaterThanOrEqual(6);
+  });
+  it('emits CSS per chosen style and defaults safely', () => {
+    expect(openingQuoteCss('box', theme)).toContain('border:1px solid currentColor');
+    expect(openingQuoteCss('hairlines', theme)).toContain('border-top:1px solid currentColor');
+    expect(openingQuoteCss(undefined, theme)).toContain('text-align:center'); // default centered
+    expect(blockQuoteCss('thick-bar', theme)).toContain('border-left:6px solid currentColor');
+    expect(blockQuoteCss('box', theme)).toContain('border:1px solid');
+    expect(blockQuoteCss(undefined, theme)).toContain('border-left:3px solid'); // default left rule
+  });
+  it('applies the chosen styles inside renderBookDocument', () => {
+    const html = renderBookDocument({
+      theme,
+      target: 'ebook',
+      watermark: false,
+      meta: { title: 'B' },
+      chapters: [{ index: 1, title: 'One', content: sampleDoc }],
+      typography: { openingQuoteStyleKey: 'box', blockQuoteStyleKey: 'thick-bar' },
+    });
+    expect(html).toContain('border:1px solid currentColor'); // opening-quote box
+    expect(html).toContain('border-left:6px solid currentColor'); // blockquote thick bar
   });
 });
 

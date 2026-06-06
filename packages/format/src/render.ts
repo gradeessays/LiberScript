@@ -16,6 +16,7 @@ import {
   getChapterStyle,
   type ChapterStartStyle,
 } from './chapter-styles';
+import { blockQuoteCss, openingQuoteCss } from './prose-styles';
 import type {
   BookElement,
   BookMeta,
@@ -207,10 +208,7 @@ export function themeCss(
 ${p.firstParaPlain ? '.book .chapter-body > p:first-of-type { text-indent: 0; }' : ''}
 .book h2 { font-family: ${theme.headingFont.stack}; font-size: 1.3em; margin: 1.4em 0 0.5em; }
 .book h3 { font-family: ${theme.headingFont.stack}; font-size: 1.12em; margin: 1.2em 0 0.4em; }
-.book blockquote { margin: 0 0 1em; padding-left: 1em; border-left: 3px solid #ddd; color: #444; }
 .book ul, .book ol { margin: 0 0 1em 1.5em; }
-.book .chapter-opening-quote { font-style: italic; text-align: center; margin: 0 0 1.6em; color: #444; }
-.book .chapter-opening-quote .attr { display: block; font-style: normal; font-variant: small-caps; color: #666; margin-top: 0.4em; font-size: 0.9em; }
 ${style ? chapterStyleCss(style, theme) : chapterStartCss(theme)}
 ${sceneBreakCss(theme)}
 ${frontMatterCss(theme)}`;
@@ -479,6 +477,8 @@ export function renderBookDocument(input: RenderBookInput): string {
   const fontsHref = googleFontsHref(theme);
   const fontLink = fontsHref ? `<link rel="stylesheet" href="${fontsHref}">` : '';
   const pagedCss = target === 'print' ? pagedMediaCss(meta, theme, input.typography) : '';
+  const proseCss = `${openingQuoteCss(input.typography?.openingQuoteStyleKey, theme)}
+${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
 
   // Ebook reading mode recolors the page; print always shows a paper surface.
   const rm = target === 'ebook' && input.readingMode ? READING_MODE[input.readingMode] : null;
@@ -498,6 +498,7 @@ ${fontLink}
 html, body { margin: 0; padding: 0; background: ${pageBg}; }
 body { padding: ${target === 'print' ? '24px' : '0'}; }
 ${themeCss(theme, target, style, breaks)}
+${proseCss}
 ${pagedCss}
 ${readingCss}
 </style>

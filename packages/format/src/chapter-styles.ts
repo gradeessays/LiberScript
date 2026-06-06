@@ -3,6 +3,20 @@ import type { BookTheme } from './types';
 export type NumberFormat = 'none' | 'arabic' | 'roman' | 'word' | 'c-arabic' | 'c-roman' | 'c-word';
 export type NumberPlacement = 'none' | 'inline' | 'above' | 'big' | 'label';
 export type OrnPlacement = 'above' | 'below' | 'both' | 'sides';
+/** Decorative separator line designs (classic → modern). */
+export type DividerStyle =
+  | 'thin'
+  | 'thick'
+  | 'double'
+  | 'dotted'
+  | 'dashed'
+  | 'short'
+  | 'short-thick'
+  | 'tapered'
+  | 'ornament'
+  | 'dots';
+/** A wrap / boundary around the heading. */
+export type FrameStyle = 'box' | 'double-box' | 'topbottom' | 'shaded';
 
 export interface ChapterStartStyle {
   key: string;
@@ -17,6 +31,15 @@ export interface ChapterStartStyle {
   dropCap?: boolean;
   firstLineSmallCaps?: boolean;
   titleSize?: number;
+  /** Decorative divider line + where it sits relative to the title. */
+  divider?: DividerStyle;
+  dividerPlace?: 'above' | 'below' | 'both';
+  /** Glyph centered in an `ornament` divider. */
+  dividerOrn?: string;
+  /** Wrap / boundary around the whole heading. */
+  frame?: FrameStyle;
+  /** Vertical breathing room before the title. */
+  space?: 'sunk' | 'tight';
 }
 
 function esc(s: string): string {
@@ -61,6 +84,33 @@ function formatNumber(fmt: NumberFormat, index: number): string {
   }
 }
 
+/** Shared CSS for every decorative divider design (one rendered per style). */
+function dividerCss(): string {
+  return `.book .cs-div{margin:0.85em auto;line-height:1;}
+.book .cs-div-thin{width:26%;border-top:1px solid currentColor;opacity:0.5;}
+.book .cs-div-thick{width:20%;border-top:3px solid currentColor;}
+.book .cs-div-double{width:26%;border-top:3px double currentColor;height:3px;}
+.book .cs-div-dotted{width:30%;border-top:2px dotted currentColor;opacity:0.6;}
+.book .cs-div-dashed{width:30%;border-top:1.5px dashed currentColor;opacity:0.6;}
+.book .cs-div-short{width:10%;border-top:2px solid currentColor;}
+.book .cs-div-short-thick{width:8%;border-top:4px solid currentColor;}
+.book .cs-div-tapered{width:38%;height:3px;border:0;background:linear-gradient(to right,transparent,currentColor,transparent);opacity:0.6;}
+.book .cs-div-dots{border:0;}
+.book .cs-div-dots::after{content:"• • •";letter-spacing:0.45em;opacity:0.55;}
+.book .cs-div-ornament{display:flex;align-items:center;justify-content:center;gap:0.7em;border:0;width:60%;}
+.book .cs-div-ornament::before,.book .cs-div-ornament::after{content:"";flex:1;height:1px;background:currentColor;opacity:0.45;}
+.book .cs-div-ornament .cs-div-orn{opacity:0.75;font-size:1.1em;}`;
+}
+
+function dividerHtml(s: ChapterStartStyle): string {
+  if (!s.divider) return '';
+  if (s.divider === 'ornament') {
+    const g = s.dividerOrn ?? '❧';
+    return `<div class="cs-div cs-div-ornament"><span class="cs-div-orn">${esc(g)}</span></div>`;
+  }
+  return `<div class="cs-div cs-div-${s.divider}"></div>`;
+}
+
 /** CSS for the active chapter-start style. */
 export function chapterStyleCss(s: ChapterStartStyle, theme: BookTheme): string {
   const tcase =
@@ -69,18 +119,28 @@ export function chapterStyleCss(s: ChapterStartStyle, theme: BookTheme): string 
       : s.titleCase === 'smallcaps'
         ? 'font-variant:small-caps;letter-spacing:0.03em;'
         : '';
-  let css = `.book .chapter-heading{text-align:${s.align};margin:0 0 1.8em;}
+  const topMargin = s.space === 'sunk' ? '12% 0 1.8em' : s.space === 'tight' ? '0 0 0.9em' : '0 0 1.8em';
+  let css = `.book .chapter-heading{text-align:${s.align};margin:${topMargin};}
 .book .chapter-title{font-family:${theme.headingFont.stack};font-weight:700;font-size:${s.titleSize ?? 1.8}em;margin:0;line-height:1.15;${tcase}}
 .book .chapter-subtitle{font-family:${theme.headingFont.stack};font-style:italic;color:#555;margin-top:0.35em;}
 .book .cs-num{font-family:${theme.headingFont.stack};text-transform:uppercase;letter-spacing:0.25em;font-size:0.85em;color:#777;margin-bottom:0.5em;}
 .book .cs-num-big{font-family:${theme.headingFont.stack};font-weight:800;font-size:4.6em;line-height:0.9;color:rgba(0,0,0,0.12);margin-bottom:-0.05em;}
 .book .cs-num-label{font-variant:small-caps;letter-spacing:0.3em;color:#999;font-size:0.82em;margin-bottom:0.55em;}
 .book .cs-orn{font-size:1.5em;opacity:0.65;margin:0.35em 0;line-height:1;}
-.book .cs-flank{opacity:0.55;font-size:0.7em;vertical-align:middle;}`;
+.book .cs-flank{opacity:0.55;font-size:0.7em;vertical-align:middle;}
+${dividerCss()}`;
   if (s.rule === 'above' || s.rule === 'both')
     css += `\n.book .chapter-heading{padding-top:0.6em;border-top:1.5px solid currentColor;}`;
   if (s.rule === 'below' || s.rule === 'both')
     css += `\n.book .chapter-title{padding-bottom:0.3em;border-bottom:1.5px solid currentColor;display:inline-block;}`;
+  if (s.frame === 'box')
+    css += `\n.book .chapter-heading{border:1.5px solid currentColor;padding:1em 1.2em;}`;
+  if (s.frame === 'double-box')
+    css += `\n.book .chapter-heading{border:4px double currentColor;padding:1.1em 1.3em;}`;
+  if (s.frame === 'topbottom')
+    css += `\n.book .chapter-heading{border-top:1.5px solid currentColor;border-bottom:1.5px solid currentColor;padding:0.8em 0;}`;
+  if (s.frame === 'shaded')
+    css += `\n.book .chapter-heading{background:rgba(0,0,0,0.05);padding:1.1em 1.2em;}`;
   if (s.dropCap)
     css += `\n.book .chapter-body>p:first-of-type::first-letter{float:left;font-family:${theme.headingFont.stack};font-size:3.4em;line-height:0.78;padding:0.02em 0.08em 0 0;font-weight:700;}`;
   if (s.firstLineSmallCaps)
@@ -111,7 +171,11 @@ export function chapterHeadingHtml(
   const titleHtml = `<h1 class="chapter-title">${flank ? `<span class="cs-flank">${orn}</span> ` : ''}${esc(titleText)}${flank ? ` <span class="cs-flank">${orn}</span>` : ''}</h1>`;
   const sub = ctx.subtitle ? `<div class="chapter-subtitle">${esc(ctx.subtitle)}</div>` : '';
 
-  return `<header class="chapter-heading">${ornAbove}${numEl}${titleHtml}${sub}${ornBelow}</header>`;
+  const div = dividerHtml(s);
+  const divAbove = s.divider && (s.dividerPlace === 'above' || s.dividerPlace === 'both') ? div : '';
+  const divBelow = s.divider && (!s.dividerPlace || s.dividerPlace === 'below' || s.dividerPlace === 'both') ? div : '';
+
+  return `<header class="chapter-heading">${ornAbove}${divAbove}${numEl}${titleHtml}${sub}${divBelow}${ornBelow}</header>`;
 }
 
 type Partial0 = Partial<ChapterStartStyle> & { key: string; name: string };
@@ -158,6 +222,40 @@ const CURATED: ChapterStartStyle[] = [
   st({ key: 'asterism', name: 'Asterism ⁂', ornament: '⁂', ornPlace: 'above', number: 'roman', numPlace: 'above' }),
   st({ key: 'orn-both-fleuron', name: 'Fleurons Above & Below ❧', ornament: '❧', ornPlace: 'both' }),
   st({ key: 'orn-both-diamond', name: 'Diamonds Above & Below ◆', ornament: '◆', ornPlace: 'both' }),
+
+  // Divider designs — classic → modern lines/separators under the title.
+  st({ key: 'div-thin', name: 'Thin Rule Divider', divider: 'thin' }),
+  st({ key: 'div-thin-num', name: 'Number + Thin Rule', number: 'arabic', numPlace: 'above', divider: 'thin' }),
+  st({ key: 'div-thick', name: 'Thick Short Rule', divider: 'thick' }),
+  st({ key: 'div-double', name: 'Double Rule Divider', divider: 'double' }),
+  st({ key: 'div-dotted', name: 'Dotted Divider', divider: 'dotted' }),
+  st({ key: 'div-dashed', name: 'Dashed Divider', divider: 'dashed' }),
+  st({ key: 'div-short', name: 'Short Centered Rule', divider: 'short' }),
+  st({ key: 'div-short-thick', name: 'Short Bold Rule', divider: 'short-thick' }),
+  st({ key: 'div-tapered', name: 'Tapered (Faded) Rule', divider: 'tapered' }),
+  st({ key: 'div-dots', name: 'Three Dots • • •', divider: 'dots' }),
+  st({ key: 'div-orn-fleuron', name: 'Rule + Fleuron ❧', divider: 'ornament', dividerOrn: '❧' }),
+  st({ key: 'div-orn-diamond', name: 'Rule + Diamond ◆', divider: 'ornament', dividerOrn: '◆' }),
+  st({ key: 'div-orn-asterisk', name: 'Rule + Asterisk ✦', divider: 'ornament', dividerOrn: '✦' }),
+  st({ key: 'div-both-thin', name: 'Thin Rules Above & Below', divider: 'thin', dividerPlace: 'both' }),
+  st({ key: 'div-above-roman', name: 'Roman + Rule Above', number: 'roman', numPlace: 'above', divider: 'tapered', dividerPlace: 'above' }),
+  st({ key: 'div-tapered-upper', name: 'Caps Title + Tapered Rule', titleCase: 'upper', divider: 'tapered' }),
+  st({ key: 'div-orn-num-left', name: 'Number + Fleuron · Left', number: 'arabic', numPlace: 'above', divider: 'ornament', dividerOrn: '❧', align: 'left' }),
+
+  // Frames / wraps & boundaries around the heading.
+  st({ key: 'frame-topbottom', name: 'Top & Bottom Rules (band)', frame: 'topbottom', titleCase: 'smallcaps' }),
+  st({ key: 'frame-topbottom-num', name: 'Band + Number', frame: 'topbottom', number: 'c-arabic', numPlace: 'label' }),
+  st({ key: 'frame-box', name: 'Boxed Heading', frame: 'box' }),
+  st({ key: 'frame-box-num', name: 'Boxed + Number', frame: 'box', number: 'arabic', numPlace: 'above' }),
+  st({ key: 'frame-double-box', name: 'Double-Ruled Box', frame: 'double-box', titleCase: 'smallcaps' }),
+  st({ key: 'frame-shaded', name: 'Shaded Panel', frame: 'shaded' }),
+  st({ key: 'frame-shaded-big', name: 'Shaded Panel + Big Number', frame: 'shaded', number: 'arabic', numPlace: 'big' }),
+
+  // Spacing-led (modern, airy) layouts.
+  st({ key: 'sunk-plain', name: 'Sunk Title (airy)', space: 'sunk' }),
+  st({ key: 'sunk-num-tapered', name: 'Sunk + Number + Tapered', space: 'sunk', number: 'arabic', numPlace: 'above', divider: 'tapered' }),
+  st({ key: 'sunk-upper', name: 'Sunk Uppercase', space: 'sunk', titleCase: 'upper' }),
+  st({ key: 'tight-inline', name: 'Tight Inline “N. Title” · Left', space: 'tight', number: 'arabic', numPlace: 'inline', align: 'left' }),
 ];
 
 const generated: ChapterStartStyle[] = [];

@@ -10,6 +10,13 @@ export {
   type ChapterStartStyle,
 } from './chapter-styles';
 export {
+  OPENING_QUOTE_STYLES,
+  BLOCKQUOTE_STYLES,
+  openingQuoteCss,
+  blockQuoteCss,
+  type ProseStyle,
+} from './prose-styles';
+export {
   renderCoverHtml,
   coverDimensions,
   spineInches,

@@ -5,6 +5,8 @@ import {
   THEMES,
   FONTS,
   CHAPTER_STYLES,
+  OPENING_QUOTE_STYLES,
+  BLOCKQUOTE_STYLES,
   getTheme,
   renderBookDocument,
   type ReadingMode,
@@ -334,8 +336,42 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               ))}
             </select>
             <p className="text-xs text-muted-foreground">
-              Controls how each chapter&apos;s first page looks (number, ornament, rules, drop cap…).
+              Controls how each chapter&apos;s first page looks (number, ornament, dividers, frames,
+              drop cap, spacing…).
             </p>
+          </section>
+
+          {/* Quote presentation */}
+          <section className="space-y-2">
+            <h2 className="text-sm font-medium">Quote styles</h2>
+            <div className="space-y-1">
+              <Label className="text-[11px]">Opening quote (chapter epigraph)</Label>
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
+                value={typo.openingQuoteStyleKey ?? 'centered'}
+                onChange={(e) => setT({ openingQuoteStyleKey: e.target.value })}
+              >
+                {OPENING_QUOTE_STYLES.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px]">Block quotes (in the text)</Label>
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
+                value={typo.blockQuoteStyleKey ?? 'left-rule'}
+                onChange={(e) => setT({ blockQuoteStyleKey: e.target.value })}
+              >
+                {BLOCKQUOTE_STYLES.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </section>
 
           {/* Page layout / breaks */}
