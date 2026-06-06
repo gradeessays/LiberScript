@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { tiptapToHtml } from '@liberscript/format';
+import { tiptapToHtml, applyTypography, getTheme, type BookTheme } from '@liberscript/format';
 import { ChapterKind, KIND_LABELS, generateCopyright, type BookGenre } from '@liberscript/core';
 import type { ExportBook, ExportElement } from './types';
 
@@ -25,15 +25,25 @@ interface Page {
   body: string;
 }
 
-const STYLE = `
-body { font-family: Georgia, 'Times New Roman', serif; line-height: 1.5; margin: 1em 1.2em; }
+/**
+ * EPUB stylesheet derived from the chosen theme + typography. EPUBs reflow, so we
+ * carry the *design* (fonts, indents, paragraph rhythm, justification) rather than
+ * a fixed page size — the reader controls the page.
+ */
+function epubStyle(theme: BookTheme): string {
+  const p = theme.paragraph;
+  return `
+body { font-family: ${theme.bodyFont.stack}; line-height: ${theme.lineHeight}; margin: 1em 1.2em; ${
+    p.justify ? 'text-align: justify; hyphens: auto;' : ''
+  } }
+h1, h2, h3 { font-family: ${theme.headingFont.stack}; }
 h1 { font-size: 1.5em; margin: 1em 0 0.6em; text-align: center; }
 h2 { font-size: 1.2em; } h3 { font-size: 1.05em; }
-p { margin: 0 0 0.2em; text-indent: 1.3em; }
+p { margin: 0 0 ${p.spacingEm}em; text-indent: ${p.indentEm}em; }
 .first p:first-of-type, .nonindent p { text-indent: 0; }
 .subtitle { text-align: center; font-style: italic; color: #444; margin-bottom: 1.2em; }
 .titlepage, .epigraph, .dedication { text-align: center; }
-.titlepage .title { font-size: 2em; font-weight: bold; margin-top: 2em; }
+.titlepage .title { font-family: ${theme.headingFont.stack}; font-size: 2em; font-weight: bold; margin-top: 2em; }
 .titlepage .author { margin-top: 1.5em; }
 .titlepage .publisher { margin-top: 3em; color: #555; }
 .copyright { font-size: 0.85em; text-align: left; }
@@ -43,6 +53,7 @@ p { margin: 0 0 0.2em; text-indent: 1.3em; }
 .scene-break::after { content: "* * *"; }
 blockquote { margin: 0 0 1em 1em; font-style: italic; }
 `;
+}
 
 function elementToPage(el: ExportElement, index: number, book: ExportBook): Page | null {
   const idx = String(index).padStart(4, '0');
@@ -148,7 +159,7 @@ export async function buildEpub(book: ExportBook): Promise<Uint8Array> {
 <rootfiles><rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/></rootfiles>
 </container>`,
   );
-  zip.file('OEBPS/style.css', STYLE);
+  zip.file('OEBPS/style.css', epubStyle(applyTypography(getTheme(book.themeKey), book.typography)));
   for (const p of pages) zip.file(`OEBPS/${p.fileName}`, wrapXhtml(p.title, p.body));
 
   const manifest = pages

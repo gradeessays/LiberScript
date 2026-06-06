@@ -66,6 +66,19 @@ describe('exporters', () => {
     expect(bytes[1]).toBe(0x4b);
   });
 
+  it('honors typography (trim + fonts) in DOCX and EPUB', async () => {
+    const designed: ExportBook = {
+      ...book,
+      typography: { trimKey: '5x8', bodyFontKey: 'inter', fontScalePct: 120, pageNumbers: true },
+    };
+    const docx = await buildDocx(designed);
+    expect(docx.byteLength).toBeGreaterThan(0);
+    expect(docx[0]).toBe(0x50); // still a valid .docx (PK zip)
+    const epub = await buildEpub(designed);
+    const text = Buffer.from(epub).toString('latin1');
+    expect(text).toContain('Inter'); // chosen body font lands in the EPUB stylesheet
+  });
+
   it('builds a non-empty cover PDF', async () => {
     const bytes = await buildCoverPdf(cover);
     expect(bytes.byteLength).toBeGreaterThan(0);

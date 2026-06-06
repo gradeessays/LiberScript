@@ -1,6 +1,18 @@
-import { AlignmentType, Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
+import {
+  AlignmentType,
+  convertInchesToTwip,
+  Document,
+  Footer,
+  Header,
+  HeadingLevel,
+  Packer,
+  PageNumber,
+  Paragraph,
+  TextRun,
+} from 'docx';
 import { ChapterKind, KIND_LABELS, generateCopyright, type BookGenre } from '@liberscript/core';
 import type { TiptapNode } from '@liberscript/core';
+import { applyTypography, getTheme } from '@liberscript/format';
 import type { ExportBook, ExportElement } from './types';
 
 const HEADING = [
@@ -135,13 +147,83 @@ function elementParagraphs(el: ExportElement, book: ExportBook): Paragraph[] {
   }
 }
 
-/** Build a .docx file (returns the bytes). */
+/** Build a .docx file (returns the bytes), formatted to the chosen size & design. */
 export async function buildDocx(book: ExportBook): Promise<Uint8Array> {
+  const theme = applyTypography(getTheme(book.themeKey), book.typography);
   const children = book.elements.flatMap((el) => elementParagraphs(el, book));
+  const t = book.typography;
+  const pageNumbers = t?.pageNumbers !== false;
+  const runningHeaders = t?.runningHeaders !== false;
+
+  const footers = pageNumbers
+    ? {
+        default: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [new TextRun({ children: [PageNumber.CURRENT], size: 18 })],
+            }),
+          ],
+        }),
+        first: new Footer({ children: [new Paragraph('')] }),
+      }
+    : undefined;
+  const headers = runningHeaders
+    ? {
+        default: new Header({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [new TextRun({ text: book.title, italics: true, size: 18 })],
+            }),
+          ],
+        }),
+        first: new Header({ children: [new Paragraph('')] }),
+      }
+    : undefined;
+
   const doc = new Document({
     creator: book.author ?? 'Liberscript',
     title: book.title,
-    sections: [{ children: children.length ? children : [new Paragraph('')] }],
+    styles: {
+      default: {
+        document: {
+          run: { font: theme.bodyFont.name, size: Math.round(theme.baseFontPt * 2) },
+          paragraph: { spacing: { line: Math.round(theme.lineHeight * 240) } },
+        },
+      },
+      paragraphStyles: [1, 2, 3, 4].map((lvl) => ({
+        id: `Heading${lvl}`,
+        name: `Heading ${lvl}`,
+        basedOn: 'Normal',
+        next: 'Normal',
+        quickFormat: true,
+        run: { font: theme.headingFont.name, bold: true, size: Math.round(theme.baseFontPt * 2 * (1.6 - lvl * 0.18)) },
+        paragraph: { spacing: { before: 240, after: 120 } },
+      })),
+    },
+    sections: [
+      {
+        properties: {
+          titlePage: true, // suppress the header/footer on the opening page
+          page: {
+            size: {
+              width: convertInchesToTwip(theme.trim.widthIn),
+              height: convertInchesToTwip(theme.trim.heightIn),
+            },
+            margin: {
+              top: convertInchesToTwip(theme.marginsIn.top),
+              bottom: convertInchesToTwip(theme.marginsIn.bottom),
+              left: convertInchesToTwip(theme.marginsIn.inner),
+              right: convertInchesToTwip(theme.marginsIn.outer),
+            },
+          },
+        },
+        ...(headers ? { headers } : {}),
+        ...(footers ? { footers } : {}),
+        children: children.length ? children : [new Paragraph('')],
+      },
+    ],
   });
   return Packer.toBuffer(doc);
 }

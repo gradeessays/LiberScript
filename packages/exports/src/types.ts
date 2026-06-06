@@ -1,4 +1,5 @@
 import type { PaperType, Binding } from '@liberscript/format';
+import type { TypographyOverrides } from '@liberscript/core';
 
 export interface ExportElement {
   kind: string;
@@ -16,6 +17,8 @@ export interface ExportBook {
   isbn?: string;
   language: string;
   themeKey: string;
+  /** Per-book design overrides (trim size, fonts, spacing, headers…). */
+  typography?: TypographyOverrides;
   elements: ExportElement[];
   /** Free tier → include the Liberscript attribution. */
   watermark: boolean;

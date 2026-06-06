@@ -16,6 +16,13 @@ import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { DeviceFrame, type DeviceKind } from '@/components/device-frame';
 
 type Target = 'print' | 'ebook';
+type ExportFmt = 'EPUB' | 'DOCX' | 'COVER_PDF';
+
+const EXPORT_OPTIONS: { format: ExportFmt; label: string; hint: string }[] = [
+  { format: 'EPUB', label: 'EPUB (e-book)', hint: 'Reflowable — Kindle, Apple Books, Kobo' },
+  { format: 'DOCX', label: 'Word (.docx)', hint: 'Your size, fonts & spacing' },
+  { format: 'COVER_PDF', label: 'Cover PDF', hint: 'Press-ready wrap from Cover Studio' },
+];
 
 const FONT_OPTIONS = Object.entries(FONTS).map(([key, f]) => ({ key, name: f.name }));
 
@@ -105,14 +112,55 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
   }
 
   const setT = (patch: Partial<TypographyOverrides>) => setTypo((t) => ({ ...t, ...patch }));
-  const save = () =>
-    update.mutate({
-      projectId: id,
-      themeKey,
-      publisherName: publisher || null,
-      author: author || null,
-      typography: typo,
-    });
+  const saveArgs = () => ({
+    projectId: id,
+    themeKey,
+    publisherName: publisher || null,
+    author: author || null,
+    typography: typo,
+  });
+  const save = () => update.mutate(saveArgs());
+
+  // Export: persist the current design first so the file matches the preview,
+  // then queue the job and auto-download the moment it's ready.
+  const exportCreate = trpc.export.create.useMutation({
+    onSuccess: () => utils.export.list.invalidate({ projectId: id }),
+  });
+  const exportsQ = trpc.export.list.useQuery(
+    { projectId: id },
+    {
+      refetchInterval: (q) => {
+        const data = q.state.data;
+        return data?.some((j) => j.status === 'QUEUED' || j.status === 'RUNNING') ? 2000 : false;
+      },
+    },
+  );
+  const [exporting, setExporting] = useState<ExportFmt | null>(null);
+  const downloaded = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const j of exportsQ.data ?? []) {
+      if (j.status === 'SUCCEEDED' && j.downloadUrl && !downloaded.current.has(j.id)) {
+        downloaded.current.add(j.id);
+        const a = document.createElement('a');
+        a.href = j.downloadUrl;
+        a.download = j.fileName ?? '';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setExporting(null);
+      }
+    }
+  }, [exportsQ.data]);
+
+  async function exportAs(format: ExportFmt) {
+    setExporting(format);
+    try {
+      await update.mutateAsync(saveArgs());
+      await exportCreate.mutateAsync({ projectId: id, format });
+    } catch {
+      setExporting(null);
+    }
+  }
 
   if (preview.isLoading) return <p className="text-muted-foreground">Loading preview…</p>;
   if (preview.error) return <p className="text-destructive">{preview.error.message}</p>;
@@ -148,6 +196,49 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               {update.isPending ? 'Saving…' : 'Save design'}
             </Button>
           )}
+
+          {/* Export — saves the current design, builds the formatted file, downloads it */}
+          <section className="space-y-2 rounded-lg border bg-muted/30 p-3">
+            <h2 className="text-sm font-medium">Export</h2>
+            <p className="text-xs text-muted-foreground">
+              Downloads your book formatted with the size, fonts and design shown in the preview.
+            </p>
+            <div className="grid gap-2">
+              {EXPORT_OPTIONS.map((o) => (
+                <Button
+                  key={o.format}
+                  variant="outline"
+                  size="sm"
+                  className="h-auto flex-col items-start py-2"
+                  disabled={exporting !== null}
+                  onClick={() => exportAs(o.format)}
+                >
+                  <span className="font-medium">
+                    {exporting === o.format ? 'Preparing…' : `Download ${o.label}`}
+                  </span>
+                  <span className="text-[11px] font-normal text-muted-foreground">{o.hint}</span>
+                </Button>
+              ))}
+            </div>
+            {(exportsQ.data?.length ?? 0) > 0 && (
+              <ul className="space-y-1 pt-1 text-xs">
+                {exportsQ.data!.slice(0, 4).map((j) => (
+                  <li key={j.id} className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">{j.format}</span>
+                    {j.status === 'SUCCEEDED' && j.downloadUrl ? (
+                      <a href={j.downloadUrl} download={j.fileName ?? ''} className="text-primary hover:underline">
+                        Download
+                      </a>
+                    ) : j.status === 'FAILED' ? (
+                      <span className="text-destructive" title={j.error ?? ''}>Failed</span>
+                    ) : (
+                      <span className="text-muted-foreground">Preparing…</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           {/* Theme */}
           <section>

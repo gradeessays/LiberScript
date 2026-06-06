@@ -1,7 +1,13 @@
 import { generateExportPayload } from '@liberscript/jobs';
 import { prisma, type ExportFormat } from '@liberscript/db';
 import { getObjectBuffer, putObjectBuffer } from '@liberscript/storage';
-import { KDP_TRIM_SIZES, PLAN_LIMITS, PlanTier, slugify } from '@liberscript/core';
+import {
+  KDP_TRIM_SIZES,
+  PLAN_LIMITS,
+  PlanTier,
+  slugify,
+  type TypographyOverrides,
+} from '@liberscript/core';
 import {
   buildCoverPdf,
   buildDocx,
@@ -70,7 +76,11 @@ export async function handleGenerateExport(data: unknown): Promise<{ storageKey:
       where: { ownerType_ownerId: { ownerType: project.ownerType, ownerId: project.ownerId } },
     });
     const watermark = !PLAN_LIMITS[(sub?.tier as PlanTier) ?? PlanTier.FREE].removeWatermark;
-    const formatting = (project.formatting ?? {}) as { author?: string; publisherName?: string };
+    const formatting = (project.formatting ?? {}) as {
+      author?: string;
+      publisherName?: string;
+      typography?: TypographyOverrides;
+    };
 
     const meta = FILE_META[job.format] ?? FILE_META.EPUB!;
     const fileName = `${slugify(project.title) || 'book'}.${meta.ext}`;
@@ -115,6 +125,7 @@ export async function handleGenerateExport(data: unknown): Promise<{ storageKey:
         isbn: project.metadata?.isbn ?? undefined,
         language: project.metadata?.language ?? 'en',
         themeKey: project.themeKey,
+        typography: formatting.typography,
         watermark,
         elements: (project.manuscript?.chapters ?? []).map((c) => ({
           kind: c.kind,
