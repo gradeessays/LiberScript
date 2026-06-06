@@ -45,7 +45,7 @@ export function DashboardUpload() {
 
       setPhase('parsing');
       await confirmUpload.mutateAsync({ assetId });
-      router.push(`/projects/${project.id}`);
+      router.push(`/projects/${project.id}/edit`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed.');
       setPhase('error');

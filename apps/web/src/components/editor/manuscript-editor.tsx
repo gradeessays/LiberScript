@@ -7,12 +7,18 @@ import { Button, cn } from '@liberscript/ui';
 
 type SaveState = 'idle' | 'saving' | 'saved';
 
+export type TagField = 'title' | 'subtitle' | 'openingQuote' | 'attribution';
+
 interface Props {
   initialContent: JSONContent;
   /** Debounced autosave of the full doc. */
   onSave: (content: JSONContent) => Promise<void>;
   /** Split at the cursor: content before vs. from the current top-level block. */
   onSplit: (before: JSONContent, after: JSONContent) => void;
+  /** Lift the current selection out of the body into a structured field. */
+  onTagField?: (field: TagField, text: string) => void;
+  /** Show the Title/Subtitle/Quote/Attribution tag buttons (chapters only). */
+  structureTags?: boolean;
   editable?: boolean;
 }
 
@@ -40,7 +46,14 @@ function ToolbarButton({
   );
 }
 
-export function ManuscriptEditor({ initialContent, onSave, onSplit, editable = true }: Props) {
+export function ManuscriptEditor({
+  initialContent,
+  onSave,
+  onSplit,
+  onTagField,
+  structureTags = false,
+  editable = true,
+}: Props) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -70,6 +83,17 @@ export function ManuscriptEditor({ initialContent, onSave, onSplit, editable = t
     };
   }, []);
 
+  const liftTo = useCallback(
+    (ed: Editor, field: TagField) => {
+      const { from, to } = ed.state.selection;
+      const text = ed.state.doc.textBetween(from, to, ' ').trim();
+      if (!text || !onTagField) return;
+      ed.chain().focus().deleteSelection().run();
+      onTagField(field, text);
+    },
+    [onTagField],
+  );
+
   const splitHere = useCallback(
     (ed: Editor) => {
       const json = ed.getJSON();
@@ -88,11 +112,27 @@ export function ManuscriptEditor({ initialContent, onSave, onSplit, editable = t
   return (
     <div className="rounded-lg border">
       <div className="flex flex-wrap items-center gap-1 border-b p-1.5">
+        {structureTags && onTagField && (
+          <>
+            <span className="px-1 text-[11px] uppercase tracking-wide text-muted-foreground">Tag&nbsp;selection</span>
+            <ToolbarButton onClick={() => liftTo(editor, 'title')}>Title</ToolbarButton>
+            <ToolbarButton onClick={() => liftTo(editor, 'subtitle')}>Subtitle</ToolbarButton>
+            <ToolbarButton onClick={() => liftTo(editor, 'openingQuote')}>Quote</ToolbarButton>
+            <ToolbarButton onClick={() => liftTo(editor, 'attribution')}>Attrib.</ToolbarButton>
+            <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+          </>
+        )}
         <ToolbarButton active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
           B
         </ToolbarButton>
         <ToolbarButton active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
           <span className="italic">I</span>
+        </ToolbarButton>
+        <ToolbarButton
+          active={editor.isActive('heading', { level: 1 })}
+          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+        >
+          H1
         </ToolbarButton>
         <ToolbarButton
           active={editor.isActive('heading', { level: 2 })}

@@ -16,6 +16,8 @@ import { trpc } from '@/lib/trpc/client';
 import { TitlePageForm } from '@/components/editor/title-page-form';
 import { CopyrightForm } from '@/components/editor/copyright-form';
 import { DesignStudio } from '@/components/design-studio';
+import { ProjectSwitcher } from '@/components/project-switcher';
+import { EditorUpload } from '@/components/editor-upload';
 
 // TipTap is heavy; load it only when the editor is actually shown.
 const ManuscriptEditor = dynamic(
@@ -74,6 +76,12 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   const refresh = () =>
     Promise.all([utils.project.get.invalidate({ id }), utils.chapter.get.invalidate()]);
+  // Worker parsing is async; refresh a few times so new sections appear live.
+  const refreshSoon = () => {
+    void refresh();
+    setTimeout(() => void refresh(), 1800);
+    setTimeout(() => void refresh(), 4000);
+  };
 
   const updateContent = trpc.chapter.updateContent.useMutation();
   const updateMeta = trpc.chapter.updateMeta.useMutation({ onSuccess: refresh });
@@ -222,12 +230,12 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <Link href={`/projects/${id}`} className="text-sm text-muted-foreground hover:underline">
-            ← {project.data?.title ?? 'Project'}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <ProjectSwitcher currentId={id} currentTitle={project.data?.title ?? 'Untitled book'} />
+          <Link href={`/projects/${id}/cover`} className="text-sm text-muted-foreground hover:underline">
+            Cover
           </Link>
-          <h1 className="text-xl font-semibold tracking-tight">Book builder</h1>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border p-0.5 text-sm">
@@ -240,10 +248,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   view === v ? 'bg-accent font-medium' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {v}
+                {v === 'preview' ? 'Preview & export' : v}
               </button>
             ))}
           </div>
+          {view === 'write' && <EditorUpload projectId={id} onParsed={refreshSoon} />}
           {view === 'write' && (
             <Button size="sm" onClick={() => create.mutate({ projectId: id, kind: ChapterKind.CHAPTER })}>
               + Chapter
@@ -395,53 +404,50 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 />
               ) : (
                 <>
-                  <div className="space-y-2 rounded-lg border p-3">
-                    <Input
+                  {/* Document canvas: the section's title / subtitle / opening quote
+                      read as one continuous page above the body. */}
+                  <div className="rounded-lg border bg-card px-5 pt-5 pb-1">
+                    <input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       onBlur={() => title.trim() && updateMeta.mutate({ id: selectedId, title, subtitle })}
-                      className="text-lg font-semibold"
-                      placeholder="Title"
+                      className="w-full bg-transparent text-center text-2xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/40"
+                      placeholder="Untitled"
                     />
                     {selectedKind === ChapterKind.CHAPTER && (
                       <>
-                        <Input
+                        <input
                           value={subtitle}
                           onChange={(e) => setSubtitle(e.target.value)}
-                          onBlur={() =>
-                            updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })
-                          }
+                          onBlur={() => updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })}
+                          className="mt-1 w-full bg-transparent text-center italic text-muted-foreground outline-none placeholder:text-muted-foreground/40"
                           placeholder="Subtitle (optional)"
                         />
-                        <div className="space-y-1">
-                          <Label>Opening quote (optional)</Label>
-                          <textarea
-                            className="min-h-16 w-full rounded-md border border-input bg-background p-2 text-sm"
-                            value={openingQuote}
-                            onChange={(e) => setOpeningQuote(e.target.value)}
-                            onBlur={() => saveOpening(openingQuote, openingAttr)}
-                            placeholder="An epigraph that opens the chapter…"
-                          />
-                          <Input
-                            value={openingAttr}
-                            onChange={(e) => setOpeningAttr(e.target.value)}
-                            onBlur={() => saveOpening(openingQuote, openingAttr)}
-                            placeholder="Attribution (optional)"
-                          />
-                        </div>
+                        <textarea
+                          className="mt-2 w-full resize-none bg-transparent text-center text-sm italic text-muted-foreground outline-none placeholder:text-muted-foreground/40"
+                          rows={openingQuote ? 2 : 1}
+                          value={openingQuote}
+                          onChange={(e) => setOpeningQuote(e.target.value)}
+                          onBlur={() => saveOpening(openingQuote, openingAttr)}
+                          placeholder="Opening quote (optional)"
+                        />
+                        <input
+                          value={openingAttr}
+                          onChange={(e) => setOpeningAttr(e.target.value)}
+                          onBlur={() => saveOpening(openingQuote, openingAttr)}
+                          className="w-full bg-transparent text-center text-xs uppercase tracking-wide text-muted-foreground outline-none placeholder:text-muted-foreground/40"
+                          placeholder="— Attribution (optional)"
+                        />
                       </>
                     )}
                     {selectedKind === ChapterKind.EPIGRAPH && (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-left">
                         <div className="space-y-1">
                           <Label>Attribution</Label>
                           <Input
                             defaultValue={(data.attribution as string) ?? ''}
                             onBlur={(e) =>
-                              updateData.mutate({
-                                id: selectedId,
-                                data: { ...data, attribution: e.target.value },
-                              })
+                              updateData.mutate({ id: selectedId, data: { ...data, attribution: e.target.value } })
                             }
                           />
                         </div>
@@ -451,10 +457,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                             className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
                             defaultValue={(data.style as string) ?? 'centered'}
                             onChange={(e) =>
-                              updateData.mutate({
-                                id: selectedId,
-                                data: { ...data, style: e.target.value },
-                              })
+                              updateData.mutate({ id: selectedId, data: { ...data, style: e.target.value } })
                             }
                           >
                             <option value="centered">Centered italic</option>
@@ -470,6 +473,23 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   <ManuscriptEditor
                     key={selectedId}
                     initialContent={chapter.data.content as JSONContent}
+                    structureTags={selectedKind === ChapterKind.CHAPTER}
+                    onTagField={(field, text) => {
+                      if (!selectedId) return;
+                      if (field === 'title') {
+                        setTitle(text);
+                        updateMeta.mutate({ id: selectedId, title: text, subtitle: subtitle || null });
+                      } else if (field === 'subtitle') {
+                        setSubtitle(text);
+                        updateMeta.mutate({ id: selectedId, title, subtitle: text });
+                      } else if (field === 'openingQuote') {
+                        setOpeningQuote(text);
+                        saveOpening(text, openingAttr);
+                      } else {
+                        setOpeningAttr(text);
+                        saveOpening(openingQuote, text);
+                      }
+                    }}
                     onSave={async (content) => {
                       await updateContent.mutateAsync({ id: selectedId, content });
                     }}
@@ -479,8 +499,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   />
 
                   <p className="text-xs text-muted-foreground">
-                    Switch to <span className="font-medium">Preview</span> (top right) to see the whole
-                    book and adjust styles, fonts, and chapter designs live.
+                    Paste your text, then select a line and tag it (Title, Subtitle, Quote…). Switch to{' '}
+                    <span className="font-medium">Preview</span> to see the whole book formatted live.
                   </p>
                 </>
               )}

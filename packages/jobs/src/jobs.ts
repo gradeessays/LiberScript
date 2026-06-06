@@ -21,6 +21,8 @@ export const pingPayload = z.object({
 export const parseManuscriptPayload = z.object({
   projectId: z.string(),
   assetId: z.string(),
+  /** Replace the book's content, or append the parsed sections after it. */
+  mode: z.enum(['replace', 'append']).default('replace'),
 });
 
 export const runAnalysisPayload = z.object({

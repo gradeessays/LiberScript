@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Button,
-  buttonVariants,
   Card,
   CardContent,
   CardDescription,
@@ -15,56 +14,51 @@ import {
 import { trpc } from '@/lib/trpc/client';
 import { DashboardUpload } from '@/components/dashboard-upload';
 
+/**
+ * The workspace entry point: open straight into the editor for the most recently
+ * edited book. New users (no books yet) get a create-or-upload screen instead.
+ */
 export default function DashboardPage() {
-  const utils = trpc.useUtils();
+  const router = useRouter();
   const me = trpc.account.me.useQuery();
   const projects = trpc.project.list.useQuery();
   const [title, setTitle] = useState('');
 
   const create = trpc.project.create.useMutation({
-    onSuccess: () => {
-      setTitle('');
-      void utils.project.list.invalidate();
-    },
-  });
-  // Optimistic delete: the row disappears instantly, rolling back only if the
-  // server rejects it.
-  const archive = trpc.project.archive.useMutation({
-    onMutate: async ({ id }) => {
-      await utils.project.list.cancel();
-      const prev = utils.project.list.getData();
-      utils.project.list.setData(undefined, (old) => old?.filter((p) => p.id !== id));
-      return { prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) utils.project.list.setData(undefined, ctx.prev);
-    },
-    onSettled: () => void utils.project.list.invalidate(),
+    onSuccess: (p) => router.replace(`/projects/${p.id}/edit`),
   });
 
+  const latestId = projects.data?.[0]?.id;
+  useEffect(() => {
+    if (latestId) router.replace(`/projects/${latestId}/edit`);
+  }, [latestId, router]);
+
+  if (projects.isLoading || latestId) {
+    return <p className="text-sm text-muted-foreground">Opening your workspace…</p>;
+  }
+
+  // Empty state — create the first book or upload a manuscript.
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="mx-auto max-w-xl space-y-6 py-10">
+      <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {me.data ? `Welcome, ${me.data.user.name}` : 'Dashboard'}
+          {me.data ? `Welcome, ${me.data.user.name}` : 'Welcome'}
         </h1>
         <p className="text-muted-foreground">
-          {me.data?.activeOrganizationId
-            ? `Team workspace (role: ${me.data.activeRole ?? 'member'}).`
-            : 'Your personal workspace.'}
+          Create your first book or upload a manuscript — we&apos;ll detect its structure for you.
         </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>New book</CardTitle>
-          <CardDescription>Create a project, then upload your manuscript.</CardDescription>
+          <CardDescription>Start from scratch, or import an existing file.</CardDescription>
         </CardHeader>
         <CardContent>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (title.trim()) create.mutate({ title: title.trim() });
+              create.mutate({ title: title.trim() || 'Untitled book' });
             }}
             className="flex items-center gap-3"
           >
@@ -74,7 +68,7 @@ export default function DashboardPage() {
               placeholder="Book title"
               maxLength={200}
             />
-            <Button type="submit" disabled={create.isPending || !title.trim()}>
+            <Button type="submit" disabled={create.isPending}>
               {create.isPending ? 'Creating…' : 'Create'}
             </Button>
           </form>
@@ -84,59 +78,6 @@ export default function DashboardPage() {
             <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
           </div>
           <DashboardUpload />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your books</CardTitle>
-          <CardDescription>Projects in this workspace.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {projects.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : projects.data && projects.data.length > 0 ? (
-            <ul className="divide-y rounded-md border">
-              {projects.data.map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div>
-                    <Link href={`/projects/${p.id}`} className="font-medium hover:underline">
-                      {p.title}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">
-                      {p.manuscript
-                        ? `${p.manuscript.wordCount.toLocaleString()} words · ${p.manuscript.readingMinutes} min read`
-                        : 'No manuscript yet'}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Link
-                      href={`/projects/${p.id}`}
-                      className={buttonVariants({ variant: 'outline', size: 'sm' })}
-                    >
-                      Open
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => {
-                        if (confirm(`Delete “${p.title}”? This removes it from your workspace.`)) {
-                          archive.mutate({ id: p.id });
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No books yet. Create your first one above.
-            </p>
-          )}
         </CardContent>
       </Card>
     </div>

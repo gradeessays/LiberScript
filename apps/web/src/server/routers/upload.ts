@@ -57,7 +57,7 @@ export const uploadRouter = router({
 
   /** Confirm a completed upload and queue parsing into chapters. */
   confirm: protectedProcedure
-    .input(z.object({ assetId: z.string() }))
+    .input(z.object({ assetId: z.string(), mode: z.enum(['replace', 'append']).default('replace') }))
     .mutation(async ({ ctx, input }) => {
       const asset = await ctx.prisma.asset.findUnique({ where: { id: input.assetId } });
       if (!asset?.projectId) {
@@ -69,6 +69,7 @@ export const uploadRouter = router({
       const jobId = await enqueue(JobName.PARSE_MANUSCRIPT, {
         projectId: asset.projectId,
         assetId: asset.id,
+        mode: input.mode,
       });
       return { ok: true, jobId };
     }),
