@@ -21,6 +21,8 @@ export function TRPCProvider({ children }: { children: ReactNode }) {
             staleTime: 30_000,
             gcTime: 5 * 60_000,
             refetchOnWindowFocus: false,
+            // Surface errors quickly instead of long exponential-backoff retries.
+            retry: 1,
           },
         },
       }),

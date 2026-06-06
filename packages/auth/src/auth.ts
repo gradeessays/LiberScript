@@ -17,6 +17,13 @@ export const auth = betterAuth({
   secret: env.AUTH_SECRET,
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
 
+  session: {
+    // Cache the session in a signed cookie so most requests skip the DB lookup
+    // entirely (big win when the DB is geographically distant). Sign-out and
+    // session changes still invalidate it.
+    cookieCache: { enabled: true, maxAge: 5 * 60 },
+  },
+
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

@@ -3,21 +3,20 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@liberscript/ui';
-import {
-  organization,
-  signOut,
-  useActiveOrganization,
-  useListOrganizations,
-} from '@liberscript/auth/client';
+import { organization, signOut } from '@liberscript/auth/client';
+import { trpc } from '@/lib/trpc/client';
 import { ThemeToggle } from './theme-toggle';
 
 export function AppHeader({ userName }: { userName: string }) {
   const router = useRouter();
-  const { data: organizations } = useListOrganizations();
-  const { data: active } = useActiveOrganization();
+  const utils = trpc.useUtils();
+  // Reuse the cached account query (shared with the dashboard) instead of two
+  // separate better-auth org endpoints on every page load.
+  const me = trpc.account.me.useQuery();
 
   async function onSwitch(value: string) {
     await organization.setActive({ organizationId: value === 'personal' ? null : value });
+    await utils.account.me.invalidate();
     router.refresh();
   }
 
@@ -42,11 +41,11 @@ export function AppHeader({ userName }: { userName: string }) {
           <select
             aria-label="Active workspace"
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            value={active?.id ?? 'personal'}
+            value={me.data?.activeOrganizationId ?? 'personal'}
             onChange={(e) => onSwitch(e.target.value)}
           >
             <option value="personal">Personal</option>
-            {organizations?.map((org) => (
+            {me.data?.organizations.map((org) => (
               <option key={org.id} value={org.id}>
                 {org.name}
               </option>
