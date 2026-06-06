@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { tiptapToHtml } from '../tiptap-html';
 import { getTheme, THEMES, DEFAULT_THEME_KEY } from '../themes';
 import { renderBookDocument, renderChapter, themeCss } from '../render';
+import { CHAPTER_STYLES, chapterHeadingHtml, getChapterStyle } from '../chapter-styles';
 
 const sampleDoc = {
   type: 'doc',
@@ -71,6 +72,30 @@ describe('renderChapter / themeCss', () => {
   it('uses page geometry for print and reflow for ebook', () => {
     expect(themeCss(getTheme('selfhelp'), 'print')).toContain('@page');
     expect(themeCss(getTheme('selfhelp'), 'ebook')).toContain('max-width');
+  });
+});
+
+describe('chapter styles', () => {
+  it('provides 50+ chapter-start designs', () => {
+    expect(CHAPTER_STYLES.length).toBeGreaterThanOrEqual(50);
+    expect(new Set(CHAPTER_STYLES.map((s) => s.key)).size).toBe(CHAPTER_STYLES.length); // unique keys
+  });
+  it('formats numbers per style (roman, word, chapter-N)', () => {
+    const roman = getChapterStyle('num-roman-center')!;
+    expect(chapterHeadingHtml(roman, { index: 4, title: 'X' })).toContain('IV');
+    const word = getChapterStyle('big-word')!;
+    expect(chapterHeadingHtml(word, { index: 21, title: 'X' })).toContain('Twenty-One');
+    const chap = getChapterStyle('chapter-arabic-center')!;
+    expect(chapterHeadingHtml(chap, { index: 3, title: 'X' })).toContain('Chapter 3');
+  });
+  it('renders chapter style + opening quote via renderChapter', () => {
+    const html = renderChapter(
+      getTheme('novel-classic'),
+      { index: 1, title: 'Ch', content: { type: 'doc', content: [] }, openingQuote: 'To be.', openingQuoteAttribution: 'Bard' },
+      getChapterStyle('orn-above-0'),
+    );
+    expect(html).toContain('chapter-opening-quote');
+    expect(html).toContain('Bard');
   });
 });
 

@@ -2,7 +2,14 @@
 
 import { use, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { THEMES, FONTS, getTheme, renderBookDocument, type ReadingMode } from '@liberscript/format';
+import {
+  THEMES,
+  FONTS,
+  CHAPTER_STYLES,
+  getTheme,
+  renderBookDocument,
+  type ReadingMode,
+} from '@liberscript/format';
 import { KDP_TRIM_SIZES, type TypographyOverrides } from '@liberscript/core';
 import { Button, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
@@ -186,6 +193,26 @@ export default function DesignPage({ params }: { params: Promise<{ id: string }>
                 />
               </div>
             )}
+          </section>
+
+          {/* Chapter style */}
+          <section className="space-y-2">
+            <h2 className="text-sm font-medium">Chapter style ({CHAPTER_STYLES.length} designs)</h2>
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+              value={typo.chapterStyleKey ?? ''}
+              onChange={(e) => setT({ chapterStyleKey: e.target.value || undefined })}
+            >
+              <option value="">Theme default</option>
+              {CHAPTER_STYLES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Controls how each chapter&apos;s first page looks (number, ornament, rules, drop cap…).
+            </p>
           </section>
 
           {/* Typography */}

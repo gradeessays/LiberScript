@@ -26,6 +26,9 @@ export default function DashboardPage() {
       void utils.project.list.invalidate();
     },
   });
+  const archive = trpc.project.archive.useMutation({
+    onSuccess: () => void utils.project.list.invalidate(),
+  });
 
   return (
     <div className="space-y-6">
@@ -89,12 +92,27 @@ export default function DashboardPage() {
                         : 'No manuscript yet'}
                     </p>
                   </div>
-                  <Link
-                    href={`/projects/${p.id}`}
-                    className={buttonVariants({ variant: 'outline', size: 'sm' })}
-                  >
-                    Open
-                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={`/projects/${p.id}`}
+                      className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                    >
+                      Open
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      disabled={archive.isPending}
+                      onClick={() => {
+                        if (confirm(`Delete “${p.title}”? This removes it from your workspace.`)) {
+                          archive.mutate({ id: p.id });
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

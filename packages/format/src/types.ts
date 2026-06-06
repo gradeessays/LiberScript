@@ -62,6 +62,9 @@ export interface RenderChapter {
   index: number;
   title: string;
   subtitle?: string | null;
+  /** Optional opening quote shown before the chapter body. */
+  openingQuote?: string | null;
+  openingQuoteAttribution?: string | null;
   /** TipTap/ProseMirror document for the chapter body. */
   content: unknown;
 }

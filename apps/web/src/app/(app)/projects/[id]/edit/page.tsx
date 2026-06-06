@@ -11,8 +11,11 @@ import {
   type SectionGroup,
 } from '@liberscript/core';
 import dynamic from 'next/dynamic';
+import { getTheme, renderBookDocument } from '@liberscript/format';
+import type { TypographyOverrides } from '@liberscript/core';
 import { Button, buttonVariants, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { TitlePageForm } from '@/components/editor/title-page-form';
 import { CopyrightForm } from '@/components/editor/copyright-form';
 
@@ -94,12 +97,52 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
+  const [openingQuote, setOpeningQuote] = useState('');
+  const [openingAttr, setOpeningAttr] = useState('');
+  const [liveContent, setLiveContent] = useState<JSONContent | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   useEffect(() => {
     if (chapter.data) {
       setTitle(chapter.data.title);
       setSubtitle(chapter.data.subtitle ?? '');
+      const d = (chapter.data.data ?? {}) as Record<string, unknown>;
+      setOpeningQuote((d.openingQuote as string) ?? '');
+      setOpeningAttr((d.openingQuoteAttribution as string) ?? '');
+      setLiveContent(null);
     }
   }, [chapter.data]);
+
+  function saveOpening(quote: string, attr: string) {
+    if (!selectedId) return;
+    updateData.mutate({
+      id: selectedId,
+      data: { ...data, openingQuote: quote || undefined, openingQuoteAttribution: attr || undefined },
+    });
+  }
+
+  // Live, single-chapter preview at the project's theme / typography / trim.
+  const previewHtml = useMemo(() => {
+    if (!showPreview || !chapter.data) return '';
+    const fmt = (project.data?.formatting ?? {}) as { typography?: TypographyOverrides };
+    return renderBookDocument({
+      theme: getTheme(project.data?.themeKey),
+      target: 'print',
+      watermark: false,
+      typography: fmt.typography,
+      includeFrontMatter: false,
+      meta: { title: project.data?.title ?? '' },
+      elements: [
+        {
+          kind: ChapterKind.CHAPTER,
+          title,
+          subtitle,
+          data: { openingQuote, openingQuoteAttribution: openingAttr },
+          content: liveContent ?? chapter.data.content,
+        },
+      ],
+    });
+  }, [showPreview, chapter.data, project.data, title, subtitle, openingQuote, openingAttr, liveContent]);
+  const debouncedPreview = useDebouncedValue(previewHtml, 400);
 
   function move(index: number, dir: -1 | 1) {
     const next = [...elements];
@@ -272,14 +315,32 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                       placeholder="Title"
                     />
                     {selectedKind === ChapterKind.CHAPTER && (
-                      <Input
-                        value={subtitle}
-                        onChange={(e) => setSubtitle(e.target.value)}
-                        onBlur={() =>
-                          updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })
-                        }
-                        placeholder="Subtitle (optional)"
-                      />
+                      <>
+                        <Input
+                          value={subtitle}
+                          onChange={(e) => setSubtitle(e.target.value)}
+                          onBlur={() =>
+                            updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })
+                          }
+                          placeholder="Subtitle (optional)"
+                        />
+                        <div className="space-y-1">
+                          <Label>Opening quote (optional)</Label>
+                          <textarea
+                            className="min-h-16 w-full rounded-md border border-input bg-background p-2 text-sm"
+                            value={openingQuote}
+                            onChange={(e) => setOpeningQuote(e.target.value)}
+                            onBlur={() => saveOpening(openingQuote, openingAttr)}
+                            placeholder="An epigraph that opens the chapter…"
+                          />
+                          <Input
+                            value={openingAttr}
+                            onChange={(e) => setOpeningAttr(e.target.value)}
+                            onBlur={() => saveOpening(openingQuote, openingAttr)}
+                            placeholder="Attribution (optional)"
+                          />
+                        </div>
+                      </>
                     )}
                     {selectedKind === ChapterKind.EPIGRAPH && (
                       <div className="grid grid-cols-2 gap-2">
@@ -321,12 +382,27 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     key={selectedId}
                     initialContent={chapter.data.content as JSONContent}
                     onSave={async (content) => {
+                      setLiveContent(content);
                       await updateContent.mutateAsync({ id: selectedId, content });
                     }}
                     onSplit={(before, after) =>
                       split.mutate({ id: selectedId, before, after, newTitle: 'Untitled chapter' })
                     }
                   />
+
+                  <div>
+                    <Button variant="outline" size="sm" onClick={() => setShowPreview((s) => !s)}>
+                      {showPreview ? 'Hide preview' : 'Preview this chapter'}
+                    </Button>
+                    {showPreview && (
+                      <iframe
+                        title="Chapter preview"
+                        className="mt-2 h-[70vh] w-full rounded-lg border bg-white"
+                        srcDoc={debouncedPreview}
+                        sandbox="allow-same-origin"
+                      />
+                    )}
+                  </div>
                 </>
               )}
             </>

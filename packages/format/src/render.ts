@@ -8,6 +8,12 @@ import {
 } from '@liberscript/core';
 import { tiptapToHtml } from './tiptap-html';
 import { FONTS } from './themes';
+import {
+  chapterHeadingHtml,
+  chapterStyleCss,
+  getChapterStyle,
+  type ChapterStartStyle,
+} from './chapter-styles';
 import type {
   BookElement,
   BookMeta,
@@ -118,7 +124,7 @@ function frontMatterCss(theme: BookTheme): string {
 }
 
 /** Stylesheet for a theme + render target. */
-export function themeCss(theme: BookTheme, target: RenderTarget): string {
+export function themeCss(theme: BookTheme, target: RenderTarget, style?: ChapterStartStyle): string {
   const p = theme.paragraph;
   const { widthIn: pageW, heightIn: pageH } = theme.trim;
   const base = `.book {
@@ -136,7 +142,9 @@ ${p.firstParaPlain ? '.book .chapter-body > p:first-of-type { text-indent: 0; }'
 .book ul, .book ol { margin: 0 0 1em 1.5em; }
 .book .chapter { break-before: page; }
 .book .chapter:first-child { break-before: avoid; }
-${chapterStartCss(theme)}
+.book .chapter-opening-quote { font-style: italic; text-align: center; margin: 0 0 1.6em; color: #444; }
+.book .chapter-opening-quote .attr { display: block; font-style: normal; font-variant: small-caps; color: #666; margin-top: 0.4em; font-size: 0.9em; }
+${style ? chapterStyleCss(style, theme) : chapterStartCss(theme)}
 ${sceneBreakCss(theme)}
 ${frontMatterCss(theme)}`;
 
@@ -148,15 +156,35 @@ ${frontMatterCss(theme)}`;
   return `${base}\n${target === 'print' ? print : ebook}`;
 }
 
-/** Render a single body chapter. */
-export function renderChapter(theme: BookTheme, chapter: RenderChapter): string {
+function defaultHeading(theme: BookTheme, chapter: RenderChapter): string {
   const cs = theme.chapterStart;
   const ornament =
     cs.style === 'ornament' && cs.ornament ? `<div class="chapter-ornament">${cs.ornament}</div>` : '';
   const number = cs.style === 'number' ? `<div class="chapter-number">${chapter.index}</div>` : '';
   const subtitle = chapter.subtitle ? `<div class="chapter-subtitle">${esc(chapter.subtitle)}</div>` : '';
+  return `<header class="chapter-heading">${ornament}${number}<h1 class="chapter-title">${esc(chapter.title)}</h1>${subtitle}</header>`;
+}
+
+/** Render a single body chapter, honoring the selected chapter-start style. */
+export function renderChapter(
+  theme: BookTheme,
+  chapter: RenderChapter,
+  style?: ChapterStartStyle,
+): string {
+  const heading = style
+    ? chapterHeadingHtml(style, {
+        index: chapter.index,
+        title: chapter.title,
+        subtitle: chapter.subtitle,
+      })
+    : defaultHeading(theme, chapter);
+  const oq = chapter.openingQuote
+    ? `<div class="chapter-opening-quote">${esc(chapter.openingQuote)}${
+        chapter.openingQuoteAttribution ? `<div class="attr">— ${esc(chapter.openingQuoteAttribution)}</div>` : ''
+      }</div>`
+    : '';
   return `<section class="chapter">
-  <header class="chapter-heading">${ornament}${number}<h1 class="chapter-title">${esc(chapter.title)}</h1>${subtitle}</header>
+  ${heading}${oq}
   <div class="chapter-body">${tiptapToHtml(chapter.content)}</div>
 </section>`;
 }
@@ -254,6 +282,7 @@ interface ElementCtx {
   watermark: boolean;
   toc: TocEntry[];
   chapterIndex: number;
+  style?: ChapterStartStyle;
 }
 
 function renderElement(theme: BookTheme, el: BookElement, ctx: ElementCtx): string {
@@ -284,12 +313,18 @@ function renderElement(theme: BookTheme, el: BookElement, ctx: ElementCtx): stri
       );
     case ChapterKind.CHAPTER:
     default:
-      return renderChapter(theme, {
-        index: ctx.chapterIndex,
-        title: el.title || 'Chapter',
-        subtitle: el.subtitle,
-        content: el.content,
-      });
+      return renderChapter(
+        theme,
+        {
+          index: ctx.chapterIndex,
+          title: el.title || 'Chapter',
+          subtitle: el.subtitle,
+          openingQuote: dataStr(el.data, 'openingQuote'),
+          openingQuoteAttribution: dataStr(el.data, 'openingQuoteAttribution'),
+          content: el.content,
+        },
+        ctx.style,
+      );
   }
 }
 
@@ -355,11 +390,13 @@ export function renderBookDocument(input: RenderBookInput): string {
     }
   }
 
+  const style = getChapterStyle(input.typography?.chapterStyleKey);
+
   let idx = 0;
   const body = elements
     .map((el) => {
       if (el.kind === ChapterKind.CHAPTER) idx += 1;
-      return renderElement(theme, el, { meta, watermark, toc, chapterIndex: idx });
+      return renderElement(theme, el, { meta, watermark, toc, chapterIndex: idx, style });
     })
     .join('\n');
 
@@ -383,7 +420,7 @@ ${fontLink}
 <style>
 html, body { margin: 0; padding: 0; background: ${pageBg}; }
 body { padding: ${target === 'print' ? '24px' : '0'}; }
-${themeCss(theme, target)}
+${themeCss(theme, target, style)}
 ${readingCss}
 </style>
 </head>

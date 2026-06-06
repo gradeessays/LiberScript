@@ -92,6 +92,8 @@ export interface TypographyOverrides {
   headingFontKey?: string;
   /** Block paragraphs (no indent, spaced) vs. indented. */
   blockParagraphs?: boolean;
+  /** Selected chapter-start design (from the chapter-style library). */
+  chapterStyleKey?: string;
 }
 
 /** Genres that drive the copyright/disclaimer template. */
