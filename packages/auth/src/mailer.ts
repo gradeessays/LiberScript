@@ -5,11 +5,14 @@ let transporter: Transporter | undefined;
 
 function getTransporter(): Transporter {
   if (!transporter) {
-    const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD } = getServerEnv();
+    const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_SECURE } = getServerEnv();
+    const secure = SMTP_SECURE || SMTP_PORT === 465;
     transporter = nodemailer.createTransport({
       host: SMTP_HOST,
       port: SMTP_PORT,
-      secure: SMTP_PORT === 465,
+      secure,
+      // Force STARTTLS upgrade on submission ports (e.g. 587, ZeptoMail).
+      requireTLS: !secure,
       ...(SMTP_USER ? { auth: { user: SMTP_USER, pass: SMTP_PASSWORD } } : {}),
     });
   }

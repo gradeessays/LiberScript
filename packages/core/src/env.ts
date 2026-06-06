@@ -41,6 +41,11 @@ const serverEnvSchema = z.object({
   SMTP_PORT: z.coerce.number().int().positive().default(1025),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
+  // Implicit TLS (port 465). When false on 587, STARTTLS is required automatically.
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   SMTP_FROM: z.string().default('Liberscript <no-reply@liberscript.local>'),
 
   STRIPE_SECRET_KEY: z.string().optional(),
