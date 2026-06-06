@@ -3,10 +3,11 @@ import { getRedisConnection, JobName, QUEUE_NAME } from '@liberscript/jobs';
 import { logger } from './logger';
 import { handlePing } from './handlers/ping';
 import { handleParseManuscript } from './handlers/parse-manuscript';
+import { handleGenerateExport } from './handlers/generate-export';
 
 /**
  * The single Liberscript background worker. Routes each job by name to its
- * handler. New job types (analysis, export, AI) register here.
+ * handler. New job types (analysis, AI) register here.
  */
 async function processor(job: Job): Promise<unknown> {
   switch (job.name) {
@@ -14,6 +15,8 @@ async function processor(job: Job): Promise<unknown> {
       return handlePing(job.data);
     case JobName.PARSE_MANUSCRIPT:
       return handleParseManuscript(job.data);
+    case JobName.GENERATE_EXPORT:
+      return handleGenerateExport(job.data);
     default:
       throw new Error(`No handler registered for job "${job.name}"`);
   }

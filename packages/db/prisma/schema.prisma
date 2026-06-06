@@ -65,6 +65,7 @@ enum ExportFormat {
   EPUB
   PDF
   DOCX
+  COVER_PDF
 }
 
 enum SourceFormat {

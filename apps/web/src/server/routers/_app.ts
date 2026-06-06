@@ -6,6 +6,7 @@ import { uploadRouter } from './upload';
 import { chapterRouter } from './chapter';
 import { formattingRouter } from './formatting';
 import { coverRouter } from './cover';
+import { exportRouter } from './export';
 
 export const appRouter = router({
   health: healthRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   chapter: chapterRouter,
   formatting: formattingRouter,
   cover: coverRouter,
+  export: exportRouter,
 });
 
 export type AppRouter = typeof appRouter;

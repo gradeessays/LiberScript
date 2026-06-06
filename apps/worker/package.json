@@ -14,6 +14,8 @@
     "@liberscript/analysis": "workspace:*",
     "@liberscript/core": "workspace:*",
     "@liberscript/db": "workspace:*",
+    "@liberscript/exports": "workspace:*",
+    "@liberscript/format": "workspace:*",
     "@liberscript/jobs": "workspace:*",
     "@liberscript/storage": "workspace:*",
     "bullmq": "^5.21.2",

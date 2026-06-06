@@ -10,11 +10,22 @@ import {
   AUTO_KINDS,
   type SectionGroup,
 } from '@liberscript/core';
+import dynamic from 'next/dynamic';
 import { Button, buttonVariants, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
-import { ManuscriptEditor } from '@/components/editor/manuscript-editor';
 import { TitlePageForm } from '@/components/editor/title-page-form';
 import { CopyrightForm } from '@/components/editor/copyright-form';
+
+// TipTap is heavy; load it only when the editor is actually shown.
+const ManuscriptEditor = dynamic(
+  () => import('@/components/editor/manuscript-editor').then((m) => m.ManuscriptEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-lg border p-6 text-sm text-muted-foreground">Loading editor…</div>
+    ),
+  },
+);
 
 const ADDABLE: ChapterKind[] = [
   ChapterKind.TITLE_PAGE,

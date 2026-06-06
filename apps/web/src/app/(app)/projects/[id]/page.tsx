@@ -12,6 +12,7 @@ import {
 } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
 import { UploadManuscript } from '@/components/upload-manuscript';
+import { ExportPanel } from '@/components/export-panel';
 
 export default function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -120,6 +121,8 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
           </CardContent>
         </Card>
       )}
+
+      <ExportPanel projectId={id} />
     </div>
   );
 }
