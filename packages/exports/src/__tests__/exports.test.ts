@@ -72,4 +72,21 @@ describe('exporters', () => {
     // "%PDF"
     expect(String.fromCharCode(bytes[0]!, bytes[1]!, bytes[2]!, bytes[3]!)).toBe('%PDF');
   });
+
+  it('embeds a front image with zoom/pan + clipping', async () => {
+    // 1×1 transparent PNG.
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const bytes = await buildCoverPdf({
+      ...cover,
+      frontImage: new Uint8Array(png),
+      frontImageType: 'png',
+      frontScale: 1.5,
+      frontPosX: 30,
+      frontPosY: 70,
+    });
+    expect(String.fromCharCode(bytes[0]!, bytes[1]!, bytes[2]!, bytes[3]!)).toBe('%PDF');
+  });
 });

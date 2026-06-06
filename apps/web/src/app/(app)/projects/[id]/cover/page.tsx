@@ -14,6 +14,9 @@ interface CoverState {
   frontImageStorageKey?: string;
   backgroundImageStorageKey?: string;
   frontFullBleed?: boolean;
+  frontScale?: number;
+  frontPosX?: number;
+  frontPosY?: number;
   dominantColor?: string;
   spineColor?: string;
   textColor?: string;
@@ -152,6 +155,9 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
       spineText: cover.spineText,
       frontImageUrl: query.data.frontImageUrl,
       frontFullBleed: cover.frontFullBleed,
+      frontScale: cover.frontScale,
+      frontPosX: cover.frontPosX,
+      frontPosY: cover.frontPosY,
       backgroundImageUrl: query.data.backgroundImageUrl,
     });
   }, [query.data, cover, trim.widthIn, trim.heightIn, binding]);
@@ -215,6 +221,54 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
               Fill: art covers the whole front (to the trim edges &amp; spine). Centered: art floats
               inside, background fills the rest.
             </p>
+            {cover.frontImageStorageKey && (
+              <div className="space-y-2 rounded-md border p-2">
+                <label className="block text-xs">
+                  Zoom: {Math.round((cover.frontScale ?? 1) * 100)}%
+                  <input
+                    type="range"
+                    min={100}
+                    max={300}
+                    value={Math.round((cover.frontScale ?? 1) * 100)}
+                    onChange={(e) => set({ frontScale: Number(e.target.value) / 100 })}
+                    className="w-full"
+                  />
+                </label>
+                {cover.frontFullBleed !== false && (
+                  <>
+                    <label className="block text-xs">
+                      Horizontal: {cover.frontPosX ?? 50}%
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={cover.frontPosX ?? 50}
+                        onChange={(e) => set({ frontPosX: Number(e.target.value) })}
+                        className="w-full"
+                      />
+                    </label>
+                    <label className="block text-xs">
+                      Vertical: {cover.frontPosY ?? 50}%
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={cover.frontPosY ?? 50}
+                        onChange={(e) => set({ frontPosY: Number(e.target.value) })}
+                        className="w-full"
+                      />
+                    </label>
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => set({ frontScale: 1, frontPosX: 50, frontPosY: 50 })}
+                >
+                  Reset position
+                </Button>
+              </div>
+            )}
           </section>
 
           <section className="space-y-2">

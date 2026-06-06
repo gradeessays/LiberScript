@@ -69,6 +69,10 @@ export interface CoverInput {
   frontImageUrl?: string;
   /** When true, the front art bleeds to the edges instead of being centered. */
   frontFullBleed?: boolean;
+  /** Manual front-image zoom (1 = fit) and pan position (0–100%, 50 = centered). */
+  frontScale?: number;
+  frontPosX?: number;
+  frontPosY?: number;
   backText?: string;
   textColor?: string;
   /** Spine text. undefined → auto (title — author at 100+ pages); '' → blank. */
@@ -104,11 +108,15 @@ export function renderCoverHtml(input: CoverInput): string {
   const spinePx = dims.spineIn * IN;
   const frontPx = dims.frontWidthIn * IN;
   const wrapPx = dims.wrapIn * IN;
-  const safePx = (dims.wrapIn + SAFE_MARGIN_IN) * IN;
+  const safePx = (dims.wrapIn + SAFE_MARGIN_IN) * IN; // from outer (bleed) edge
+  const safeOnly = SAFE_MARGIN_IN * IN; // from a fold (spine) — no wrap there
   const gap = 0.12 * IN; // lift the barcode off the safe line
   const pad = 0.09 * IN; // slight inset of back text from the safe margin
   const barcodeW = BARCODE_W_IN * IN;
   const barcodeH = BARCODE_H_IN * IN;
+  const fScale = input.frontScale ?? 1;
+  const fX = input.frontPosX ?? 50;
+  const fY = input.frontPosY ?? 50;
 
   const fg = input.textColor ?? '#ffffff';
   const bg = input.backgroundImageUrl
@@ -119,11 +127,12 @@ export function renderCoverHtml(input: CoverInput): string {
   const defaultSpine = input.pageCount >= 100 ? `${input.title}${input.author ? ` — ${input.author}` : ''}` : '';
   const spineText = input.spineText !== undefined ? input.spineText : defaultSpine;
 
-  // Default: fill the front panel proportionally (to trim edges + spine fold).
-  // `frontFullBleed === false` opts into a centered/framed front instead.
+  // Default: fill the front panel proportionally (to trim edges + spine fold),
+  // honoring manual zoom (scale) + pan (object-position). `frontFullBleed === false`
+  // opts into a centered/framed front instead.
   const frontStyle = input.frontFullBleed === false
-    ? 'max-width:82%;max-height:88%;object-fit:contain;box-shadow:0 6px 22px rgba(0,0,0,0.35);'
-    : 'width:100%;height:100%;object-fit:cover;display:block;';
+    ? `max-width:82%;max-height:88%;object-fit:contain;transform:scale(${fScale});box-shadow:0 6px 22px rgba(0,0,0,0.35);`
+    : `width:100%;height:100%;object-fit:cover;object-position:${fX}% ${fY}%;transform:scale(${fScale});transform-origin:${fX}% ${fY}%;display:block;`;
   const frontPanel = input.frontImageUrl
     ? `<img src="${esc(input.frontImageUrl)}" alt="Front cover" style="${frontStyle}" />`
     : `<div style="color:${fg};text-align:center;padding:0 8%;"><div style="font-size:1.6rem;font-weight:800;">${esc(input.title)}</div>${input.author ? `<div style="margin-top:1rem;">${esc(input.author)}</div>` : ''}</div>`;
@@ -135,7 +144,7 @@ export function renderCoverHtml(input: CoverInput): string {
   // Barcode keep-out: bottom-RIGHT of the back panel (toward the spine), lifted
   // off the safe lines so it touches neither the bottom nor the spine margin.
   const barcode = showGuides
-    ? `<div style="position:absolute;right:${safePx + gap}px;bottom:${safePx + gap}px;width:${barcodeW}px;height:${barcodeH}px;background:#fff;border:1px solid #bbb;border-radius:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#222;">
+    ? `<div style="position:absolute;right:${safeOnly + gap}px;bottom:${safePx + gap}px;width:${barcodeW}px;height:${barcodeH}px;background:#fff;border:1px solid #bbb;border-radius:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#222;">
         <div style="height:48px;display:flex;align-items:flex-end;gap:0;">${barcodeBars()}</div>
         <div style="font:600 10px/1.2 monospace;margin-top:4px;">ISBN ${esc(input.isbn ?? '978-1-23456-789-0')}</div>
       </div>`
@@ -156,7 +165,7 @@ export function renderCoverHtml(input: CoverInput): string {
   .wrap{position:absolute;inset:0;display:flex;}
   .panel{height:100%;box-sizing:border-box;position:relative;overflow:hidden;}
   .back{width:${backPx}px;background:${bg};color:${fg};}
-  .back .blurb{position:absolute;left:${safePx + pad}px;top:${safePx + pad}px;right:${safePx + pad}px;bottom:${blurbBottom}px;text-align:left;overflow:hidden;}
+  .back .blurb{position:absolute;left:${safePx + pad}px;top:${safePx + pad}px;right:${safeOnly + pad}px;bottom:${blurbBottom}px;text-align:left;overflow:hidden;}
   .back .blurb span{font-size:0.82rem;line-height:1.55;white-space:pre-wrap;}
   .spine{width:${spinePx}px;background:${spineBg};color:${fg};display:flex;align-items:center;justify-content:center;}
   .spine .txt{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-weight:600;font-size:0.8rem;}

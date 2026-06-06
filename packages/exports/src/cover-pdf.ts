@@ -1,4 +1,18 @@
-import { degrees, PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage } from 'pdf-lib';
+import {
+  clip,
+  closePath,
+  degrees,
+  endPath,
+  lineTo,
+  moveTo,
+  PDFDocument,
+  popGraphicsState,
+  pushGraphicsState,
+  rgb,
+  StandardFonts,
+  type PDFFont,
+  type PDFImage,
+} from 'pdf-lib';
 import { coverDimensions } from '@liberscript/format';
 import type { ExportCover } from './types';
 
@@ -85,17 +99,40 @@ export async function buildCoverPdf(cover: ExportCover): Promise<Uint8Array> {
   // Front artwork fills the front panel (default) or is centered.
   const frontImg = await embed(doc, cover.frontImage, cover.frontImageType);
   const frontX = backW + spineW;
+  const fScale = cover.frontScale ?? 1;
+  const fX = cover.frontPosX ?? 50;
+  const fY = cover.frontPosY ?? 50;
   if (frontImg) {
+    // Clip to the front panel so zoom/pan never spills onto the spine.
+    page.pushOperators(
+      pushGraphicsState(),
+      moveTo(frontX, 0),
+      lineTo(frontX + frontW, 0),
+      lineTo(frontX + frontW, H),
+      lineTo(frontX, H),
+      closePath(),
+      clip(),
+      endPath(),
+    );
     if (cover.frontFullBleed === false) {
-      const maxW = frontW * 0.82;
-      const maxH = H * 0.88;
-      const scale = Math.min(maxW / frontImg.width, maxH / frontImg.height);
-      const w = frontImg.width * scale;
-      const h = frontImg.height * scale;
+      const base = Math.min((frontW * 0.82) / frontImg.width, (H * 0.88) / frontImg.height);
+      const s = base * fScale;
+      const w = frontImg.width * s;
+      const h = frontImg.height * s;
       page.drawImage(frontImg, { x: frontX + (frontW - w) / 2, y: (H - h) / 2, width: w, height: h });
     } else {
-      page.drawImage(frontImg, { x: frontX, y: 0, width: frontW, height: H });
+      const base = Math.max(frontW / frontImg.width, H / frontImg.height);
+      const s = base * fScale;
+      const w = frontImg.width * s;
+      const h = frontImg.height * s;
+      page.drawImage(frontImg, {
+        x: frontX + (frontW - w) * (fX / 100),
+        y: (H - h) * (1 - fY / 100),
+        width: w,
+        height: h,
+      });
     }
+    page.pushOperators(popGraphicsState());
   } else {
     // No front image: title + author centered on the front.
     const t = cover.title;

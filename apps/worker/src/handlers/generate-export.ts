@@ -32,6 +32,9 @@ interface CoverData {
   frontImageStorageKey?: string;
   backgroundImageStorageKey?: string;
   frontFullBleed?: boolean;
+  frontScale?: number;
+  frontPosX?: number;
+  frontPosY?: number;
   dominantColor?: string;
   spineColor?: string;
   textColor?: string;
@@ -95,6 +98,9 @@ export async function handleGenerateExport(data: unknown): Promise<{ storageKey:
         backText: cover.backText,
         spineText: cover.spineText,
         frontFullBleed: cover.frontFullBleed,
+        frontScale: cover.frontScale,
+        frontPosX: cover.frontPosX,
+        frontPosY: cover.frontPosY,
         frontImage: front?.bytes,
         frontImageType: front?.type,
         backgroundImage: background?.bytes,

@@ -36,6 +36,10 @@ export interface ExportCover {
   backText?: string;
   spineText?: string;
   frontFullBleed?: boolean;
+  /** Manual front-image zoom (1 = fit) and pan position (0–100%, 50 = centered). */
+  frontScale?: number;
+  frontPosX?: number;
+  frontPosY?: number;
   /** Raw image bytes (resolved by the worker from storage). */
   frontImage?: Uint8Array;
   frontImageType?: 'png' | 'jpg';
