@@ -5,6 +5,7 @@ import {
   KDP_TRIM_SIZES,
   KIND_LABELS,
   type BookGenre,
+  type HeaderContent,
   type TypographyOverrides,
 } from '@liberscript/core';
 import { tiptapToHtml } from './tiptap-html';
@@ -129,6 +130,60 @@ export interface PageBreakRule {
   newPage?: boolean;
   /** Start chapters/sections on a right-hand (odd) page. */
   recto?: boolean;
+}
+
+function cssString(s: string): string {
+  return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * Running-header / page-number rules using CSS Paged Media (`@page` margin boxes,
+ * `string-set`, `counter(page)`). Applied for the print target; rendered by the
+ * paged.js / Chromium print pipeline (no effect in the scrolling screen preview).
+ */
+export function pagedMediaCss(meta: BookMeta, theme: BookTheme, o?: TypographyOverrides): string {
+  const pageNumbers = o?.pageNumbers !== false;
+  const headers = o?.runningHeaders !== false;
+  const placement = o?.pageNumberPlacement ?? 'bottom-center';
+  const headFont = `font-family: ${theme.headingFont.stack}; font-size: 9pt; font-style: italic; letter-spacing: 0.02em;`;
+  const numFont = `font-family: ${theme.bodyFont.stack}; font-size: 9pt;`;
+
+  const headerValue = (c: HeaderContent | undefined, fallback: HeaderContent): string => {
+    const k = c ?? fallback;
+    if (k === 'chapterTitle') return 'string(chaptertitle)';
+    if (k === 'author') return meta.author ? cssString(meta.author) : '""';
+    if (k === 'bookTitle') return cssString(meta.title);
+    return 'none';
+  };
+  const verso = headerValue(o?.headerVersoContent, 'bookTitle');
+  const recto = headerValue(o?.headerRectoContent, 'chapterTitle');
+
+  // Folio placement → which margin box holds counter(page).
+  const folio = (side: 'left' | 'right'): string => {
+    if (!pageNumbers) return '';
+    const box =
+      placement === 'bottom-center'
+        ? '@bottom-center'
+        : placement === 'top-outer'
+          ? side === 'left'
+            ? '@top-left'
+            : '@top-right'
+          : side === 'left'
+            ? '@bottom-left'
+            : '@bottom-right';
+    return `${box} { content: counter(page); ${numFont} }`;
+  };
+
+  return `
+.book .chapter-title { string-set: chaptertitle content(text); }
+.book .part h1 { string-set: chaptertitle content(text); }
+@page :left { ${headers && verso !== 'none' ? `@top-center { content: ${verso}; ${headFont} }` : ''} ${folio('left')} }
+@page :right { ${headers && recto !== 'none' ? `@top-center { content: ${recto}; ${headFont} }` : ''} ${folio('right')} }
+/* Front matter and each chapter's opening page carry no running header. */
+.book .frontmatter { page: frontmatter; }
+@page frontmatter { @top-center { content: none; } @top-left { content: none; } @top-right { content: none; } }
+.book .chapter { page: chapter; }
+@page chapter:first { @top-center { content: none; } @top-left { content: none; } @top-right { content: none; } }`;
 }
 
 /** Stylesheet for a theme + render target. */
@@ -423,6 +478,7 @@ export function renderBookDocument(input: RenderBookInput): string {
 
   const fontsHref = googleFontsHref(theme);
   const fontLink = fontsHref ? `<link rel="stylesheet" href="${fontsHref}">` : '';
+  const pagedCss = target === 'print' ? pagedMediaCss(meta, theme, input.typography) : '';
 
   // Ebook reading mode recolors the page; print always shows a paper surface.
   const rm = target === 'ebook' && input.readingMode ? READING_MODE[input.readingMode] : null;
@@ -442,6 +498,7 @@ ${fontLink}
 html, body { margin: 0; padding: 0; background: ${pageBg}; }
 body { padding: ${target === 'print' ? '24px' : '0'}; }
 ${themeCss(theme, target, style, breaks)}
+${pagedCss}
 ${readingCss}
 </style>
 </head>

@@ -113,7 +113,21 @@ export interface TypographyOverrides {
   chaptersNewPage?: boolean;
   /** Chapters/sections start on a right-hand (odd) page (print). */
   sectionsRecto?: boolean;
+  /** Print page folios (page numbers). Default true. */
+  pageNumbers?: boolean;
+  /** Folio position. Default 'bottom-center'. */
+  pageNumberPlacement?: PageNumberPlacement;
+  /** Running headers at the top of body pages (print). Default true. */
+  runningHeaders?: boolean;
+  /** What the left-hand (verso / even) running header shows. Default 'bookTitle'. */
+  headerVersoContent?: HeaderContent;
+  /** What the right-hand (recto / odd) running header shows. Default 'chapterTitle'. */
+  headerRectoContent?: HeaderContent;
 }
+
+/** Content a running header can display. `chapterTitle` updates per chapter. */
+export type HeaderContent = 'author' | 'bookTitle' | 'chapterTitle' | 'none';
+export type PageNumberPlacement = 'bottom-center' | 'bottom-outer' | 'top-outer';
 
 /** Genres that drive the copyright/disclaimer template. */
 export const BookGenre = {

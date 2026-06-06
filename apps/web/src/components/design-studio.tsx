@@ -9,7 +9,7 @@ import {
   renderBookDocument,
   type ReadingMode,
 } from '@liberscript/format';
-import { KDP_TRIM_SIZES, type TypographyOverrides } from '@liberscript/core';
+import { KDP_TRIM_SIZES, type HeaderContent, type TypographyOverrides } from '@liberscript/core';
 import { Button, cn, Input, Label } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
@@ -18,6 +18,21 @@ import { DeviceFrame, type DeviceKind } from '@/components/device-frame';
 type Target = 'print' | 'ebook';
 
 const FONT_OPTIONS = Object.entries(FONTS).map(([key, f]) => ({ key, name: f.name }));
+
+function HeaderSelect({ value, onChange }: { value: HeaderContent; onChange: (v: HeaderContent) => void }) {
+  return (
+    <select
+      className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
+      value={value}
+      onChange={(e) => onChange(e.target.value as HeaderContent)}
+    >
+      <option value="bookTitle">Book title</option>
+      <option value="author">Author</option>
+      <option value="chapterTitle">Chapter title</option>
+      <option value="none">None</option>
+    </select>
+  );
+}
 
 /**
  * The full design + whole-book preview surface. Used standalone on /design and
@@ -254,6 +269,60 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
             </label>
             <p className="text-xs text-muted-foreground">
               Print convention — inserts a blank page where needed. Visible in the print PDF export.
+            </p>
+          </section>
+
+          {/* Running headers & page numbers (print) */}
+          <section className="space-y-2">
+            <h2 className="text-sm font-medium">Headers &amp; page numbers</h2>
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={typo.pageNumbers ?? true}
+                onChange={(e) => setT({ pageNumbers: e.target.checked })}
+              />
+              Show page numbers
+            </label>
+            {(typo.pageNumbers ?? true) && (
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
+                value={typo.pageNumberPlacement ?? 'bottom-center'}
+                onChange={(e) => setT({ pageNumberPlacement: e.target.value as typeof typo.pageNumberPlacement })}
+              >
+                <option value="bottom-center">Bottom — centered</option>
+                <option value="bottom-outer">Bottom — outer corner</option>
+                <option value="top-outer">Top — outer corner</option>
+              </select>
+            )}
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={typo.runningHeaders ?? true}
+                onChange={(e) => setT({ runningHeaders: e.target.checked })}
+              />
+              Running headers
+            </label>
+            {(typo.runningHeaders ?? true) && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Left (even) pages</Label>
+                  <HeaderSelect
+                    value={typo.headerVersoContent ?? 'bookTitle'}
+                    onChange={(v) => setT({ headerVersoContent: v })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Right (odd) pages</Label>
+                  <HeaderSelect
+                    value={typo.headerRectoContent ?? 'chapterTitle'}
+                    onChange={(v) => setT({ headerRectoContent: v })}
+                  />
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              “Chapter title” updates per chapter. Opening pages &amp; front matter omit the header
+              automatically. Visible in the print PDF export.
             </p>
           </section>
 

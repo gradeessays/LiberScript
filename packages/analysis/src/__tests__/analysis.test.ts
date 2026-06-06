@@ -90,6 +90,49 @@ describe('assembleSections', () => {
     expect((cr?.data as { customText?: string })?.customText).toContain('2026');
   });
 
+  it('classifies sections styled as plain paragraphs (the DOCX/PDF case)', () => {
+    // No `heading` blocks at all — section titles are centered/bold paragraphs.
+    const blocks: ContentBlock[] = [
+      { kind: 'para', text: 'The Great Novel' },
+      { kind: 'para', text: 'by Jane Doe' },
+      { kind: 'para', text: 'Copyright © 2026 Jane Doe' },
+      { kind: 'para', text: 'All rights reserved.' },
+      { kind: 'para', text: 'Dedication' },
+      { kind: 'para', text: 'For my family.' },
+      { kind: 'para', text: 'Prologue' },
+      { kind: 'para', text: 'Before it all began.' },
+      { kind: 'para', text: 'Chapter One' },
+      { kind: 'para', text: 'The story starts here.' },
+      { kind: 'para', text: 'Epilogue' },
+      { kind: 'para', text: 'And so it ended.' },
+    ];
+    const { chapters, title, author } = assembleSections(blocks);
+    expect(title).toBe('The Great Novel');
+    expect(author).toBe('Jane Doe');
+    expect(chapters.map((c) => c.kind)).toEqual([
+      ChapterKind.TITLE_PAGE,
+      ChapterKind.COPYRIGHT,
+      ChapterKind.DEDICATION,
+      ChapterKind.PROLOGUE,
+      ChapterKind.CHAPTER,
+      ChapterKind.EPILOGUE,
+    ]);
+    const cr = chapters.find((c) => c.kind === ChapterKind.COPYRIGHT);
+    expect((cr?.data as { customText?: string })?.customText).toContain('All rights reserved');
+    const prologue = chapters.find((c) => c.kind === ChapterKind.PROLOGUE);
+    expect(prologue?.blocks.some((b) => b.text.includes('Before it all began'))).toBe(true);
+  });
+
+  it('does not mistake prose starting with a keyword for a section', () => {
+    const blocks: ContentBlock[] = [
+      { kind: 'heading', level: 1, text: 'Chapter 1' },
+      { kind: 'para', text: 'Part of me wanted to leave, but the introduction had only begun.' },
+    ];
+    const { chapters } = assembleSections(blocks);
+    expect(chapters).toHaveLength(1);
+    expect(chapters[0]?.kind).toBe(ChapterKind.CHAPTER);
+  });
+
   it('folds sub-headings into the chapter body; captures a subtitle', () => {
     const blocks: ContentBlock[] = [
       { kind: 'heading', level: 1, text: 'Chapter 1' },

@@ -45,6 +45,32 @@ page-shaped surface, so writing looks like the printed page. Export happens from
   indent vs block paragraphs.
 - Opening-quote/attribution style options; scene-break style.
 
+## Page layout, running headers & folios (print)
+Driven by `TypographyOverrides`, emitted as **CSS Paged Media** in the print
+render and realized by the paged.js/Chromium PDF pipeline (no effect in the
+scrolling screen preview — same as any pagination rule):
+- **Page breaks**: `chaptersNewPage` (each chapter/section on a fresh page) and
+  `sectionsRecto` (start on a right-hand / odd page; inserts a blank verso).
+- **Folios** (`pageNumbers`, `pageNumberPlacement`): bottom-center, bottom-outer,
+  or top-outer corner via `@page :left/:right` margin boxes + `counter(page)`.
+- **Running headers** (`runningHeaders`, `headerVersoContent`,
+  `headerRectoContent`): independent content for **left (verso/even)** and
+  **right (recto/odd)** pages — book title, author, **chapter title** (a live
+  running head via `string-set: chaptertitle` updated at each chapter), or none.
+  Front matter and each chapter's **opening page omit the header** automatically
+  (named `@page frontmatter` / `@page chapter:first`).
+
+## Real-time structure
+- **Auto-detection** classifies sections even when the source styled them as plain
+  paragraphs (the common DOCX/PDF case): a short, title-cased label line
+  ("Prologue", "Chapter One", "About the Author") starts the matching section, and
+  copyright/legal text is preserved as that section's editable body. Keyword prose
+  ("Part of me wanted…") is **not** misread as a section.
+- **Add / delete / reorder are optimistic**: a new element appears instantly in its
+  correct group (front → body → back); delete removes it immediately; **drag a
+  section** (or ↑/↓) to reorder within its group — all applied to the cache first,
+  reconciled with the server after.
+
 ## Cover Studio (parallel feature — spec)
 - Upload **front cover** → extract **dominant color** → auto-generate matching
   **back cover + spine** (KDP spine width from page count × paper type).

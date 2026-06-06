@@ -53,6 +53,8 @@ const GROUP_TITLES: Record<SectionGroup, string> = {
   back: 'Back matter',
 };
 
+const GROUP_RANK: Record<SectionGroup, number> = { front: 0, body: 1, back: 2 };
+
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const utils = trpc.useUtils();
@@ -76,12 +78,42 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const updateContent = trpc.chapter.updateContent.useMutation();
   const updateMeta = trpc.chapter.updateMeta.useMutation({ onSuccess: refresh });
   const updateData = trpc.chapter.updateData.useMutation({ onSuccess: refresh });
+  // Optimistic add: the new element appears instantly in its correct group
+  // (front → body → back), mirroring the server's regrouping.
   const create = trpc.chapter.create.useMutation({
-    onSuccess: async (c) => {
-      await refresh();
-      setSelectedId(c.id);
+    onMutate: async (vars) => {
+      const kind = vars.kind ?? ChapterKind.CHAPTER;
       setAddOpen(false);
+      await utils.project.get.cancel({ id });
+      const prev = utils.project.get.getData({ id });
+      utils.project.get.setData({ id }, (old) => {
+        if (!old?.manuscript) return old;
+        const rank = (k: ChapterKind) => GROUP_RANK[groupOfKind(k)] ?? 1;
+        const placeholder = {
+          id: `temp-${Date.now()}`,
+          kind,
+          title: kind === ChapterKind.CHAPTER ? 'New chapter' : KIND_LABELS[kind],
+          subtitle: null,
+          order: 0,
+          wordCount: 0,
+        };
+        const chapters = [...old.manuscript.chapters];
+        let insertAt = chapters.length;
+        for (let i = chapters.length - 1; i >= 0; i -= 1) {
+          if (rank(chapters[i]!.kind as ChapterKind) <= rank(kind)) {
+            insertAt = i + 1;
+            break;
+          }
+          insertAt = i;
+        }
+        chapters.splice(insertAt, 0, placeholder);
+        return { ...old, manuscript: { ...old.manuscript, chapters } };
+      });
+      return { prev };
     },
+    onError: (_e, _v, ctx) => ctx?.prev && utils.project.get.setData({ id }, ctx.prev),
+    onSuccess: (c) => setSelectedId(c.id),
+    onSettled: refresh,
   });
   // Optimistic: the element leaves the outline the instant you confirm.
   const removeChapter = trpc.chapter.remove.useMutation({
@@ -167,6 +199,21 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     reorder.mutate({ projectId: id, orderedIds: next.map((c) => c.id) });
   }
 
+  const [dragId, setDragId] = useState<string | null>(null);
+  // Drag a section onto another to reorder. Moves are confined to the same group
+  // (front/body/back) so the structure stays valid; the order applies instantly.
+  function dropOn(targetId: string) {
+    const src = elements.find((e) => e.id === dragId);
+    const tgt = elements.find((e) => e.id === targetId);
+    setDragId(null);
+    if (!src || !tgt || src.id === tgt.id) return;
+    if (groupOfKind(src.kind as ChapterKind) !== groupOfKind(tgt.kind as ChapterKind)) return;
+    const ids = elements.map((e) => e.id).filter((x) => x !== src.id);
+    const at = ids.indexOf(targetId);
+    ids.splice(at, 0, src.id);
+    reorder.mutate({ projectId: id, orderedIds: ids });
+  }
+
   const groups: SectionGroup[] = ['front', 'body', 'back'];
   let chapterNo = 0;
 
@@ -231,11 +278,20 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     return (
                       <li
                         key={c.id}
+                        draggable
+                        onDragStart={() => setDragId(c.id)}
+                        onDragOver={(e) => dragId && dragId !== c.id && e.preventDefault()}
+                        onDrop={() => dropOn(c.id)}
                         className={cn(
                           'flex items-center gap-1 rounded px-2 py-1.5 text-sm',
                           c.id === selectedId && 'bg-accent',
+                          dragId === c.id && 'opacity-40',
+                          dragId && dragId !== c.id && 'hover:ring-1 hover:ring-primary',
                         )}
                       >
+                        <span className="cursor-grab select-none text-muted-foreground" aria-hidden>
+                          ⋮⋮
+                        </span>
                         <button
                           className="flex-1 truncate text-left"
                           onClick={() => setSelectedId(c.id)}

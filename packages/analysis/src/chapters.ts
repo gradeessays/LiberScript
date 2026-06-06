@@ -16,7 +16,7 @@ const SECTION_PATTERNS: [RegExp, ChapterKind][] = [
   [/^preface\b/i, ChapterKind.PREFACE],
   [/^prologue\b/i, ChapterKind.PROLOGUE],
   [/^(introduction|intro)\b/i, ChapterKind.INTRODUCTION],
-  [/^(part|book)\s+([0-9]+|[ivxlcdm]+|[a-z]+)\b/i, ChapterKind.PART],
+  [new RegExp(`^(part|book|volume)\\s+(\\d{1,4}|[ivxlcdm]+|${NUMBER_WORDS})\\b`, 'i'), ChapterKind.PART],
   [/^(chapter|chapitre|kapitel)\b/i, ChapterKind.CHAPTER],
   [/^epilogue\b/i, ChapterKind.EPILOGUE],
   [/^afterword\b/i, ChapterKind.AFTERWORD],
@@ -86,6 +86,54 @@ function wordCount(text: string): number {
   return t ? t.split(/\s+/u).length : 0;
 }
 
+/** Copyright/legal lines that *carry* the legal text (kept as body, not a label). */
+function isCopyrightText(text: string): boolean {
+  return /^\s*(copyright\b|©|\(c\)\s)/i.test(text) || /\ball rights reserved\b/i.test(text);
+}
+
+/**
+ * A short, title-cased standalone line that reads like a section label
+ * ("Prologue", "Chapter One", "About the Author") rather than prose. Used so we
+ * can recognize sections even when the source styled them as plain paragraphs
+ * (the common DOCX/PDF case) instead of real headings.
+ */
+function isLabelLine(text: string): boolean {
+  const t = text.trim();
+  const wc = wordCount(t);
+  if (wc < 1 || wc > 7) return false;
+  if (!/^[\p{Lu}\p{N}]/u.test(t)) return false; // starts with a capital or digit
+  if (wc > 1 && /[.!?]["')\]]?$/.test(t)) return false; // multi-word sentences aren't labels
+  return true;
+}
+
+/**
+ * Resolve a block to a section boundary, working for both real headings and
+ * label-like paragraphs. `consumesLine` is false when the line itself carries
+ * content that must stay in the body (copyright/legal text).
+ */
+function blockHeading(block: ContentBlock): (HeadingMatch & { consumesLine: boolean }) | null {
+  const text = block.text.trim();
+  let m: HeadingMatch | null = null;
+
+  if (block.kind === 'heading') {
+    m = classifyHeading(text, true);
+  } else if (isCopyrightText(text)) {
+    m = { kind: ChapterKind.COPYRIGHT, title: 'Copyright' };
+  } else if (isLabelLine(text)) {
+    const c = classifyHeading(text, false);
+    if (c && c.kind !== ChapterKind.COPYRIGHT) m = c;
+  }
+  if (!m) return null;
+
+  // A bare "Copyright" label introduces a section whose body follows; a line that
+  // already contains the legal text must be preserved as that section's body.
+  let consumesLine = true;
+  if (m.kind === ChapterKind.COPYRIGHT) {
+    consumesLine = /^(copyright|disclaimer|legal notice|legal|imprint)s?\s*:?\.?$/i.test(text);
+  }
+  return { ...m, consumesLine };
+}
+
 function totalWords(blocks: ContentBlock[]): number {
   return blocks.reduce((n, b) => n + wordCount(b.text), 0);
 }
@@ -136,7 +184,7 @@ export interface AssembledBook {
  * headings. Falls back to plain chapter splitting when nothing is recognized.
  */
 export function assembleSections(blocks: ContentBlock[]): AssembledBook {
-  const firstIdx = blocks.findIndex((b) => b.kind === 'heading' && classifyHeading(b.text, true));
+  const firstIdx = blocks.findIndex((b) => blockHeading(b));
   if (firstIdx === -1) {
     return { chapters: fallbackChapters(blocks) };
   }
@@ -166,10 +214,17 @@ export function assembleSections(blocks: ContentBlock[]): AssembledBook {
   let current: ParsedChapter | null = null;
   let awaitingSubtitle = false;
   for (const block of rest) {
-    const cls = block.kind === 'heading' ? classifyHeading(block.text, true) : null;
+    const cls = blockHeading(block);
     if (cls) {
+      // Consecutive copyright/legal lines stay in the one copyright section.
+      if (cls.kind === ChapterKind.COPYRIGHT && current?.kind === ChapterKind.COPYRIGHT) {
+        if (!cls.consumesLine) current.blocks.push(block);
+        continue;
+      }
       if (current) chapters.push(current);
       current = { kind: cls.kind, title: cls.title, blocks: [] };
+      // A content-bearing line (copyright/legal text) stays in the body.
+      if (!cls.consumesLine) current.blocks.push(block);
       // Only chapters/parts capture a trailing line as a subtitle; structured
       // front matter (copyright, dedication, …) keeps its first line as body.
       const subtitleable = cls.kind === ChapterKind.CHAPTER || cls.kind === ChapterKind.PART;
@@ -177,7 +232,7 @@ export function assembleSections(blocks: ContentBlock[]): AssembledBook {
         current.subtitle = cls.subtitle;
         awaitingSubtitle = false;
       } else {
-        awaitingSubtitle = subtitleable;
+        awaitingSubtitle = subtitleable && cls.consumesLine;
       }
       continue;
     }

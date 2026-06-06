@@ -73,6 +73,49 @@ describe('renderChapter / themeCss', () => {
     expect(themeCss(getTheme('selfhelp'), 'print')).toContain('@page');
     expect(themeCss(getTheme('selfhelp'), 'ebook')).toContain('max-width');
   });
+  it('applies page-break rules (new page / recto)', () => {
+    const recto = themeCss(getTheme('selfhelp'), 'print', undefined, { newPage: true, recto: true });
+    expect(recto).toContain('break-before: right');
+    const none = themeCss(getTheme('selfhelp'), 'print', undefined, { newPage: false });
+    expect(none).toContain('break-before: auto');
+  });
+});
+
+describe('running headers & page numbers (print)', () => {
+  const meta = { title: 'My Book', author: 'A. Writer' };
+  it('emits folios, a verso book title, and a per-chapter recto header', () => {
+    const html = renderBookDocument({
+      theme: getTheme('novel-classic'),
+      target: 'print',
+      watermark: false,
+      meta,
+      chapters: [{ index: 1, title: 'One', content: sampleDoc }],
+      typography: { headerVersoContent: 'bookTitle', headerRectoContent: 'chapterTitle' },
+    });
+    expect(html).toContain('counter(page)');
+    expect(html).toContain('string-set: chaptertitle');
+    expect(html).toContain('content: string(chaptertitle)');
+    expect(html).toContain('content: "My Book"');
+  });
+  it('omits headers/folios when disabled, and never in ebook', () => {
+    const off = renderBookDocument({
+      theme: getTheme('novel-classic'),
+      target: 'print',
+      watermark: false,
+      meta,
+      chapters: [{ index: 1, title: 'One', content: sampleDoc }],
+      typography: { pageNumbers: false, runningHeaders: false },
+    });
+    expect(off).not.toContain('counter(page)');
+    const ebook = renderBookDocument({
+      theme: getTheme('novel-classic'),
+      target: 'ebook',
+      watermark: false,
+      meta,
+      chapters: [{ index: 1, title: 'One', content: sampleDoc }],
+    });
+    expect(ebook).not.toContain('@page :left');
+  });
 });
 
 describe('chapter styles', () => {
