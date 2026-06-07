@@ -232,6 +232,14 @@ function defaultHeading(theme: BookTheme, chapter: RenderChapter): string {
   return `<header class="chapter-heading">${ornament}${number}<h1 class="chapter-title">${esc(chapter.title)}</h1>${subtitle}</header>`;
 }
 
+/** Shared opening-quote block (epigraph that opens a chapter/section). */
+function openingQuoteHtml(quote?: string | null, attr?: string | null): string {
+  if (!quote) return '';
+  return `<div class="chapter-opening-quote">${esc(quote)}${
+    attr ? `<div class="attr">— ${esc(attr)}</div>` : ''
+  }</div>`;
+}
+
 /** Render a single body chapter, honoring the selected chapter-start style. */
 export function renderChapter(
   theme: BookTheme,
@@ -245,11 +253,7 @@ export function renderChapter(
         subtitle: chapter.subtitle,
       })
     : defaultHeading(theme, chapter);
-  const oq = chapter.openingQuote
-    ? `<div class="chapter-opening-quote">${esc(chapter.openingQuote)}${
-        chapter.openingQuoteAttribution ? `<div class="attr">— ${esc(chapter.openingQuoteAttribution)}</div>` : ''
-      }</div>`
-    : '';
+  const oq = openingQuoteHtml(chapter.openingQuote, chapter.openingQuoteAttribution);
   return `<section class="chapter">
   ${heading}${oq}
   <div class="chapter-body">${tiptapToHtml(chapter.content)}</div>
@@ -333,9 +337,17 @@ function renderToc(entries: TocEntry[]): string {
 
 function renderProseSection(el: BookElement, cls: string, defaultTitle: string): string {
   const title = el.title || defaultTitle;
-  const sectionClass = cls === 'dedication' ? 'frontmatter dedication' : `frontmatter prose-section ${cls}`;
-  const heading = cls === 'dedication' ? '' : `<h1>${esc(title)}</h1>`;
-  return `<section class="${sectionClass}">${heading}<div class="chapter-body">${tiptapToHtml(el.content)}</div></section>`;
+  const isDedication = cls === 'dedication';
+  const sectionClass = isDedication ? 'frontmatter dedication' : `frontmatter prose-section ${cls}`;
+  const heading = isDedication ? '' : `<h1>${esc(title)}</h1>`;
+  // Prologue / Introduction / Foreword … support an optional subtitle and an
+  // opening quote, just like a chapter.
+  const subtitle =
+    !isDedication && el.subtitle ? `<div class="chapter-subtitle">${esc(el.subtitle)}</div>` : '';
+  const oq = isDedication
+    ? ''
+    : openingQuoteHtml(dataStr(el.data, 'openingQuote'), dataStr(el.data, 'openingQuoteAttribution'));
+  return `<section class="${sectionClass}">${heading}${subtitle}${oq}<div class="chapter-body">${tiptapToHtml(el.content)}</div></section>`;
 }
 
 function renderPart(el: BookElement): string {

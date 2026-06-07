@@ -142,7 +142,17 @@ function elementParagraphs(el: ExportElement, book: ExportBook): Paragraph[] {
       const subtitle = el.subtitle
         ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: el.subtitle, italics: true })] })]
         : [];
-      return [heading(title), ...subtitle, ...contentParagraphs(el.content)];
+      const oq = dataStr(el, 'openingQuote');
+      const oqAttr = dataStr(el, 'openingQuoteAttribution');
+      const quote = oq
+        ? [
+            new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 60 }, children: [new TextRun({ text: oq, italics: true })] }),
+            ...(oqAttr
+              ? [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: `— ${oqAttr}`, italics: true, size: 18 })] })]
+              : []),
+          ]
+        : [];
+      return [heading(title), ...subtitle, ...quote, ...contentParagraphs(el.content)];
     }
   }
 }

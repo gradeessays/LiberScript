@@ -58,6 +58,13 @@ const GROUP_TITLES: Record<SectionGroup, string> = {
 
 const GROUP_RANK: Record<SectionGroup, number> = { front: 0, body: 1, back: 2 };
 
+// Narrative sections that support an optional subtitle + opening quote.
+const NARRATIVE_KINDS: ChapterKind[] = [
+  ChapterKind.CHAPTER,
+  ChapterKind.PROLOGUE,
+  ChapterKind.INTRODUCTION,
+];
+
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const utils = trpc.useUtils();
@@ -449,7 +456,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                       className="w-full bg-transparent text-center text-2xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/40"
                       placeholder="Untitled"
                     />
-                    {selectedKind === ChapterKind.CHAPTER && (
+                    {NARRATIVE_KINDS.includes(selectedKind as ChapterKind) && (
                       <>
                         <input
                           value={subtitle}
@@ -508,7 +515,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   <ManuscriptEditor
                     key={selectedId}
                     initialContent={chapter.data.content as JSONContent}
-                    structureTags={selectedKind === ChapterKind.CHAPTER}
+                    structureTags={NARRATIVE_KINDS.includes(selectedKind as ChapterKind)}
                     onTagField={(field, text) => {
                       if (!selectedId) return;
                       if (field === 'title') {

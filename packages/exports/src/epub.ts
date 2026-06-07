@@ -48,7 +48,8 @@ p { margin: 0 0 ${p.spacingEm}em; text-indent: ${p.indentEm}em; }
 .titlepage .publisher { margin-top: 3em; color: #555; }
 .copyright { font-size: 0.85em; text-align: left; }
 .copyright p { text-indent: 0; margin: 0 0 0.8em; }
-.attribution { font-variant: small-caps; color: #555; margin-top: 1em; }
+.attribution { font-variant: small-caps; color: #555; margin-top: 0.4em; }
+.opening-quote { text-align: center; font-style: italic; color: #444; margin: 0 0 1.4em; }
 .scene-break { text-align: center; margin: 1em 0; }
 .scene-break::after { content: "* * *"; }
 blockquote { margin: 0 0 1em 1em; font-style: italic; }
@@ -123,14 +124,20 @@ function elementToPage(el: ExportElement, index: number, book: ExportBook): Page
     }
     case ChapterKind.DEDICATION:
       return { id, fileName, title: 'Dedication', inToc: false, body: `<section class="dedication">${body}</section>` };
-    default:
+    default: {
+      const oq = dataStr(el, 'openingQuote');
+      const oqAttr = dataStr(el, 'openingQuoteAttribution');
+      const quote = oq
+        ? `<div class="opening-quote">${esc(oq)}${oqAttr ? `<p class="attribution">— ${esc(oqAttr)}</p>` : ''}</div>`
+        : '';
       return {
         id,
         fileName,
         title,
         inToc: el.kind !== ChapterKind.TITLE_PAGE,
-        body: `<section class="first"><h1>${esc(title)}</h1>${subtitle}${body}</section>`,
+        body: `<section class="first"><h1>${esc(title)}</h1>${subtitle}${quote}${body}</section>`,
       };
+    }
   }
 }
 

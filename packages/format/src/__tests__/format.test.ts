@@ -204,4 +204,25 @@ describe('renderBookDocument', () => {
     const html = renderBookDocument({ ...base, target: 'print', watermark: false });
     expect(html).not.toContain('Made with Liberscript');
   });
+  it('renders subtitle + opening quote for prologue/introduction sections', () => {
+    const html = renderBookDocument({
+      theme: getTheme('novel-classic'),
+      target: 'ebook',
+      watermark: false,
+      meta: { title: 'B' },
+      elements: [
+        {
+          kind: 'PROLOGUE',
+          title: 'Prologue',
+          subtitle: 'Before it began',
+          data: { openingQuote: 'All things end.', openingQuoteAttribution: 'Anon' },
+          content: sampleDoc,
+        },
+      ],
+    });
+    expect(html).toContain('chapter-subtitle">Before it began');
+    expect(html).toContain('chapter-opening-quote');
+    expect(html).toContain('All things end.');
+    expect(html).toContain('Anon');
+  });
 });
