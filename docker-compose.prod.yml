@@ -1,0 +1,56 @@
+# Production stack for a single DigitalOcean droplet (or any Docker host).
+#
+#   web    — Next.js app (standalone), behind Caddy
+#   worker — BullMQ worker (parse/analyze/export), with Chromium for Print-PDF
+#   caddy  — TLS reverse proxy (automatic HTTPS via Let's Encrypt)
+#
+# Database (Neon), Redis (Upstash) and object storage (Cloudflare R2 / Spaces)
+# are external managed/cloud services — set them in .env.production.
+#
+#   cp .env.production.example .env.production   # then fill it in
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Local production smoke test (no domain/TLS): bring up just web + worker and
+# publish the port, e.g.:
+#   docker compose -f docker-compose.prod.yml run --service-ports web
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    env_file: .env.production
+    expose:
+      - '3000'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    restart: unless-stopped
+    env_file: .env.production
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - web
+    env_file: .env.production
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

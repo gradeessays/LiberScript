@@ -32,18 +32,78 @@ DigitalOcean using **managed services** so the droplet stays stateless.
   prod and local (MinIO) unchanged.
 - The droplet is cattle, not a pet: rebuildable from the repo + env.
 
-## Provisioning checklist
-1. **Droplet**: Ubuntu LTS, 2 vCPU / 4 GB+ to start. Add a firewall (allow 80/443).
-2. **Managed Postgres**: create DB `liberscript`; copy the connection string and
-   append `?sslmode=require` → `DATABASE_URL`.
-3. **Managed Redis (Valkey)**: copy the **`rediss://`** (TLS) URI → `REDIS_URL`.
-4. **Spaces**: create a bucket; generate a Spaces access key/secret. Set
-   `S3_ENDPOINT=https://<region>.digitaloceanspaces.com`, `S3_REGION=<region>`,
-   `S3_BUCKET=<bucket>`, `S3_FORCE_PATH_STYLE=false`, and the key/secret.
-5. **Secrets**: `AUTH_SECRET` and `ENCRYPTION_KEY` via `openssl rand -base64 32`.
-6. **Email**: a transactional SMTP provider (e.g. Postmark/SES) → `SMTP_*`.
-7. **DNS + TLS**: point the domain at the droplet; terminate TLS at Caddy/Nginx
-   and proxy to the Next app on `:3000`. Set `APP_URL=https://your-domain`.
+## Cheap, scalable stack (current target)
+Everything below uses free/low-cost services and one small droplet; swap any piece
+for a managed equivalent later without code changes (storage already speaks S3).
+
+| Piece | Service | Cost | Notes |
+|---|---|---|---|
+| App + worker host | **DO droplet** (Docker) | ~$6–12/mo | 1 GB works with swap; 2 GB ($12) is comfier for the Print-PDF Chromium. |
+| Postgres | **Neon** | Free | Already in use; use the **pooled** URL. |
+| Redis | **Upstash** | Free | Already in use; `rediss://` TLS URL. |
+| Object storage | **Cloudflare R2** | Free 10 GB, **$0 egress** | S3-compatible; cheapest at scale. (DO Spaces $5/mo is the alt.) |
+| TLS / proxy | **Caddy** | Free | Automatic HTTPS via Let's Encrypt. |
+
+### One-time setup
+1. **Cloudflare R2**: create a bucket (e.g. `liberscript`) + an **R2 API token**
+   (Object Read & Write). Add a **CORS** rule allowing `PUT, GET` from your
+   `APP_URL`. Endpoint is `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
+2. **Neon**: copy the **pooled** connection string (host has `-pooler`) → `DATABASE_URL`.
+3. **Upstash**: copy the `rediss://` URL → `REDIS_URL`.
+4. **Secrets**: `openssl rand -base64 32` for `AUTH_SECRET` and `ENCRYPTION_KEY`.
+5. **Email**: transactional SMTP (ZeptoMail/Postmark/SES) → `SMTP_*`.
+6. **Droplet**: Ubuntu LTS; install Docker + compose plugin; open firewall 80/443.
+   On a 1 GB droplet add swap so the in-image build doesn't OOM:
+   `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`.
+7. **DNS**: point an `A` record for your domain at the droplet IP.
+
+### Deploy
+```bash
+git clone <repo> && cd liberscript
+cp .env.production.example .env.production && nano .env.production   # fill in
+pnpm dlx -y -- true   # (optional) warm caches
+
+# migrate the schema once (from any machine with DATABASE_URL, or on the droplet):
+docker compose -f docker-compose.prod.yml run --rm worker pnpm db:migrate:prod
+
+# build + start web, worker, caddy:
+docker compose -f docker-compose.prod.yml up -d --build
+```
+Caddy obtains TLS automatically for `APP_DOMAIN`. Visit `https://<APP_DOMAIN>` →
+sign up → upload → edit → preview → export. `GET /api/health` should be `200`.
+
+### Update / redeploy
+```bash
+git pull
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml run --rm worker pnpm db:migrate:prod   # if migrations changed
+```
+
+### Local production smoke test (no domain)
+```bash
+docker compose -f docker-compose.prod.yml build web worker
+docker compose -f docker-compose.prod.yml run --service-ports -e APP_URL=http://localhost:3000 web
+# open http://localhost:3000
+```
+
+### Notes & troubleshooting
+- **R2 CORS**: browser uploads PUT directly to the presigned R2 URL — the bucket
+  needs a CORS rule allowing `PUT, GET, HEAD` from your `APP_URL` (and
+  `Content-Type` in `AllowedHeaders`). Without it, uploads fail in the browser.
+- **Neon cold starts**: the pooled URL + the connect/pool timeouts the app appends
+  handle this; the first request after idle can take a second.
+- **Print-PDF**: Chromium ships in the worker image (`/usr/bin/chromium`). If a
+  job logs a sandbox error, confirm the container has the libs (the base image
+  does) — it already launches with `--no-sandbox`.
+- **Prisma engine in the web image**: Next's standalone tracing bundles the
+  query engine. If a DB call in the web container ever errors with “engine not
+  found”, copy it in the runner stage:
+  `COPY --from=build /app/node_modules/.pnpm/@prisma+client*/node_modules/.prisma ./node_modules/.prisma`.
+- **1 GB droplet**: add swap (above) before `--build`, or build images on a
+  bigger machine / CI and `docker compose pull` on the droplet.
+- The Dockerfiles use Next `output: 'standalone'`, which traces files on Linux;
+  the Windows dev box can't create the standalone symlinks (EPERM) — that's
+  expected and doesn't affect the Linux image build.
 
 ## Print-PDF export needs Chromium (worker)
 The **interior Print PDF** export runs paged.js inside headless Chromium

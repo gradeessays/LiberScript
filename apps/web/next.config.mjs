@@ -1,6 +1,15 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Self-contained production server for Docker (copies only traced files). The
+  // tracing root is the monorepo root so workspace packages are bundled in.
+  output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, '../../'),
   // Linting runs as a dedicated `turbo lint` task (with the Next.js plugin),
   // so skip Next's redundant build-time lint pass.
   eslint: { ignoreDuringBuilds: true },

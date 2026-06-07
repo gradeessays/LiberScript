@@ -20,6 +20,7 @@
     "db:generate": "pnpm --filter @liberscript/db generate",
     "db:migrate": "pnpm --filter @liberscript/db migrate:dev",
     "db:migrate:deploy": "pnpm --filter @liberscript/db migrate:deploy",
+    "db:migrate:prod": "pnpm --filter @liberscript/db migrate:prod",
     "db:seed": "pnpm --filter @liberscript/db seed",
     "db:studio": "pnpm --filter @liberscript/db studio",
     "clean": "turbo run clean && rimraf node_modules"

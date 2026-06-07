@@ -1,0 +1,14 @@
+# Keep build context small + never bake secrets/artifacts into images.
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+.git
+.github
+.env
+.env.*
+!.env.production.example
+**/*.log
+.DS_Store
+docs

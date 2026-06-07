@@ -3,6 +3,10 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth-server';
 import { AppHeader } from '@/components/app-header';
 
+// Authenticated pages read the session cookie (headers) — always server-rendered
+// per request, never statically prerendered at build time.
+export const dynamic = 'force-dynamic';
+
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession();
   if (!session) {
