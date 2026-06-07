@@ -119,6 +119,12 @@ function frontMatterCss(theme: BookTheme): string {
 .book .epigraph.eg-large { text-align: center; font-size: 1.3em; font-style: italic; }
 .book .epigraph .attribution { margin-top: 1em; font-style: normal; font-variant: small-caps; color: #555; }
 .book .dedication { text-align: center; font-style: italic; padding-top: 30%; }
+/* Centered front matter must not inherit the body paragraph indent. */
+.book .epigraph p, .book .dedication p, .book .title-page p { text-indent: 0; margin: 0 0 0.6em; }
+/* Foreword / Preface / Prologue / Introduction / back-matter prose headings. */
+.book .prose-section h1 { text-align: center; font-size: 1.7em; font-weight: 700; margin: 0 0 0.6em; line-height: 1.15; }
+.book .prose-section .chapter-subtitle { text-align: center; }
+.book .prose-section .chapter-body > p:first-of-type { text-indent: 0; }
 .book .toc h1, .book .part h1, .book .prose-section h1 { font-family: ${theme.headingFont.stack}; }
 .book .toc h1 { text-align: center; margin-bottom: 1.4em; }
 .book .toc ol { list-style: none; padding: 0; margin: 0; }
@@ -456,6 +462,11 @@ export interface RenderBookInput {
    * their own pagination, so this is for the on-screen print preview.
    */
   paginated?: boolean;
+  /**
+   * Paginated print preview style: `scroll` = PDF-viewer (all pages stacked),
+   * `flip` = one page at a time with next/prev navigation. Default `scroll`.
+   */
+  pageView?: 'scroll' | 'flip';
 }
 
 /** Full standalone HTML document used by the live preview and the exporters. */
@@ -519,17 +530,24 @@ ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
 
   // paged.js paginates the document into real page boxes honoring the @page /
   // running-header / folio rules. Loaded only for the paginated print preview.
+  const flip = paginated && input.pageView === 'flip';
   const pagedPreviewCss = paginated
     ? `@media screen {
-  html, body { background: #e9e9ee; }
-  .pagedjs_page { background: #fff; box-shadow: 0 1px 12px rgba(0,0,0,0.18); margin: 0 auto 16px; }
+  html, body { background: #525659; }
+  .pagedjs_page { background: #fff; box-shadow: 0 2px 18px rgba(0,0,0,0.45); margin: 0 auto 18px; }
   .pagedjs_pages { display: block; }
+}
+@media screen {
+  body.flip { padding-bottom: 64px; }
+  body.flip .pagedjs_page { display: none; margin-bottom: 0; }
+  body.flip .pagedjs_page.is-current { display: block; }
+  .flip-nav { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(20,20,22,0.82); color: #fff; padding: 6px 10px; border-radius: 999px; font: 14px system-ui, sans-serif; z-index: 9999; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+  .flip-nav button { background: transparent; color: #fff; border: 0; font-size: 22px; line-height: 1; cursor: pointer; padding: 0 8px; }
+  .flip-nav button:disabled { opacity: 0.3; cursor: default; }
+  .flip-nav span { min-width: 64px; text-align: center; }
 }`
     : '';
-  const pagedScript = paginated
-    ? `<script>window.PagedConfig = { auto: true };</script>
-<script src="https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js"></script>`
-    : '';
+  const pagedScript = paginated ? pagedPreviewScript(flip) : '';
 
   return `<!doctype html>
 <html lang="en">
@@ -540,7 +558,7 @@ ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
 ${fontLink}
 <style>
 html, body { margin: 0; padding: 0; background: ${pageBg}; }
-body { padding: ${target === 'print' ? (paginated ? '16px 0' : '24px') : '0'}; }
+body { padding: ${target === 'print' ? (paginated ? '18px 0' : '24px') : '0'}; }
 ${themeCss(theme, target, style, breaks, paginated)}
 ${proseCss}
 ${pagedCss}
@@ -548,11 +566,38 @@ ${pagedPreviewCss}
 ${readingCss}
 </style>
 </head>
-<body>
+<body class="${flip ? 'flip' : ''}">
 <div class="book">
 ${body}
 </div>
 ${pagedScript}
 </body>
 </html>`;
+}
+
+/** Inline paged.js bootstrap; in flip mode it adds single-page navigation. */
+function pagedPreviewScript(flip: boolean): string {
+  const flipInit = flip
+    ? `
+function __initFlip(){
+  var pages = Array.prototype.slice.call(document.querySelectorAll('.pagedjs_page'));
+  if(!pages.length) return;
+  if(document.querySelector('.flip-nav')) return;
+  var i = 0;
+  var nav = document.createElement('div'); nav.className = 'flip-nav';
+  var prev = document.createElement('button'); prev.textContent = '\\u2039'; prev.setAttribute('aria-label','Previous page');
+  var label = document.createElement('span');
+  var next = document.createElement('button'); next.textContent = '\\u203A'; next.setAttribute('aria-label','Next page');
+  nav.appendChild(prev); nav.appendChild(label); nav.appendChild(next);
+  document.body.appendChild(nav);
+  function show(n){ i = Math.max(0, Math.min(pages.length-1, n)); for(var k=0;k<pages.length;k++){ pages[k].classList.toggle('is-current', k===i); } label.textContent = (i+1)+' / '+pages.length; prev.disabled = i===0; next.disabled = i===pages.length-1; window.scrollTo(0,0); }
+  prev.onclick = function(){ show(i-1); };
+  next.onclick = function(){ show(i+1); };
+  document.addEventListener('keydown', function(e){ if(e.key==='ArrowRight'||e.key==='PageDown'){ show(i+1); } else if(e.key==='ArrowLeft'||e.key==='PageUp'){ show(i-1); } });
+  show(0);
+}`
+    : '';
+  const after = flip ? 'after: function(){ try { __initFlip(); } catch(e){} }' : '';
+  return `<script>window.PagedConfig = { auto: true${after ? ', ' + after : ''} };${flipInit}</script>
+<script src="https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js"></script>`;
 }

@@ -18,6 +18,7 @@ import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { DeviceFrame, type DeviceKind } from '@/components/device-frame';
 
 type Target = 'print' | 'ebook';
+type PrintMode = 'flow' | 'scroll' | 'flip';
 type ExportFmt = 'EPUB' | 'DOCX' | 'COVER_PDF';
 
 const EXPORT_OPTIONS: { format: ExportFmt; label: string; hint: string }[] = [
@@ -56,7 +57,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
 
   const [themeKey, setThemeKey] = useState('novel-classic');
   const [target, setTarget] = useState<Target>('print');
-  const [printMode, setPrintMode] = useState<'pages' | 'flow'>('pages');
+  const [printMode, setPrintMode] = useState<PrintMode>('scroll');
   const [readingMode, setReadingMode] = useState<ReadingMode>('light');
   const [device, setDevice] = useState<DeviceKind>('phone');
   const [publisher, setPublisher] = useState('');
@@ -84,7 +85,8 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
       theme: getTheme(themeKey),
       target,
       readingMode,
-      paginated: target === 'print' && printMode === 'pages',
+      paginated: target === 'print' && printMode !== 'flow',
+      pageView: printMode === 'flip' ? 'flip' : 'scroll',
       watermark: preview.data.watermark,
       typography: typo,
       meta: {
@@ -600,15 +602,15 @@ function PreviewPane({
 }: {
   target: Target;
   setTarget: (t: Target) => void;
-  printMode: 'pages' | 'flow';
-  setPrintMode: (m: 'pages' | 'flow') => void;
+  printMode: PrintMode;
+  setPrintMode: (m: PrintMode) => void;
   readingMode: ReadingMode;
   setReadingMode: (m: ReadingMode) => void;
   device: DeviceKind;
   setDevice: (d: DeviceKind) => void;
   html: string;
 }) {
-  const paginated = target === 'print' && printMode === 'pages';
+  const paginated = target === 'print' && printMode !== 'flow';
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -628,7 +630,13 @@ function PreviewPane({
         </div>
         {target === 'print' && (
           <div className="flex gap-1">
-            {(['pages', 'flow'] as const).map((m) => (
+            {(
+              [
+                ['flow', '↕ Continuous', 'Fast continuous scroll'],
+                ['scroll', '📄 Pages', 'Real pages, stacked like a PDF viewer'],
+                ['flip', '📖 Flip', 'One page at a time — use the ‹ › arrows'],
+              ] as const
+            ).map(([m, lbl, tip]) => (
               <button
                 key={m}
                 onClick={() => setPrintMode(m)}
@@ -636,9 +644,9 @@ function PreviewPane({
                   'rounded-md border px-2 py-1 text-xs',
                   printMode === m ? 'bg-accent font-medium' : 'hover:bg-accent',
                 )}
-                title={m === 'pages' ? 'Real pages with headers & page numbers' : 'Fast continuous scroll'}
+                title={tip}
               >
-                {m === 'pages' ? '📄 Pages' : '↕ Continuous'}
+                {lbl}
               </button>
             ))}
           </div>
@@ -683,7 +691,7 @@ function PreviewPane({
       ) : (
         <iframe
           title="Book preview"
-          className={cn('h-[80vh] w-full rounded-lg border', paginated ? 'bg-[#e9e9ee]' : 'bg-white')}
+          className={cn('h-[80vh] w-full rounded-lg border', paginated ? 'bg-[#525659]' : 'bg-white')}
           srcDoc={html}
           // paged.js needs scripts to paginate; the document is app-generated.
           sandbox={paginated ? 'allow-scripts allow-same-origin' : 'allow-same-origin'}
@@ -691,9 +699,10 @@ function PreviewPane({
       )}
       {paginated && (
         <p className="text-xs text-muted-foreground">
-          Real page layout (size, margins, running headers &amp; page numbers). Large books take a
-          moment to paginate — switch to <span className="font-medium">Continuous</span> for fast
-          scrolling while editing.
+          Real page layout at your trim size — margins, running headers &amp; page numbers.
+          {printMode === 'flip'
+            ? ' Use the ‹ › arrows (or ← → keys) to turn pages.'
+            : ' Large books take a moment to paginate — use Continuous for fast scrolling while editing.'}
         </p>
       )}
     </section>

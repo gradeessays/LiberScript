@@ -226,6 +226,20 @@ describe('renderBookDocument', () => {
     const ebook = renderBookDocument({ ...base, target: 'ebook', watermark: false, paginated: true });
     expect(ebook).not.toContain('paged.polyfill.js'); // print-only
   });
+  it('adds the page-flip navigator only in flip mode', () => {
+    const flip = renderBookDocument({ ...base, target: 'print', watermark: false, paginated: true, pageView: 'flip' });
+    expect(flip).toContain('__initFlip');
+    expect(flip).toContain('flip-nav');
+    expect(flip).toContain('<body class="flip">');
+    const scroll = renderBookDocument({ ...base, target: 'print', watermark: false, paginated: true, pageView: 'scroll' });
+    expect(scroll).not.toContain('__initFlip');
+    expect(scroll).toContain('<body class="">');
+  });
+  it('resets paragraph indent in centered front matter and styles prose headings', () => {
+    const css = themeCss(getTheme('novel-classic'), 'print');
+    expect(css).toContain('.book .epigraph p, .book .dedication p, .book .title-page p { text-indent: 0;');
+    expect(css).toContain('.book .prose-section h1 { text-align: center;');
+  });
   it('renders subtitle + opening quote for prologue/introduction sections', () => {
     const html = renderBookDocument({
       theme: getTheme('novel-classic'),
