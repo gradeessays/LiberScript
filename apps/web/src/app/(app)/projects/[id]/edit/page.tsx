@@ -58,12 +58,20 @@ const GROUP_TITLES: Record<SectionGroup, string> = {
 
 const GROUP_RANK: Record<SectionGroup, number> = { front: 0, body: 1, back: 2 };
 
-// Narrative sections that support an optional subtitle + opening quote.
-const NARRATIVE_KINDS: ChapterKind[] = [
+// Narrative sections that support an optional opening quote (+ attribution).
+const OPENING_QUOTE_KINDS: ChapterKind[] = [
   ChapterKind.CHAPTER,
   ChapterKind.PROLOGUE,
   ChapterKind.INTRODUCTION,
+  ChapterKind.FOREWORD,
+  ChapterKind.PREFACE,
+  ChapterKind.EPILOGUE,
+  ChapterKind.AFTERWORD,
 ];
+// Sections that support an optional subtitle (the above + parts).
+const SUBTITLE_KINDS: ChapterKind[] = [...OPENING_QUOTE_KINDS, ChapterKind.PART];
+// Kinds where the big title line doesn't apply (their heading is fixed/none).
+const NO_TITLE_KINDS: ChapterKind[] = [ChapterKind.EPIGRAPH, ChapterKind.DEDICATION];
 
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -235,6 +243,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   const selectedKind = chapter.data?.kind as ChapterKind | undefined;
   const data = (chapter.data?.data ?? {}) as Record<string, unknown>;
+  // Label for the loading state, taken from the outline (avoids a blank pane).
+  const selectedOutline = elements.find((e) => e.id === selectedId);
+  const selectedLabel = selectedOutline
+    ? KIND_LABELS[selectedOutline.kind as ChapterKind] ?? 'element'
+    : 'element';
 
   return (
     <div className="space-y-4">
@@ -397,9 +410,20 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
         {/* Editing pane */}
         <section className="space-y-3">
-          {!selectedId || !chapter.data ? (
+          {!selectedId ? (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground">
-              Select an element, add a chapter, or build your front matter.
+              Select an element on the left, or add one with the <strong>+</strong> next to a group.
+            </div>
+          ) : chapter.isLoading ? (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+              Loading {selectedLabel}…
+            </div>
+          ) : !chapter.data ? (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+              Couldn&apos;t load this element.{' '}
+              <button className="text-primary hover:underline" onClick={() => chapter.refetch()}>
+                Retry
+              </button>
             </div>
           ) : (
             <>
@@ -437,9 +461,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   chapters — no editing needed.
                 </div>
               ) : selectedKind === ChapterKind.TITLE_PAGE ? (
-                <TitlePageForm data={data} onSave={(d) => updateData.mutate({ id: selectedId, data: d })} />
+                <TitlePageForm key={selectedId} data={data} onSave={(d) => updateData.mutate({ id: selectedId, data: d })} />
               ) : selectedKind === ChapterKind.COPYRIGHT ? (
                 <CopyrightForm
+                  key={selectedId}
                   bookTitle={project.data?.title ?? ''}
                   data={data}
                   onSave={(d) => updateData.mutate({ id: selectedId, data: d })}
@@ -449,22 +474,26 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   {/* Document canvas: the section's title / subtitle / opening quote
                       read as one continuous page above the body. */}
                   <div className="rounded-lg border bg-card px-5 pt-5 pb-1">
-                    <input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      onBlur={() => title.trim() && updateMeta.mutate({ id: selectedId, title, subtitle })}
-                      className="w-full bg-transparent text-center text-2xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/40"
-                      placeholder="Untitled"
-                    />
-                    {NARRATIVE_KINDS.includes(selectedKind as ChapterKind) && (
+                    {!NO_TITLE_KINDS.includes(selectedKind as ChapterKind) && (
+                      <input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        onBlur={() => title.trim() && updateMeta.mutate({ id: selectedId, title, subtitle })}
+                        className="w-full bg-transparent text-center text-2xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/40"
+                        placeholder={`${KIND_LABELS[selectedKind as ChapterKind] ?? 'Section'} title`}
+                      />
+                    )}
+                    {SUBTITLE_KINDS.includes(selectedKind as ChapterKind) && (
+                      <input
+                        value={subtitle}
+                        onChange={(e) => setSubtitle(e.target.value)}
+                        onBlur={() => updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })}
+                        className="mt-1 w-full bg-transparent text-center italic text-muted-foreground outline-none placeholder:text-muted-foreground/40"
+                        placeholder="Subtitle (optional)"
+                      />
+                    )}
+                    {OPENING_QUOTE_KINDS.includes(selectedKind as ChapterKind) && (
                       <>
-                        <input
-                          value={subtitle}
-                          onChange={(e) => setSubtitle(e.target.value)}
-                          onBlur={() => updateMeta.mutate({ id: selectedId, title, subtitle: subtitle || null })}
-                          className="mt-1 w-full bg-transparent text-center italic text-muted-foreground outline-none placeholder:text-muted-foreground/40"
-                          placeholder="Subtitle (optional)"
-                        />
                         <textarea
                           className="mt-2 w-full resize-none bg-transparent text-center text-sm italic text-muted-foreground outline-none placeholder:text-muted-foreground/40"
                           rows={openingQuote ? 2 : 1}
@@ -481,6 +510,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                           placeholder="— Attribution (optional)"
                         />
                       </>
+                    )}
+                    {NO_TITLE_KINDS.includes(selectedKind as ChapterKind) && (
+                      <p className="text-center text-xs text-muted-foreground">
+                        {selectedKind === ChapterKind.EPIGRAPH
+                          ? 'Type the epigraph quote in the editor below; set attribution & style here.'
+                          : 'Type your dedication in the editor below.'}
+                      </p>
                     )}
                     {selectedKind === ChapterKind.EPIGRAPH && (
                       <div className="mt-2 grid grid-cols-2 gap-2 text-left">
@@ -515,7 +551,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   <ManuscriptEditor
                     key={selectedId}
                     initialContent={chapter.data.content as JSONContent}
-                    structureTags={NARRATIVE_KINDS.includes(selectedKind as ChapterKind)}
+                    structureTags={OPENING_QUOTE_KINDS.includes(selectedKind as ChapterKind)}
                     onTagField={(field, text) => {
                       if (!selectedId) return;
                       if (field === 'title') {
