@@ -40,6 +40,7 @@ const ADDABLE: ChapterKind[] = [
   ChapterKind.PREFACE,
   ChapterKind.PROLOGUE,
   ChapterKind.INTRODUCTION,
+  ChapterKind.CHAPTER,
   ChapterKind.PART,
   ChapterKind.EPILOGUE,
   ChapterKind.AFTERWORD,
@@ -64,7 +65,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const elements = useMemo(() => project.data?.manuscript?.chapters ?? [], [project.data]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
+  const [addGroup, setAddGroup] = useState<SectionGroup | null>(null);
   useEffect(() => {
     if (!selectedId && elements[0]) setSelectedId(elements[0].id);
   }, [elements, selectedId]);
@@ -91,7 +92,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const create = trpc.chapter.create.useMutation({
     onMutate: async (vars) => {
       const kind = vars.kind ?? ChapterKind.CHAPTER;
-      setAddOpen(false);
+      setAddGroup(null);
       await utils.project.get.cancel({ id });
       const prev = utils.project.get.getData({ id });
       utils.project.get.setData({ id }, (old) => {
@@ -271,86 +272,120 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         <aside className="h-fit space-y-3 rounded-lg border p-2">
           {groups.map((g) => {
             const items = elements.filter((e) => groupOfKind(e.kind as ChapterKind) === g);
+            const addable = ADDABLE.filter((k) => groupOfKind(k) === g);
             return (
               <div key={g}>
-                <div className="px-1 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {GROUP_TITLES[g]}
+                {/* Group header — click + to add an element of this group */}
+                <div className="flex items-center justify-between px-1 py-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {GROUP_TITLES[g]}
+                    {items.length > 0 && <span className="ml-1 font-normal">({items.length})</span>}
+                  </span>
+                  <div className="relative">
+                    <button
+                      className="rounded px-1.5 text-base leading-none text-muted-foreground hover:bg-accent hover:text-foreground"
+                      onClick={() => setAddGroup(addGroup === g ? null : g)}
+                      aria-label={`Add to ${GROUP_TITLES[g]}`}
+                      title={`Add to ${GROUP_TITLES[g]}`}
+                    >
+                      +
+                    </button>
+                    {addGroup === g && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setAddGroup(null)} aria-hidden />
+                        <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border bg-background p-1 shadow-md">
+                          {addable.map((k) => (
+                            <button
+                              key={k}
+                              className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+                              onClick={() => create.mutate({ projectId: id, kind: k })}
+                            >
+                              {KIND_LABELS[k]}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <ul>
-                  {items.map((c) => {
-                    const globalIndex = elements.findIndex((e) => e.id === c.id);
-                    if (c.kind === ChapterKind.CHAPTER) chapterNo += 1;
-                    const label =
-                      c.kind === ChapterKind.CHAPTER
-                        ? `${chapterNo}. ${c.title}`
-                        : KIND_LABELS[c.kind as ChapterKind] ?? c.title;
-                    return (
-                      <li
-                        key={c.id}
-                        draggable
-                        onDragStart={() => setDragId(c.id)}
-                        onDragOver={(e) => dragId && dragId !== c.id && e.preventDefault()}
-                        onDrop={() => dropOn(c.id)}
-                        className={cn(
-                          'flex items-center gap-1 rounded px-2 py-1.5 text-sm',
-                          c.id === selectedId && 'bg-accent',
-                          dragId === c.id && 'opacity-40',
-                          dragId && dragId !== c.id && 'hover:ring-1 hover:ring-primary',
-                        )}
-                      >
-                        <span className="cursor-grab select-none text-muted-foreground" aria-hidden>
-                          ⋮⋮
-                        </span>
-                        <button
-                          className="flex-1 truncate text-left"
-                          onClick={() => setSelectedId(c.id)}
-                          title={c.title}
+
+                {items.length === 0 ? (
+                  <button
+                    onClick={() => setAddGroup(g)}
+                    className="w-full rounded px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent"
+                  >
+                    + Add {GROUP_TITLES[g].toLowerCase()}…
+                  </button>
+                ) : (
+                  <ul>
+                    {items.map((c) => {
+                      const globalIndex = elements.findIndex((e) => e.id === c.id);
+                      if (c.kind === ChapterKind.CHAPTER) chapterNo += 1;
+                      const label =
+                        c.kind === ChapterKind.CHAPTER
+                          ? `${chapterNo}. ${c.title}`
+                          : KIND_LABELS[c.kind as ChapterKind] ?? c.title;
+                      return (
+                        <li
+                          key={c.id}
+                          draggable
+                          onDragStart={() => setDragId(c.id)}
+                          onDragOver={(e) => dragId && dragId !== c.id && e.preventDefault()}
+                          onDrop={() => dropOn(c.id)}
+                          className={cn(
+                            'group flex items-center gap-1 rounded px-2 py-1.5 text-sm',
+                            c.id === selectedId && 'bg-accent',
+                            dragId === c.id && 'opacity-40',
+                            dragId && dragId !== c.id && 'hover:ring-1 hover:ring-primary',
+                          )}
                         >
-                          {label}
-                        </button>
-                        <button
-                          className="px-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
-                          disabled={globalIndex === 0}
-                          onClick={() => move(globalIndex, -1)}
-                          aria-label="Move up"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          className="px-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
-                          disabled={globalIndex === elements.length - 1}
-                          onClick={() => move(globalIndex, 1)}
-                          aria-label="Move down"
-                        >
-                          ↓
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                          <span className="cursor-grab select-none text-muted-foreground" aria-hidden>
+                            ⋮⋮
+                          </span>
+                          <button
+                            className="flex-1 truncate text-left"
+                            onClick={() => setSelectedId(c.id)}
+                            title={c.title}
+                          >
+                            {label}
+                          </button>
+                          <button
+                            className="px-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
+                            disabled={globalIndex === 0}
+                            onClick={() => move(globalIndex, -1)}
+                            aria-label="Move up"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            className="px-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
+                            disabled={globalIndex === elements.length - 1}
+                            onClick={() => move(globalIndex, 1)}
+                            aria-label="Move down"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            className="px-1 text-xs text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+                            onClick={() => {
+                              if (confirm(`Delete “${label}”?`)) {
+                                removeChapter.mutate({ id: c.id });
+                                if (selectedId === c.id) setSelectedId(null);
+                              }
+                            }}
+                            aria-label="Delete"
+                            title="Delete"
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
             );
           })}
-
-          {/* Add element */}
-          <div className="relative px-1">
-            <Button variant="outline" size="sm" className="w-full" onClick={() => setAddOpen((o) => !o)}>
-              + Add element
-            </Button>
-            {addOpen && (
-              <div className="absolute z-10 mt-1 w-full rounded-md border bg-background p-1 shadow-md">
-                {ADDABLE.map((k) => (
-                  <button
-                    key={k}
-                    className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
-                    onClick={() => create.mutate({ projectId: id, kind: k })}
-                  >
-                    {KIND_LABELS[k]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </aside>
 
         {/* Editing pane */}
