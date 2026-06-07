@@ -9,7 +9,7 @@ import {
   groupOfKind,
   type TiptapDoc,
 } from '@liberscript/core';
-import type { ChapterKind as PrismaChapterKind, Prisma, PrismaClient } from '@liberscript/db';
+import { withDbRetry, type ChapterKind as PrismaChapterKind, type Prisma, type PrismaClient } from '@liberscript/db';
 import { protectedProcedure, router } from '../trpc';
 import { requireChapterAccess, requireProjectAccess } from '../lib/ownership';
 
@@ -127,37 +127,40 @@ export const chapterRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await requireProjectAccess(ctx, input.projectId, MemberRole.EDITOR);
-      const manuscript = await ctx.prisma.manuscript.upsert({
-        where: { projectId: input.projectId },
-        create: { projectId: input.projectId },
-        update: {},
-      });
-      const last = await ctx.prisma.chapter.findFirst({
-        where: { manuscriptId: manuscript.id },
-        orderBy: { order: 'desc' },
-        select: { order: true },
-      });
       const title =
         input.title ??
         (input.kind === ChapterKind.CHAPTER ? 'New chapter' : KIND_LABELS[input.kind]);
       const defaultData =
         input.kind === ChapterKind.COPYRIGHT ? { genre: 'fiction' } : undefined;
 
-      const created = await ctx.prisma.$transaction(async (tx) => {
-        const chapter = await tx.chapter.create({
-          data: {
-            manuscriptId: manuscript.id,
-            kind: input.kind as PrismaChapterKind,
-            title,
-            order: (last?.order ?? -1) + 1,
-            content: EMPTY_DOC,
-            ...(defaultData ? { data: defaultData } : {}),
-          },
+      // Retry the whole write on transient connectivity (e.g. a Neon cold-start),
+      // which would otherwise 500 and leave the optimistic element to roll back.
+      return withDbRetry(async () => {
+        const manuscript = await ctx.prisma.manuscript.upsert({
+          where: { projectId: input.projectId },
+          create: { projectId: input.projectId },
+          update: {},
         });
-        await regroupOrder(tx, manuscript.id);
-        return chapter;
+        const last = await ctx.prisma.chapter.findFirst({
+          where: { manuscriptId: manuscript.id },
+          orderBy: { order: 'desc' },
+          select: { order: true },
+        });
+        return ctx.prisma.$transaction(async (tx) => {
+          const chapter = await tx.chapter.create({
+            data: {
+              manuscriptId: manuscript.id,
+              kind: input.kind as PrismaChapterKind,
+              title,
+              order: (last?.order ?? -1) + 1,
+              content: EMPTY_DOC,
+              ...(defaultData ? { data: defaultData } : {}),
+            },
+          });
+          await regroupOrder(tx, manuscript.id);
+          return chapter;
+        });
       });
-      return created;
     }),
 
   /** Update structured data for form-based elements (title page, copyright). */

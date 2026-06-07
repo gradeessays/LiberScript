@@ -81,13 +81,18 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addGroup, setAddGroup] = useState<SectionGroup | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  // Optimistic placeholders carry a `temp-` id until the server returns the real
+  // one; never auto-select or fetch those (they don't exist server-side yet).
+  const isTempId = (x: string | null | undefined) => !!x && x.startsWith('temp-');
   useEffect(() => {
-    if (!selectedId && elements[0]) setSelectedId(elements[0].id);
+    const first = elements.find((e) => !isTempId(e.id));
+    if (!selectedId && first) setSelectedId(first.id);
   }, [elements, selectedId]);
 
   const chapter = trpc.chapter.get.useQuery(
     { id: selectedId ?? '' },
-    { enabled: Boolean(selectedId) },
+    { enabled: Boolean(selectedId) && !isTempId(selectedId) },
   );
 
   const refresh = () =>
@@ -135,8 +140,14 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       });
       return { prev };
     },
-    onError: (_e, _v, ctx) => ctx?.prev && utils.project.get.setData({ id }, ctx.prev),
-    onSuccess: (c) => setSelectedId(c.id),
+    onError: (err, _v, ctx) => {
+      if (ctx?.prev) utils.project.get.setData({ id }, ctx.prev);
+      setActionError(`Couldn't add the element: ${err.message}. Please try again.`);
+    },
+    onSuccess: (c) => {
+      setActionError(null);
+      setSelectedId(c.id);
+    },
     onSettled: refresh,
   });
   // Optimistic: the element leaves the outline the instant you confirm.
@@ -281,6 +292,15 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           )}
         </div>
       </div>
+
+      {actionError && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <span>{actionError}</span>
+          <button className="shrink-0 font-medium hover:underline" onClick={() => setActionError(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Preview replaces the editor entirely: the whole book, rendered from the
           sections you've added, with the design controls beside it. */}
