@@ -11,6 +11,7 @@ export interface CopyrightData {
   isbn?: string;
   year?: number;
   customText?: string;
+  align?: 'left' | 'center';
 }
 
 const GENRES: { value: string; label: string }[] = [
@@ -55,6 +56,19 @@ export function CopyrightForm({
         A complete copyright &amp; disclaimer is generated for your genre — just fill the details.
         Font auto-fits to a single page. (Free plan adds a small Liberscript credit.)
       </p>
+
+      <div className="flex items-center justify-between">
+        <Label htmlFor="cp-align">Alignment</Label>
+        <select
+          id="cp-align"
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          value={form.align ?? 'center'}
+          onChange={(e) => save({ ...form, align: e.target.value as 'left' | 'center' })}
+        >
+          <option value="center">Centered</option>
+          <option value="left">Left</option>
+        </select>
+      </div>
 
       {!custom ? (
         <>

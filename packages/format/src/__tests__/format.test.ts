@@ -204,6 +204,28 @@ describe('renderBookDocument', () => {
     const html = renderBookDocument({ ...base, target: 'print', watermark: false });
     expect(html).not.toContain('Made with Liberscript');
   });
+  it('centers the copyright page by default, left when set', () => {
+    const def = renderBookDocument({ ...base, target: 'print', watermark: false });
+    expect(def).toContain('copyright-page auto-fit cp-center');
+    const left = renderBookDocument({
+      ...base,
+      target: 'print',
+      watermark: false,
+      elements: [{ kind: 'COPYRIGHT', data: { align: 'left' } }],
+    });
+    expect(left).toContain('cp-left');
+  });
+  it('loads paged.js + @page geometry only in paginated print mode', () => {
+    const paged = renderBookDocument({ ...base, target: 'print', watermark: false, paginated: true });
+    expect(paged).toContain('paged.polyfill.js');
+    expect(paged).toContain('pagedjs_page');
+    expect(paged).not.toContain('min-height'); // .book no longer owns page geometry
+    const flow = renderBookDocument({ ...base, target: 'print', watermark: false });
+    expect(flow).not.toContain('paged.polyfill.js');
+    expect(flow).toContain('min-height'); // single tall page surface
+    const ebook = renderBookDocument({ ...base, target: 'ebook', watermark: false, paginated: true });
+    expect(ebook).not.toContain('paged.polyfill.js'); // print-only
+  });
   it('renders subtitle + opening quote for prologue/introduction sections', () => {
     const html = renderBookDocument({
       theme: getTheme('novel-classic'),

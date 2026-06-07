@@ -56,6 +56,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
 
   const [themeKey, setThemeKey] = useState('novel-classic');
   const [target, setTarget] = useState<Target>('print');
+  const [printMode, setPrintMode] = useState<'pages' | 'flow'>('pages');
   const [readingMode, setReadingMode] = useState<ReadingMode>('light');
   const [device, setDevice] = useState<DeviceKind>('phone');
   const [publisher, setPublisher] = useState('');
@@ -83,6 +84,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
       theme: getTheme(themeKey),
       target,
       readingMode,
+      paginated: target === 'print' && printMode === 'pages',
       watermark: preview.data.watermark,
       typography: typo,
       meta: {
@@ -99,7 +101,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
         content: e.content,
       })),
     });
-  }, [preview.data, themeKey, target, readingMode, publisher, author, typo]);
+  }, [preview.data, themeKey, target, printMode, readingMode, publisher, author, typo]);
   const debouncedHtml = useDebouncedValue(html, 350);
 
   async function onLogoFile(file: File) {
@@ -184,6 +186,8 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
           <PreviewPane
             target={target}
             setTarget={setTarget}
+            printMode={printMode}
+            setPrintMode={setPrintMode}
             readingMode={readingMode}
             setReadingMode={setReadingMode}
             device={device}
@@ -569,6 +573,8 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
           <PreviewPane
             target={target}
             setTarget={setTarget}
+            printMode={printMode}
+            setPrintMode={setPrintMode}
             readingMode={readingMode}
             setReadingMode={setReadingMode}
             device={device}
@@ -584,6 +590,8 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
 function PreviewPane({
   target,
   setTarget,
+  printMode,
+  setPrintMode,
   readingMode,
   setReadingMode,
   device,
@@ -592,12 +600,15 @@ function PreviewPane({
 }: {
   target: Target;
   setTarget: (t: Target) => void;
+  printMode: 'pages' | 'flow';
+  setPrintMode: (m: 'pages' | 'flow') => void;
   readingMode: ReadingMode;
   setReadingMode: (m: ReadingMode) => void;
   device: DeviceKind;
   setDevice: (d: DeviceKind) => void;
   html: string;
 }) {
+  const paginated = target === 'print' && printMode === 'pages';
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -615,6 +626,23 @@ function PreviewPane({
             </button>
           ))}
         </div>
+        {target === 'print' && (
+          <div className="flex gap-1">
+            {(['pages', 'flow'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setPrintMode(m)}
+                className={cn(
+                  'rounded-md border px-2 py-1 text-xs',
+                  printMode === m ? 'bg-accent font-medium' : 'hover:bg-accent',
+                )}
+                title={m === 'pages' ? 'Real pages with headers & page numbers' : 'Fast continuous scroll'}
+              >
+                {m === 'pages' ? '📄 Pages' : '↕ Continuous'}
+              </button>
+            ))}
+          </div>
+        )}
         {target === 'ebook' && (
           <>
             <div className="flex gap-1">
@@ -655,10 +683,18 @@ function PreviewPane({
       ) : (
         <iframe
           title="Book preview"
-          className="h-[80vh] w-full rounded-lg border bg-white"
+          className={cn('h-[80vh] w-full rounded-lg border', paginated ? 'bg-[#e9e9ee]' : 'bg-white')}
           srcDoc={html}
-          sandbox="allow-same-origin"
+          // paged.js needs scripts to paginate; the document is app-generated.
+          sandbox={paginated ? 'allow-scripts allow-same-origin' : 'allow-same-origin'}
         />
+      )}
+      {paginated && (
+        <p className="text-xs text-muted-foreground">
+          Real page layout (size, margins, running headers &amp; page numbers). Large books take a
+          moment to paginate — switch to <span className="font-medium">Continuous</span> for fast
+          scrolling while editing.
+        </p>
       )}
     </section>
   );

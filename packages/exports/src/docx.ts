@@ -132,9 +132,10 @@ function elementParagraphs(el: ExportElement, book: ExportBook): Paragraph[] {
       if (publisher) lines.push(`Published by ${publisher}`);
       if (isbn) lines.push(`ISBN: ${isbn}`);
       if (book.watermark) lines.push('Made with Liberscript');
+      const alignment = dataStr(el, 'align') === 'left' ? AlignmentType.LEFT : AlignmentType.CENTER;
       return [
         new Paragraph({ pageBreakBefore: true, children: [new TextRun('')] }),
-        ...lines.map((l) => new Paragraph({ children: [new TextRun({ text: l, size: 18 })] })),
+        ...lines.map((l) => new Paragraph({ alignment, children: [new TextRun({ text: l, size: 18 })] })),
       ];
     }
     default: {

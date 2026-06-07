@@ -46,7 +46,9 @@ p { margin: 0 0 ${p.spacingEm}em; text-indent: ${p.indentEm}em; }
 .titlepage .title { font-family: ${theme.headingFont.stack}; font-size: 2em; font-weight: bold; margin-top: 2em; }
 .titlepage .author { margin-top: 1.5em; }
 .titlepage .publisher { margin-top: 3em; color: #555; }
-.copyright { font-size: 0.85em; text-align: left; }
+.copyright { font-size: 0.85em; }
+.copyright.cp-center { text-align: center; }
+.copyright.cp-left { text-align: left; }
 .copyright p { text-indent: 0; margin: 0 0 0.8em; }
 .attribution { font-variant: small-caps; color: #555; margin-top: 0.4em; }
 .opening-quote { text-align: center; font-style: italic; color: #444; margin: 0 0 1.4em; }
@@ -102,12 +104,13 @@ function elementToPage(el: ExportElement, index: number, book: ExportBook): Page
       const publisher = dataStr(el, 'publisher') || book.publisher;
       const isbn = dataStr(el, 'isbn') || book.isbn;
       const mark = book.watermark ? `<p><em>Made with Liberscript</em></p>` : '';
+      const align = dataStr(el, 'align') === 'left' ? 'cp-left' : 'cp-center';
       return {
         id,
         fileName,
         title: 'Copyright',
         inToc: false,
-        body: `<section class="copyright">${inner}${publisher ? `<p>Published by ${esc(publisher)}</p>` : ''}${
+        body: `<section class="copyright ${align}">${inner}${publisher ? `<p>Published by ${esc(publisher)}</p>` : ''}${
           isbn ? `<p>ISBN: ${esc(isbn)}</p>` : ''
         }${mark}</section>`,
       };

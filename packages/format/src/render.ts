@@ -107,7 +107,9 @@ function frontMatterCss(theme: BookTheme): string {
 .book .title-page .publisher-logo { max-height: 60px; margin: 0 auto 0.6em; display: block; }
 .book .copyright-page { font-size: 0.8em; color: #222; line-height: 1.5; }
 .book .copyright-page.auto-fit { font-size: 0.72em; }
-.book .copyright-page p { text-indent: 0; margin: 0 0 0.7em; text-align: left; }
+.book .copyright-page p { text-indent: 0; margin: 0 0 0.7em; }
+.book .copyright-page.cp-center { text-align: center; }
+.book .copyright-page.cp-left { text-align: left; }
 .book .copyright-page .published-by { margin-top: 1.4em; }
 .book .copyright-page .publisher-logo { max-height: 44px; margin-bottom: 0.4em; }
 .book .copyright-page .watermark { margin-top: 1.4em; color: #888; font-style: italic; }
@@ -193,6 +195,8 @@ export function themeCss(
   target: RenderTarget,
   style?: ChapterStartStyle,
   breaks?: PageBreakRule,
+  /** Print only: let `@page` own the geometry (paged.js paginates into pages). */
+  paginated?: boolean,
 ): string {
   const p = theme.paragraph;
   const { widthIn: pageW, heightIn: pageH } = theme.trim;
@@ -213,8 +217,13 @@ ${style ? chapterStyleCss(style, theme) : chapterStartCss(theme)}
 ${sceneBreakCss(theme)}
 ${frontMatterCss(theme)}`;
 
+  // Paginated: @page owns size + margins (paged.js draws real pages); the .book
+  // box just resets. Non-paginated: .book is a single tall page-shaped surface.
+  const bookBox = paginated
+    ? `.book { margin: 0; background: #fff; }`
+    : `.book { width: ${pageW}in; min-height: ${pageH}in; margin: 0 auto; padding: ${theme.marginsIn.top}in ${theme.marginsIn.outer}in ${theme.marginsIn.bottom}in ${theme.marginsIn.inner}in; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.12); box-sizing: border-box; }`;
   const print = `@page { size: ${pageW}in ${pageH}in; margin: ${theme.marginsIn.top}in ${theme.marginsIn.outer}in ${theme.marginsIn.bottom}in ${theme.marginsIn.inner}in; }
-.book { width: ${pageW}in; min-height: ${pageH}in; margin: 0 auto; padding: ${theme.marginsIn.top}in ${theme.marginsIn.outer}in ${theme.marginsIn.bottom}in ${theme.marginsIn.inner}in; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.12); box-sizing: border-box; }
+${bookBox}
 .book .chapter, .book .part, .book .frontmatter, .book .prose-section { break-before: ${bb}; }
 .book > *:first-child { break-before: avoid; }`;
   const ebook = `.book { max-width: 38rem; margin: 0 auto; padding: 1.5rem; background: #fff; }
@@ -310,8 +319,10 @@ function renderCopyright(meta: BookMeta, el: BookElement, watermark: boolean): s
     ? `<div class="published-by">${logo}<p>Published by ${esc(publisher)}</p></div>`
     : '';
   const isbnLine = `<p>ISBN: ${isbn ? esc(isbn) : '_____________'}</p>`;
+  // Centered by default (the common title-verso look); 'left' is opt-in.
+  const align = dataStr(el.data, 'align') === 'left' ? 'cp-left' : 'cp-center';
 
-  return `<section class="frontmatter copyright-page auto-fit">
+  return `<section class="frontmatter copyright-page auto-fit ${align}">
   ${body}
   ${publishedBy}
   ${isbnLine}
@@ -439,6 +450,12 @@ export interface RenderBookInput {
   includeFrontMatter?: boolean;
   /** Ebook reading theme (ignored for print). */
   readingMode?: ReadingMode;
+  /**
+   * Print only: paginate into real pages (page 1, 2, 3…) with running headers and
+   * folios, via the paged.js polyfill loaded in the preview. The exporters set
+   * their own pagination, so this is for the on-screen print preview.
+   */
+  paginated?: boolean;
 }
 
 /** Full standalone HTML document used by the live preview and the exporters. */
@@ -486,6 +503,7 @@ export function renderBookDocument(input: RenderBookInput): string {
     })
     .join('\n');
 
+  const paginated = !!input.paginated && target === 'print';
   const fontsHref = googleFontsHref(theme);
   const fontLink = fontsHref ? `<link rel="stylesheet" href="${fontsHref}">` : '';
   const pagedCss = target === 'print' ? pagedMediaCss(meta, theme, input.typography) : '';
@@ -499,6 +517,20 @@ ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
     ? `.book { background: ${rm.book} !important; color: ${rm.text} !important; } .book .chapter-subtitle, .book blockquote { color: ${rm.text}; opacity: 0.8; }`
     : '';
 
+  // paged.js paginates the document into real page boxes honoring the @page /
+  // running-header / folio rules. Loaded only for the paginated print preview.
+  const pagedPreviewCss = paginated
+    ? `@media screen {
+  html, body { background: #e9e9ee; }
+  .pagedjs_page { background: #fff; box-shadow: 0 1px 12px rgba(0,0,0,0.18); margin: 0 auto 16px; }
+  .pagedjs_pages { display: block; }
+}`
+    : '';
+  const pagedScript = paginated
+    ? `<script>window.PagedConfig = { auto: true };</script>
+<script src="https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js"></script>`
+    : '';
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -508,10 +540,11 @@ ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
 ${fontLink}
 <style>
 html, body { margin: 0; padding: 0; background: ${pageBg}; }
-body { padding: ${target === 'print' ? '24px' : '0'}; }
-${themeCss(theme, target, style, breaks)}
+body { padding: ${target === 'print' ? (paginated ? '16px 0' : '24px') : '0'}; }
+${themeCss(theme, target, style, breaks, paginated)}
 ${proseCss}
 ${pagedCss}
+${pagedPreviewCss}
 ${readingCss}
 </style>
 </head>
@@ -519,6 +552,7 @@ ${readingCss}
 <div class="book">
 ${body}
 </div>
+${pagedScript}
 </body>
 </html>`;
 }
