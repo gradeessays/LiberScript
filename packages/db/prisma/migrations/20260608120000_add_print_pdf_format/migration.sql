@@ -1,0 +1,1 @@
+ALTER TYPE "ExportFormat" ADD VALUE 'PRINT_PDF';

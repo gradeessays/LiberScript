@@ -12,6 +12,7 @@ import {
   buildCoverPdf,
   buildDocx,
   buildEpub,
+  buildPrintPdf,
   type ExportBook,
   type ExportCover,
 } from '@liberscript/exports';
@@ -22,6 +23,7 @@ const FILE_META: Record<string, { ext: string; contentType: string }> = {
   EPUB: { ext: 'epub', contentType: 'application/epub+zip' },
   DOCX: { ext: 'docx', contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
   COVER_PDF: { ext: 'pdf', contentType: 'application/pdf' },
+  PRINT_PDF: { ext: 'pdf', contentType: 'application/pdf' },
 };
 
 function imageType(key: string): 'png' | 'jpg' {
@@ -135,7 +137,12 @@ export async function handleGenerateExport(data: unknown): Promise<{ storageKey:
           content: c.content,
         })),
       };
-      bytes = job.format === ('DOCX' as ExportFormat) ? await buildDocx(book) : await buildEpub(book);
+      bytes =
+        job.format === ('DOCX' as ExportFormat)
+          ? await buildDocx(book)
+          : job.format === ('PRINT_PDF' as ExportFormat)
+            ? await buildPrintPdf(book)
+            : await buildEpub(book);
     }
 
     await putObjectBuffer(storageKey, Buffer.from(bytes), meta.contentType);

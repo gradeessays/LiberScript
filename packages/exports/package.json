@@ -18,6 +18,7 @@
     "@liberscript/format": "workspace:*",
     "docx": "^9.0.2",
     "jszip": "^3.10.1",
+    "pagedjs-cli": "^0.4.3",
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {

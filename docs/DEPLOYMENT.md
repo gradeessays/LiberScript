@@ -45,6 +45,25 @@ DigitalOcean using **managed services** so the droplet stays stateless.
 7. **DNS + TLS**: point the domain at the droplet; terminate TLS at Caddy/Nginx
    and proxy to the Next app on `:3000`. Set `APP_URL=https://your-domain`.
 
+## Print-PDF export needs Chromium (worker)
+The **interior Print PDF** export runs paged.js inside headless Chromium
+(`pagedjs-cli` → puppeteer). EPUB / DOCX / cover-PDF need nothing extra; only
+Print-PDF needs a browser **on the worker host**. Two options:
+
+- **System Chromium (recommended for the droplet):**
+  `apt-get install -y chromium-browser` (or `chromium`), then set
+  `PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser` in the worker env. The
+  worker launches it with `--no-sandbox` already.
+- **Puppeteer-managed Chromium:** flip `puppeteer: true` in `pnpm-workspace.yaml`
+  (currently `false` so installs don't pull ~170 MB) and re-run
+  `pnpm install`; puppeteer downloads a pinned Chromium. Needs the extra disk +
+  the usual headless system libs (`libnss3 libatk-bridge2.0-0 libdrm2 libgbm1
+  libasound2 …`).
+
+If neither is present the Print-PDF job fails with a clear message; the other
+exports are unaffected. (The on-screen paginated/flip preview uses paged.js in the
+browser and needs nothing server-side.)
+
 ## Release steps (per deploy)
 ```bash
 pnpm install --frozen-lockfile

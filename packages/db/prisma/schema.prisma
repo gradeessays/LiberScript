@@ -71,6 +71,7 @@ enum ExportFormat {
   PDF
   DOCX
   COVER_PDF
+  PRINT_PDF
 }
 
 enum SourceFormat {

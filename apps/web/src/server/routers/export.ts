@@ -5,8 +5,7 @@ import type { ExportFormat } from '@liberscript/db';
 import { protectedProcedure, router } from '../trpc';
 import { requireProjectAccess } from '../lib/ownership';
 
-// Interior print PDF (paged.js) arrives in a follow-up.
-const EXPORT_FORMATS = ['EPUB', 'DOCX', 'COVER_PDF'] as const;
+const EXPORT_FORMATS = ['EPUB', 'DOCX', 'COVER_PDF', 'PRINT_PDF'] as const;
 
 export const exportRouter = router({
   /** Queue an export; the worker builds the file and stores it. */

@@ -19,9 +19,10 @@ import { DeviceFrame, type DeviceKind } from '@/components/device-frame';
 
 type Target = 'print' | 'ebook';
 type PrintMode = 'flow' | 'scroll' | 'flip';
-type ExportFmt = 'EPUB' | 'DOCX' | 'COVER_PDF';
+type ExportFmt = 'EPUB' | 'DOCX' | 'COVER_PDF' | 'PRINT_PDF';
 
 const EXPORT_OPTIONS: { format: ExportFmt; label: string; hint: string }[] = [
+  { format: 'PRINT_PDF', label: 'Print PDF (interior)', hint: 'Paginated book interior at your trim size' },
   { format: 'EPUB', label: 'EPUB (e-book)', hint: 'Reflowable — Kindle, Apple Books, Kobo' },
   { format: 'DOCX', label: 'Word (.docx)', hint: 'Your size, fonts & spacing' },
   { format: 'COVER_PDF', label: 'Cover PDF', hint: 'Press-ready wrap from Cover Studio' },

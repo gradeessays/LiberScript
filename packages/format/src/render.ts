@@ -467,6 +467,12 @@ export interface RenderBookInput {
    * `flip` = one page at a time with next/prev navigation. Default `scroll`.
    */
   pageView?: 'scroll' | 'flip';
+  /**
+   * Whether to embed the paged.js polyfill `<script>` (the in-browser preview).
+   * The PDF exporter sets this false: it produces paginated geometry but runs
+   * paged.js itself in headless Chromium. Default true when `paginated`.
+   */
+  injectPagedPolyfill?: boolean;
 }
 
 /** Full standalone HTML document used by the live preview and the exporters. */
@@ -547,7 +553,8 @@ ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
   .flip-nav span { min-width: 64px; text-align: center; }
 }`
     : '';
-  const pagedScript = paginated ? pagedPreviewScript(flip) : '';
+  const pagedScript =
+    paginated && input.injectPagedPolyfill !== false ? pagedPreviewScript(flip) : '';
 
   return `<!doctype html>
 <html lang="en">
