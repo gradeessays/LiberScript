@@ -9,7 +9,13 @@ import {
   groupOfKind,
   type TiptapDoc,
 } from '@liberscript/core';
-import { withDbRetry, type ChapterKind as PrismaChapterKind, type Prisma, type PrismaClient } from '@liberscript/db';
+import {
+  applyChapterOrder,
+  withDbRetry,
+  type ChapterKind as PrismaChapterKind,
+  type Prisma,
+  type PrismaClient,
+} from '@liberscript/db';
 import { protectedProcedure, router } from '../trpc';
 import { requireChapterAccess, requireProjectAccess } from '../lib/ownership';
 
@@ -23,15 +29,11 @@ async function regroupOrder(tx: Prisma.TransactionClient, manuscriptId: string) 
     orderBy: { order: 'asc' },
     select: { id: true, kind: true },
   });
+  // Stable sort by group keeps the existing within-group order.
   const sorted = [...chapters].sort(
     (a, b) => (GROUP_RANK[groupOfKind(a.kind)] ?? 1) - (GROUP_RANK[groupOfKind(b.kind)] ?? 1),
   );
-  await Promise.all(
-    sorted.map((c, i) => tx.chapter.update({ where: { id: c.id }, data: { order: 1000 + i } })),
-  );
-  await Promise.all(
-    sorted.map((c, i) => tx.chapter.update({ where: { id: c.id }, data: { order: i } })),
-  );
+  await applyChapterOrder(tx, manuscriptId, sorted.map((c) => c.id));
 }
 
 /** TipTap doc — validated loosely (a JSON object); the editor owns the shape. */
@@ -62,15 +64,7 @@ async function reindex(tx: Prisma.TransactionClient, manuscriptId: string) {
     orderBy: { order: 'asc' },
     select: { id: true },
   });
-  // Two-phase to avoid unique (manuscriptId, order) collisions.
-  await Promise.all(
-    chapters.map((c, i) =>
-      tx.chapter.update({ where: { id: c.id }, data: { order: 1000 + i } }),
-    ),
-  );
-  await Promise.all(
-    chapters.map((c, i) => tx.chapter.update({ where: { id: c.id }, data: { order: i } })),
-  );
+  await applyChapterOrder(tx, manuscriptId, chapters.map((c) => c.id));
 }
 
 export const chapterRouter = router({
@@ -146,20 +140,23 @@ export const chapterRouter = router({
           orderBy: { order: 'desc' },
           select: { order: true },
         });
-        return ctx.prisma.$transaction(async (tx) => {
-          const chapter = await tx.chapter.create({
-            data: {
-              manuscriptId: manuscript.id,
-              kind: input.kind as PrismaChapterKind,
-              title,
-              order: (last?.order ?? -1) + 1,
-              content: EMPTY_DOC,
-              ...(defaultData ? { data: defaultData } : {}),
-            },
-          });
-          await regroupOrder(tx, manuscript.id);
-          return chapter;
-        });
+        return ctx.prisma.$transaction(
+          async (tx) => {
+            const chapter = await tx.chapter.create({
+              data: {
+                manuscriptId: manuscript.id,
+                kind: input.kind as PrismaChapterKind,
+                title,
+                order: (last?.order ?? -1) + 1,
+                content: EMPTY_DOC,
+                ...(defaultData ? { data: defaultData } : {}),
+              },
+            });
+            await regroupOrder(tx, manuscript.id);
+            return chapter;
+          },
+          { timeout: 15000, maxWait: 10000 },
+        );
       });
     }),
 
@@ -193,17 +190,18 @@ export const chapterRouter = router({
     .input(z.object({ projectId: z.string(), orderedIds: z.array(z.string()).min(1) }))
     .mutation(async ({ ctx, input }) => {
       await requireProjectAccess(ctx, input.projectId, MemberRole.EDITOR);
-      await ctx.prisma.$transaction(async (tx) => {
-        // Offset first to avoid unique(order) collisions, then set final order.
-        await Promise.all(
-          input.orderedIds.map((id, i) =>
-            tx.chapter.update({ where: { id }, data: { order: 1000 + i } }),
-          ),
-        );
-        await Promise.all(
-          input.orderedIds.map((id, i) => tx.chapter.update({ where: { id }, data: { order: i } })),
-        );
-      });
+      await withDbRetry(() =>
+        ctx.prisma.$transaction(
+          async (tx) => {
+            const ms = await tx.manuscript.findUnique({
+              where: { projectId: input.projectId },
+              select: { id: true },
+            });
+            if (ms) await applyChapterOrder(tx, ms.id, input.orderedIds);
+          },
+          { timeout: 15000, maxWait: 10000 },
+        ),
+      );
       return { ok: true };
     }),
 

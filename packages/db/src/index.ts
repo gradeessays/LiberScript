@@ -67,5 +67,30 @@ export async function withDbRetry<T>(fn: () => Promise<T>, retries = 3): Promise
   throw lastErr;
 }
 
+/**
+ * Renumber a manuscript's chapters to the given id order (0..n-1) in just two
+ * SQL statements, instead of 2×N individual updates inside the transaction —
+ * which blew past the 5s interactive-transaction timeout over a remote DB.
+ *
+ * Phase 1 offsets every row out of range so phase 2 (a single VALUES update to
+ * the final contiguous orders) can't transiently collide with the unique
+ * (manuscriptId, order) index. `orderedIds` must list ALL of the manuscript's
+ * chapters.
+ */
+export async function applyChapterOrder(
+  tx: Prisma.TransactionClient,
+  manuscriptId: string,
+  orderedIds: string[],
+): Promise<void> {
+  if (orderedIds.length === 0) return;
+  await tx.$executeRaw(
+    Prisma.sql`UPDATE "chapter" SET "order" = "order" + 1000000 WHERE "manuscriptId" = ${manuscriptId}`,
+  );
+  const values = Prisma.join(orderedIds.map((cid, i) => Prisma.sql`(${cid}::text, ${i}::int)`));
+  await tx.$executeRaw(
+    Prisma.sql`UPDATE "chapter" AS c SET "order" = v.ord FROM (VALUES ${values}) AS v(id, ord) WHERE c.id = v.id AND c."manuscriptId" = ${manuscriptId}`,
+  );
+}
+
 export * from '@prisma/client';
 export { PrismaClient } from '@prisma/client';

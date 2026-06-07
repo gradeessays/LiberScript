@@ -1,5 +1,5 @@
 import { parseManuscriptPayload } from '@liberscript/jobs';
-import { prisma, type ChapterKind, type Prisma } from '@liberscript/db';
+import { applyChapterOrder, prisma, type ChapterKind, type Prisma } from '@liberscript/db';
 import { getObjectBuffer } from '@liberscript/storage';
 import { chapterText, chapterToDoc, countWords, parseManuscript } from '@liberscript/analysis';
 import { groupOfKind } from '@liberscript/core';
@@ -17,9 +17,7 @@ async function regroup(tx: Prisma.TransactionClient, manuscriptId: string) {
   const sorted = [...chapters].sort(
     (a, b) => (GROUP_RANK[groupOfKind(a.kind)] ?? 1) - (GROUP_RANK[groupOfKind(b.kind)] ?? 1),
   );
-  // Two-phase to avoid unique (manuscriptId, order) collisions.
-  await Promise.all(sorted.map((c, i) => tx.chapter.update({ where: { id: c.id }, data: { order: 1000 + i } })));
-  await Promise.all(sorted.map((c, i) => tx.chapter.update({ where: { id: c.id }, data: { order: i } })));
+  await applyChapterOrder(tx, manuscriptId, sorted.map((c) => c.id));
 }
 
 /**
@@ -39,7 +37,8 @@ export async function handleParseManuscript(data: unknown): Promise<{ chapters: 
     'manuscript parsed',
   );
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(
+    async (tx) => {
     const manuscript = await tx.manuscript.upsert({
       where: { projectId },
       create: {
@@ -109,7 +108,9 @@ export async function handleParseManuscript(data: unknown): Promise<{ chapters: 
         });
       }
     }
-  });
+    },
+    { timeout: 30000, maxWait: 15000 },
+  );
 
   return { chapters: parsed.chapters.length };
 }
