@@ -4,7 +4,7 @@
 #   docker build -f apps/worker/Dockerfile .
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS base
+FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 # openssl: Prisma engine. chromium + fonts: paged.js Print-PDF rendering.
