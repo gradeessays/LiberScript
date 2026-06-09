@@ -22,13 +22,14 @@ apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 systemctl enable --now docker
 
-echo "==> Ensuring 2G swap (helps `next build` on 1 GB droplets)"
+echo "==> Ensuring 4G swap (a 1 GB droplet needs it to run 'next build')"
 if ! swapon --show | grep -q '/swapfile'; then
-  fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  fallocate -l 4G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=4096
   chmod 600 /swapfile
   mkswap /swapfile
   swapon /swapfile
   grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  sysctl -w vm.swappiness=10 >/dev/null 2>&1 || true
 fi
 
 echo "==> Firewall: allow SSH + HTTP + HTTPS"
