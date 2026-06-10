@@ -35,6 +35,8 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: env.REQUIRE_EMAIL_VERIFICATION,
     autoSignInAfterVerification: true,
+    // Links last 24h (default is 1h) so they don't expire before users click.
+    expiresIn: 60 * 60 * 24,
     sendVerificationEmail: async ({ user, url }) => {
       await sendVerificationEmail(user.email, url);
     },

@@ -13,7 +13,7 @@ import {
   Input,
   Label,
 } from '@liberscript/ui';
-import { signIn } from '@liberscript/auth/client';
+import { signIn, sendVerificationEmail } from '@liberscript/auth/client';
 
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
 
@@ -23,18 +23,42 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [unverified, setUnverified] = useState<string | null>(null);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setResendMsg(null);
+    setUnverified(null);
     setPending(true);
     const { error } = await signIn.email({ email, password });
     setPending(false);
     if (error) {
-      setError(error.message ?? 'Sign in failed.');
+      const code = (error as { code?: string }).code;
+      if (error.status === 403 || code === 'EMAIL_NOT_VERIFIED') {
+        setUnverified(email);
+        setError('Your email isn’t verified yet — verify it to sign in.');
+      } else {
+        setError(error.message ?? 'Sign in failed.');
+      }
       return;
     }
     router.push('/dashboard');
+  }
+
+  async function resendVerification() {
+    if (!unverified) return;
+    setResendMsg('Sending…');
+    const { error } = await sendVerificationEmail({
+      email: unverified,
+      callbackURL: '/dashboard',
+    });
+    setResendMsg(
+      error
+        ? (error.message ?? 'Could not send — please try again.')
+        : 'New verification email sent — check your inbox (and spam).',
+    );
   }
 
   return (
@@ -74,6 +98,24 @@ export default function SignInPage() {
             />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
+          {unverified && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-700/50 dark:bg-amber-950/30">
+              <p className="text-muted-foreground">
+                The verification link may have expired. Send a fresh one to{' '}
+                <span className="font-medium">{unverified}</span>.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={resendVerification}
+              >
+                Resend verification email
+              </Button>
+              {resendMsg && <p className="mt-2 text-muted-foreground">{resendMsg}</p>}
+            </div>
+          )}
           <Button type="submit" className="w-full" disabled={pending}>
             {pending ? 'Signing in…' : 'Sign in'}
           </Button>
