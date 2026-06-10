@@ -16,9 +16,14 @@ FROM base AS build
 # The web image never renders PDFs, so skip the Chromium download entirely.
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY . .
-RUN pnpm install --frozen-lockfile
+# Persistent caches (BuildKit): pnpm store so installs don't re-download, and
+# Next's build cache so `next build` only recompiles what changed. These survive
+# even though the COPY layer cache-busts on every commit.
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 RUN pnpm --filter @liberscript/db generate
-RUN pnpm --filter @liberscript/web build
+RUN --mount=type=cache,target=/app/apps/web/.next/cache \
+    pnpm --filter @liberscript/web build
 
 FROM base AS runner
 ENV NODE_ENV=production
