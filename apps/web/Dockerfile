@@ -28,5 +28,9 @@ ENV HOSTNAME=0.0.0.0
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public
+# Next's tracer doesn't bundle the Prisma query engine — copy it into the exact
+# pnpm path the client searches at runtime.
+COPY --from=build /app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma \
+     ./node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
