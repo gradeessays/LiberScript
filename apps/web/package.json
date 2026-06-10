@@ -13,6 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@liberscript/analysis": "workspace:*",
     "@liberscript/auth": "workspace:*",
     "@liberscript/core": "workspace:*",
     "@liberscript/db": "workspace:*",
@@ -24,10 +25,10 @@
     "@tiptap/pm": "^2.9.1",
     "@tiptap/react": "^2.9.1",
     "@tiptap/starter-kit": "^2.9.1",
-    "better-auth": "^1.6.0",
     "@trpc/client": "^11.0.0-rc.553",
     "@trpc/react-query": "^11.0.0-rc.553",
     "@trpc/server": "^11.0.0-rc.553",
+    "better-auth": "^1.6.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

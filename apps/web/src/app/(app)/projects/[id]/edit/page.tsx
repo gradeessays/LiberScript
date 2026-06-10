@@ -18,6 +18,7 @@ import { CopyrightForm } from '@/components/editor/copyright-form';
 import { DesignStudio } from '@/components/design-studio';
 import { ProjectSwitcher } from '@/components/project-switcher';
 import { EditorUpload } from '@/components/editor-upload';
+import { CritiquePanel } from '@/components/critique-panel';
 
 // TipTap is heavy; load it only when the editor is actually shown.
 const ManuscriptEditor = dynamic(
@@ -203,7 +204,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     },
   });
 
-  const [view, setView] = useState<'write' | 'preview'>('write');
+  const [view, setView] = useState<'write' | 'critique' | 'preview'>('write');
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [openingQuote, setOpeningQuote] = useState('');
@@ -268,10 +269,16 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           <Link href={`/projects/${id}/cover`} className="text-sm text-muted-foreground hover:underline">
             Cover
           </Link>
+          {project.data?.manuscript && project.data.manuscript.wordCount > 0 && (
+            <span className="hidden text-xs text-muted-foreground sm:inline" title="Total words · estimated reading time">
+              {project.data.manuscript.wordCount.toLocaleString()} words ·{' '}
+              {project.data.manuscript.readingMinutes} min
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border p-0.5 text-sm">
-            {(['write', 'preview'] as const).map((v) => (
+            {(['write', 'critique', 'preview'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -303,9 +310,12 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Preview replaces the editor entirely: the whole book, rendered from the
-          sections you've added, with the design controls beside it. */}
+          sections you've added, with the design controls beside it. Critique runs
+          the manuscript-analysis engine over the narrative sections. */}
       {view === 'preview' ? (
         <DesignStudio projectId={id} embedded />
+      ) : view === 'critique' ? (
+        <CritiquePanel projectId={id} />
       ) : (
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
         {/* Sectioned outline */}

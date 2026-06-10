@@ -7,6 +7,7 @@ import { chapterRouter } from './chapter';
 import { formattingRouter } from './formatting';
 import { coverRouter } from './cover';
 import { exportRouter } from './export';
+import { analysisRouter } from './analysis';
 
 export const appRouter = router({
   health: healthRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
   formatting: formattingRouter,
   cover: coverRouter,
   export: exportRouter,
+  analysis: analysisRouter,
 });
 
 export type AppRouter = typeof appRouter;

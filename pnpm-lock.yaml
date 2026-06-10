@@ -29,6 +29,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@liberscript/analysis':
+        specifier: workspace:*
+        version: link:../../packages/analysis
       '@liberscript/auth':
         specifier: workspace:*
         version: link:../../packages/auth

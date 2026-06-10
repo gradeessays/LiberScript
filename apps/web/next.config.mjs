@@ -15,6 +15,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   // Internal workspace packages ship TypeScript source; let Next transpile them.
   transpilePackages: [
+    '@liberscript/analysis',
     '@liberscript/core',
     '@liberscript/db',
     '@liberscript/jobs',
