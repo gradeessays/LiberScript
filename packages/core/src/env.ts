@@ -47,6 +47,12 @@ const serverEnvSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
   SMTP_FROM: z.string().default('Liberscript <no-reply@liberscript.local>'),
+  // Gate login on a verified email. Set false to test without working SMTP
+  // (e.g. while a host blocks outbound mail ports).
+  REQUIRE_EMAIL_VERIFICATION: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
 
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
