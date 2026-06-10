@@ -49,8 +49,9 @@ async function sendViaZeptoMail(input: SendEmailInput, from: string): Promise<vo
       ...(input.text ? { textbody: input.text } : {}),
     }),
   });
+  const detail = await res.text().catch(() => '');
+  console.log(`[email:zeptomail] to=${input.to} status=${res.status} body=${detail.slice(0, 600)}`);
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
     throw new Error(`ZeptoMail API ${res.status}: ${detail.slice(0, 500)}`);
   }
 }
@@ -68,6 +69,8 @@ export async function sendEmail({ to, subject, html, text }: SendEmailInput): Pr
     console.log(`\n📧 [email:log] to=${to}\n   subject: ${subject}\n   ${body}\n`);
     return;
   }
+
+  console.log(`[email] sending via ${env.MAIL_DRIVER} to=${to} subject="${subject}"`);
 
   if (env.MAIL_DRIVER === 'zeptomail') {
     await sendViaZeptoMail({ to, subject, html, text }, env.SMTP_FROM);
