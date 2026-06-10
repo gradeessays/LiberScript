@@ -35,8 +35,13 @@ const serverEnvSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
 
-  // Email driver: `log` (prints links to console for dev) or `smtp`.
-  MAIL_DRIVER: z.enum(['log', 'smtp']).default('log'),
+  // Email driver: `log` (dev console), `smtp`, or `zeptomail` (HTTP API — use
+  // this where outbound SMTP ports are blocked, e.g. DigitalOcean droplets).
+  MAIL_DRIVER: z.enum(['log', 'smtp', 'zeptomail']).default('log'),
+  // ZeptoMail "Send Mail Token" (same value as the SMTP password). EU accounts
+  // set ZEPTOMAIL_API_URL to https://api.zeptomail.eu/v1.1/email.
+  ZEPTOMAIL_TOKEN: z.string().optional(),
+  ZEPTOMAIL_API_URL: z.string().url().default('https://api.zeptomail.com/v1.1/email'),
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().int().positive().default(1025),
   SMTP_USER: z.string().optional(),
@@ -72,6 +77,13 @@ const serverEnvSchema = z.object({
         });
       }
     }
+  }
+  if (env.MAIL_DRIVER === 'zeptomail' && !env.ZEPTOMAIL_TOKEN) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ZEPTOMAIL_TOKEN'],
+      message: 'ZEPTOMAIL_TOKEN is required when MAIL_DRIVER=zeptomail',
+    });
   }
 });
 

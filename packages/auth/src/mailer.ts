@@ -26,6 +26,35 @@ export interface SendEmailInput {
   text?: string;
 }
 
+/** Parse `Name <addr@x>` (or a bare address) into ZeptoMail's from shape. */
+function parseFrom(from: string): { address: string; name: string } {
+  const m = /^\s*"?([^"<]*?)"?\s*<\s*([^>]+)\s*>\s*$/.exec(from);
+  if (m) return { name: m[1]!.trim(), address: m[2]!.trim() };
+  return { name: '', address: from.trim() };
+}
+
+/** Send via ZeptoMail's HTTPS API (works where SMTP ports are blocked). */
+async function sendViaZeptoMail(input: SendEmailInput, from: string): Promise<void> {
+  const env = getServerEnv();
+  const token = env.ZEPTOMAIL_TOKEN!;
+  const authorization = token.startsWith('Zoho-') ? token : `Zoho-enczapikey ${token}`;
+  const res = await fetch(env.ZEPTOMAIL_API_URL, {
+    method: 'POST',
+    headers: { Authorization: authorization, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      from: parseFrom(from),
+      to: [{ email_address: { address: input.to } }],
+      subject: input.subject,
+      htmlbody: input.html,
+      ...(input.text ? { textbody: input.text } : {}),
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`ZeptoMail API ${res.status}: ${detail.slice(0, 500)}`);
+  }
+}
+
 /**
  * Send a transactional email. With MAIL_DRIVER=log (the dev default), the
  * message — including any action link — is printed to the console instead of
@@ -37,6 +66,11 @@ export async function sendEmail({ to, subject, html, text }: SendEmailInput): Pr
   if (env.MAIL_DRIVER === 'log') {
     const body = text ?? html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     console.log(`\n📧 [email:log] to=${to}\n   subject: ${subject}\n   ${body}\n`);
+    return;
+  }
+
+  if (env.MAIL_DRIVER === 'zeptomail') {
+    await sendViaZeptoMail({ to, subject, html, text }, env.SMTP_FROM);
     return;
   }
 
