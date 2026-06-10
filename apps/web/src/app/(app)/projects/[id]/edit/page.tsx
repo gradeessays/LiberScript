@@ -97,11 +97,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   const refresh = () =>
     Promise.all([utils.project.get.invalidate({ id }), utils.chapter.get.invalidate()]);
-  // Worker parsing is async; refresh a few times so new sections appear live.
+  // Worker parsing is async; refresh on a widening schedule so new sections
+  // appear live even when the worker is cold or the file is large.
   const refreshSoon = () => {
     void refresh();
-    setTimeout(() => void refresh(), 1800);
-    setTimeout(() => void refresh(), 4000);
+    for (const ms of [2000, 5000, 10000, 20000]) setTimeout(() => void refresh(), ms);
   };
 
   const updateContent = trpc.chapter.updateContent.useMutation();

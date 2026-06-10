@@ -54,11 +54,19 @@ export default function SignInPage() {
       email: unverified,
       callbackURL: '/dashboard',
     });
-    setResendMsg(
-      error
-        ? (error.message ?? 'Could not send — please try again.')
-        : 'New verification email sent — check your inbox (and spam).',
-    );
+    if (!error) {
+      setResendMsg('New verification email sent — check your inbox (and spam).');
+      return;
+    }
+    const msg = error.message ?? '';
+    // Already verified → the block was stale; just sign in again.
+    if (/already verified/i.test(msg)) {
+      setResendMsg('Your email is already verified — try signing in again.');
+      setUnverified(null);
+      setError(null);
+      return;
+    }
+    setResendMsg(msg || 'Could not send — please try again in a minute.');
   }
 
   return (

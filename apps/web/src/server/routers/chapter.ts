@@ -44,6 +44,14 @@ function docWordCount(content: unknown, title: string, subtitle?: string | null)
   return countWords(`${title} ${subtitle ?? ''} ${text}`);
 }
 
+/**
+ * Bump the project's updatedAt so "most recently edited" ordering (dashboard
+ * landing, project switcher) reflects chapter edits, not just project renames.
+ */
+async function touchProject(db: Prisma.TransactionClient | PrismaClient, projectId: string) {
+  await db.project.update({ where: { id: projectId }, data: { updatedAt: new Date() } });
+}
+
 /** Recompute and persist the manuscript's aggregate stats from its chapters. */
 async function recomputeManuscript(tx: Prisma.TransactionClient, manuscriptId: string) {
   const chapters = await tx.chapter.findMany({
@@ -88,6 +96,7 @@ export const chapterRouter = router({
           },
         });
         await recomputeManuscript(tx, chapter.manuscript.id);
+        await touchProject(tx, chapter.manuscript.projectId);
       });
       return { ok: true };
     }),
@@ -102,11 +111,12 @@ export const chapterRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await requireChapterAccess(ctx, input.id, MemberRole.EDITOR);
+      const chapter = await requireChapterAccess(ctx, input.id, MemberRole.EDITOR);
       await ctx.prisma.chapter.update({
         where: { id: input.id },
         data: { title: input.title, subtitle: input.subtitle ?? null },
       });
+      await touchProject(ctx.prisma, chapter.manuscript.projectId);
       return { ok: true };
     }),
 
@@ -153,6 +163,7 @@ export const chapterRouter = router({
               },
             });
             await regroupOrder(tx, manuscript.id);
+            await touchProject(tx, input.projectId);
             return chapter;
           },
           { timeout: 15000, maxWait: 10000 },
@@ -164,11 +175,12 @@ export const chapterRouter = router({
   updateData: protectedProcedure
     .input(z.object({ id: z.string(), data: z.record(z.any()).nullable() }))
     .mutation(async ({ ctx, input }) => {
-      await requireChapterAccess(ctx, input.id, MemberRole.EDITOR);
+      const chapter = await requireChapterAccess(ctx, input.id, MemberRole.EDITOR);
       await ctx.prisma.chapter.update({
         where: { id: input.id },
         data: { data: (input.data ?? undefined) as Prisma.InputJsonValue | undefined },
       });
+      await touchProject(ctx.prisma, chapter.manuscript.projectId);
       return { ok: true };
     }),
 
@@ -181,6 +193,7 @@ export const chapterRouter = router({
         await tx.chapter.delete({ where: { id: input.id } });
         await reindex(tx, chapter.manuscript.id);
         await recomputeManuscript(tx, chapter.manuscript.id);
+        await touchProject(tx, chapter.manuscript.projectId);
       });
       return { ok: true };
     }),

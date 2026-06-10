@@ -52,7 +52,8 @@ export const s3Driver: StorageDriver = {
         ? { ResponseContentDisposition: `attachment; filename="${input.fileName}"` }
         : {}),
     });
-    return getSignedUrl(getS3Client(), command, { expiresIn: input.expiresIn ?? 600 });
+    // 1h default: logo/cover URLs are embedded in previews that stay open a while.
+    return getSignedUrl(getS3Client(), command, { expiresIn: input.expiresIn ?? 3600 });
   },
 
   async getObjectBuffer(key: string) {

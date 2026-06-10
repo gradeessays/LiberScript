@@ -7,3 +7,8 @@
 	encode zstd gzip
 	reverse_proxy web:3000
 }
+
+# www → apex (the DNS A record exists; without this, www shows a TLS error).
+www.{$APP_DOMAIN} {
+	redir https://{$APP_DOMAIN}{uri} permanent
+}
