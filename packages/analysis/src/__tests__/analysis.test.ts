@@ -123,6 +123,30 @@ describe('assembleSections', () => {
     expect(prologue?.blocks.some((b) => b.text.includes('Before it all began'))).toBe(true);
   });
 
+  it('keeps TOC listing lines inside the TOC instead of spawning ghost chapters', () => {
+    const blocks: ContentBlock[] = [
+      { kind: 'heading', level: 1, text: 'Contents' },
+      { kind: 'heading', level: 1, text: 'Chapter 1' },
+      { kind: 'para', text: 'The Lie of Stability 1' },
+      { kind: 'heading', level: 1, text: 'Chapter 2: The Architecture of an Unbreakable Man 17' },
+      { kind: 'heading', level: 1, text: 'Prologue' },
+      { kind: 'para', text: 'The Floor ix' },
+      { kind: 'heading', level: 1, text: 'Prologue' },
+      { kind: 'para', text: 'The Floor' },
+      { kind: 'para', text: 'The first place you go is the floor. You do not choose it at all.' },
+      { kind: 'heading', level: 1, text: 'Chapter 1' },
+      { kind: 'para', text: 'Before we talk about how to become unbreakable, we have to talk about why men break.' },
+    ];
+    const { chapters } = assembleSections(blocks);
+    expect(chapters.map((c) => c.kind)).toEqual([
+      ChapterKind.TOC,
+      ChapterKind.PROLOGUE,
+      ChapterKind.CHAPTER,
+    ]);
+    expect(chapters[0]?.blocks).toHaveLength(0); // TOC content is auto-generated
+    expect(chapters[1]?.blocks.some((b) => b.text.includes('first place'))).toBe(true);
+  });
+
   it('does not mistake prose starting with a keyword for a section', () => {
     const blocks: ContentBlock[] = [
       { kind: 'heading', level: 1, text: 'Chapter 1' },

@@ -143,17 +143,23 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
     },
   );
   const [exporting, setExporting] = useState<ExportFmt | null>(null);
-  const downloaded = useRef<Set<string>>(new Set());
+  // Auto-download is LOCKED to jobs the user started in this session — opening
+  // the preview later must never re-download old export artifacts.
+  const watching = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const j of exportsQ.data ?? []) {
-      if (j.status === 'SUCCEEDED' && j.downloadUrl && !downloaded.current.has(j.id)) {
-        downloaded.current.add(j.id);
+      if (j.status === 'SUCCEEDED' && j.downloadUrl && watching.current.has(j.id)) {
+        watching.current.delete(j.id);
         const a = document.createElement('a');
         a.href = j.downloadUrl;
         a.download = j.fileName ?? '';
         document.body.appendChild(a);
         a.click();
         a.remove();
+        setExporting(null);
+      }
+      if (j.status === 'FAILED' && watching.current.has(j.id)) {
+        watching.current.delete(j.id);
         setExporting(null);
       }
     }
@@ -163,7 +169,8 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
     setExporting(format);
     try {
       await update.mutateAsync(saveArgs());
-      await exportCreate.mutateAsync({ projectId: id, format });
+      const { jobId } = await exportCreate.mutateAsync({ projectId: id, format });
+      watching.current.add(jobId);
     } catch {
       setExporting(null);
     }
@@ -404,6 +411,32 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
             <p className="text-xs text-muted-foreground">
               Print convention — inserts a blank page where needed. Visible in the print PDF export.
             </p>
+            <div className="space-y-1 pt-1">
+              <Label className="text-[11px]">Page margins (inches) — blank = theme default</Label>
+              <div className="grid grid-cols-4 gap-1">
+                {(['top', 'bottom', 'inner', 'outer'] as const).map((side) => (
+                  <div key={side} className="space-y-0.5">
+                    <span className="block text-center text-[10px] capitalize text-muted-foreground">
+                      {side}
+                    </span>
+                    <Input
+                      type="number"
+                      step="0.05"
+                      min={0.2}
+                      max={2}
+                      className="h-8 px-1 text-center text-xs"
+                      value={typo.marginsIn?.[side] ?? ''}
+                      placeholder="–"
+                      onChange={(e) => {
+                        const v = e.target.value === '' ? undefined : Number(e.target.value);
+                        setT({ marginsIn: { ...typo.marginsIn, [side]: v } });
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Inner = the spine side.</p>
+            </div>
           </section>
 
           {/* Running headers & page numbers (print) */}

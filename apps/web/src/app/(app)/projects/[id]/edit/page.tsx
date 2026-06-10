@@ -108,6 +108,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const updateContent = trpc.chapter.updateContent.useMutation();
   const updateMeta = trpc.chapter.updateMeta.useMutation({ onSuccess: refresh });
   const updateData = trpc.chapter.updateData.useMutation({ onSuccess: refresh });
+  const updateKind = trpc.chapter.updateKind.useMutation({ onSuccess: refresh });
   // Optimistic add: the new element appears instantly in its correct group
   // (front → body → back), mirroring the server's regrouping.
   const create = trpc.chapter.create.useMutation({
@@ -457,11 +458,26 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             </div>
           ) : (
             <>
-              {/* Actions — available for every element kind */}
-              <div className="flex items-center justify-between rounded-lg border p-2">
-                <span className="text-sm font-medium">
-                  {KIND_LABELS[selectedKind as ChapterKind] ?? 'Element'}
-                </span>
+              {/* Actions — available for every element kind. The type selector is a
+                  real-time override of the upload auto-detection. */}
+              <div className="flex items-center justify-between gap-2 rounded-lg border p-2">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  Section type
+                  <select
+                    className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                    value={selectedKind ?? ChapterKind.CHAPTER}
+                    disabled={updateKind.isPending}
+                    onChange={(e) =>
+                      updateKind.mutate({ id: selectedId, kind: e.target.value as ChapterKind })
+                    }
+                  >
+                    {ADDABLE.map((k) => (
+                      <option key={k} value={k}>
+                        {KIND_LABELS[k]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="flex gap-2">
                   {selectedKind === ChapterKind.CHAPTER && (
                     <Button variant="ghost" size="sm" onClick={() => mergeUp.mutate({ id: selectedId })}>
@@ -503,7 +519,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 <>
                   {/* Document canvas: the section's title / subtitle / opening quote
                       read as one continuous page above the body. */}
-                  <div className="rounded-lg border bg-card px-5 pt-5 pb-1">
+                  <div className="rounded-lg border bg-card shadow-sm">
+                    <div className="px-8 pb-2 pt-8">
                     {!NO_TITLE_KINDS.includes(selectedKind as ChapterKind) && (
                       <input
                         value={title}
@@ -576,10 +593,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                         </div>
                       </div>
                     )}
-                  </div>
+                    </div>
 
-                  <ManuscriptEditor
+                    <ManuscriptEditor
                     key={selectedId}
+                    frameless
                     initialContent={chapter.data.content as JSONContent}
                     structureTags={OPENING_QUOTE_KINDS.includes(selectedKind as ChapterKind)}
                     onTagField={(field, text) => {
@@ -605,10 +623,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                       split.mutate({ id: selectedId, before, after, newTitle: 'Untitled chapter' })
                     }
                   />
+                  </div>
 
                   <p className="text-xs text-muted-foreground">
-                    Paste your text, then select a line and tag it (Title, Subtitle, Quote…). Switch to{' '}
-                    <span className="font-medium">Preview</span> to see the whole book formatted live.
+                    Paste your whole draft into the page, then select any line and use the{' '}
+                    <span className="font-medium">Selection →</span> buttons to tag it as the title,
+                    subtitle, opening quote, attribution, or a block quote — it formats instantly.
+                    Switch to <span className="font-medium">Preview</span> to see the finished book.
                   </p>
                 </>
               )}

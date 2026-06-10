@@ -172,6 +172,27 @@ function detectTitleAuthor(blocks: ContentBlock[]): { title?: string; author?: s
 
 const STRUCTURED_EMPTY = new Set<ChapterKind>([ChapterKind.TITLE_PAGE, ChapterKind.TOC]);
 
+/** Page locator at the end of a TOC listing line ("… 17", "… ix"). */
+const LOCATOR_RE = /\s(\d{1,4}|[ivxlcdm]{1,7})$/i;
+
+/**
+ * While inside a parsed Table of Contents, listing lines often look exactly
+ * like real section headings ("Chapter 2: The Architecture 17"). Decide whether
+ * a classified heading is just a TOC entry: it carries a trailing page locator,
+ * or the next line is another locator-bearing listing line. Real sections are
+ * followed by prose, which breaks the pattern and ends the TOC.
+ */
+function isTocListingLine(cls: HeadingMatch, next: ContentBlock | undefined): boolean {
+  if (cls.subtitle && LOCATOR_RE.test(cls.subtitle.trim())) return true;
+  if (!next) return false;
+  const nt = next.text.trim();
+  if (blockHeading(next)) {
+    // Back-to-back headings inside a TOC are a listing — if they look paginated.
+    return LOCATOR_RE.test(nt);
+  }
+  return LOCATOR_RE.test(nt) && wordCount(nt) <= 12;
+}
+
 export interface AssembledBook {
   chapters: ParsedChapter[];
   title?: string;
@@ -213,12 +234,19 @@ export function assembleSections(blocks: ContentBlock[]): AssembledBook {
 
   let current: ParsedChapter | null = null;
   let awaitingSubtitle = false;
-  for (const block of rest) {
+  for (let bi = 0; bi < rest.length; bi += 1) {
+    const block = rest[bi]!;
     const cls = blockHeading(block);
     if (cls) {
       // Consecutive copyright/legal lines stay in the one copyright section.
       if (cls.kind === ChapterKind.COPYRIGHT && current?.kind === ChapterKind.COPYRIGHT) {
         if (!cls.consumesLine) current.blocks.push(block);
+        continue;
+      }
+      // TOC listing lines masquerade as section headings — keep them in the TOC
+      // (its blocks are emptied later) instead of spawning ghost chapters.
+      if (current?.kind === ChapterKind.TOC && isTocListingLine(cls, rest[bi + 1])) {
+        current.blocks.push(block);
         continue;
       }
       if (current) chapters.push(current);

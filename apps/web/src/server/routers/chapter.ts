@@ -171,6 +171,27 @@ export const chapterRouter = router({
       });
     }),
 
+  /** Re-classify an element (override auto-detection); regroups front→body→back. */
+  updateKind: protectedProcedure
+    .input(z.object({ id: z.string(), kind: z.nativeEnum(ChapterKind) }))
+    .mutation(async ({ ctx, input }) => {
+      const chapter = await requireChapterAccess(ctx, input.id, MemberRole.EDITOR);
+      await withDbRetry(() =>
+        ctx.prisma.$transaction(
+          async (tx) => {
+            await tx.chapter.update({
+              where: { id: input.id },
+              data: { kind: input.kind as PrismaChapterKind },
+            });
+            await regroupOrder(tx, chapter.manuscript.id);
+            await touchProject(tx, chapter.manuscript.projectId);
+          },
+          { timeout: 15000, maxWait: 10000 },
+        ),
+      );
+      return { ok: true };
+    }),
+
   /** Update structured data for form-based elements (title page, copyright). */
   updateData: protectedProcedure
     .input(z.object({ id: z.string(), data: z.record(z.any()).nullable() }))

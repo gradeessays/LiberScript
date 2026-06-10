@@ -54,6 +54,14 @@ export function applyTypography(theme: BookTheme, o?: TypographyOverrides): Book
     baseFontPt: o.fontScalePct ? (theme.baseFontPt * o.fontScalePct) / 100 : theme.baseFontPt,
     lineHeight: o.lineHeight ?? theme.lineHeight,
     trim: { widthIn: trim.widthIn, heightIn: trim.heightIn },
+    marginsIn: o.marginsIn
+      ? {
+          top: o.marginsIn.top ?? theme.marginsIn.top,
+          bottom: o.marginsIn.bottom ?? theme.marginsIn.bottom,
+          inner: o.marginsIn.inner ?? theme.marginsIn.inner,
+          outer: o.marginsIn.outer ?? theme.marginsIn.outer,
+        }
+      : theme.marginsIn,
     paragraph: o.blockParagraphs
       ? {
           ...theme.paragraph,
@@ -128,7 +136,8 @@ function frontMatterCss(theme: BookTheme): string {
 .book .toc h1, .book .part h1, .book .prose-section h1 { font-family: ${theme.headingFont.stack}; }
 .book .toc h1 { text-align: center; margin-bottom: 1.4em; }
 .book .toc ol { list-style: none; padding: 0; margin: 0; }
-.book .toc li { display: flex; justify-content: space-between; padding: 0.25em 0; border-bottom: 1px dotted #ddd; }
+.book .toc li { padding: 0.25em 0; border-bottom: 1px dotted #ddd; }
+.book .toc a { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6em; width: 100%; text-decoration: none; color: inherit; }
 .book .part { text-align: center; padding-top: 34%; }
 .book .part h1 { font-size: 2.4em; font-weight: 800; }`;
 }
@@ -186,13 +195,9 @@ export function pagedMediaCss(meta: BookMeta, theme: BookTheme, o?: TypographyOv
   return `
 .book .chapter-title { string-set: chaptertitle content(text); }
 .book .part h1 { string-set: chaptertitle content(text); }
+.book .prose-section h1 { string-set: chaptertitle content(text); }
 @page :left { ${headers && verso !== 'none' ? `@top-center { content: ${verso}; ${headFont} }` : ''} ${folio('left')} }
-@page :right { ${headers && recto !== 'none' ? `@top-center { content: ${recto}; ${headFont} }` : ''} ${folio('right')} }
-/* Front matter and each chapter's opening page carry no running header. */
-.book .frontmatter { page: frontmatter; }
-@page frontmatter { @top-center { content: none; } @top-left { content: none; } @top-right { content: none; } }
-.book .chapter { page: chapter; }
-@page chapter:first { @top-center { content: none; } @top-left { content: none; } @top-right { content: none; } }`;
+@page :right { ${headers && recto !== 'none' ? `@top-center { content: ${recto}; ${headFont} }` : ''} ${folio('right')} }`;
 }
 
 /** Stylesheet for a theme + render target. */
@@ -281,8 +286,10 @@ function dataStr(data: Record<string, unknown> | null | undefined, key: string):
 }
 
 function renderTitlePage(meta: BookMeta, el: BookElement): string {
-  const title = el.title || dataStr(el.data, 'title') || meta.title;
-  const subtitle = el.subtitle || dataStr(el.data, 'subtitle');
+  // el.title is the element's outline label ("Title Page") — never print it.
+  // The real title comes from the title-page form data or the book metadata.
+  const title = dataStr(el.data, 'title') || meta.title;
+  const subtitle = dataStr(el.data, 'subtitle') || el.subtitle;
   const author = dataStr(el.data, 'author') || meta.author;
   const publisher = dataStr(el.data, 'publisher') || meta.publisherName;
   const logo = meta.logoUrl
@@ -346,8 +353,13 @@ function renderEpigraph(el: BookElement): string {
 }
 
 function renderToc(entries: TocEntry[]): string {
+  // Page numbers are NOT rendered inline — in the paginated print pipeline a
+  // target-counter(attr(href), page) rule fills them in from real pagination.
   const items = entries
-    .map((e) => `<li><span>${esc(e.title)}</span><span>${e.index}</span></li>`)
+    .map(
+      (e) =>
+        `<li><a${e.href ? ` href="${e.href}"` : ''}><span class="toc-t">${esc(e.title)}</span></a></li>`,
+    )
     .join('');
   return `<section class="frontmatter toc"><h1>Contents</h1><ol>${items}</ol></section>`;
 }
@@ -496,31 +508,71 @@ export function renderBookDocument(input: RenderBookInput): string {
       })),
     ];
 
-  // Auto TOC entries from PART/CHAPTER elements.
-  let chapterNo = 0;
-  const toc: TocEntry[] = [];
-  for (const el of elements) {
-    if (el.kind === ChapterKind.CHAPTER || el.kind === ChapterKind.PART) {
-      chapterNo += el.kind === ChapterKind.CHAPTER ? 1 : 0;
-      toc.push({ index: el.kind === ChapterKind.CHAPTER ? chapterNo : 0, title: el.title || 'Untitled' });
-    }
-  }
-
   const style = getChapterStyle(input.typography?.chapterStyleKey);
   const breaks: PageBreakRule = {
     newPage: input.typography?.chaptersNewPage,
     recto: input.typography?.sectionsRecto,
   };
+  const paginated = !!input.paginated && target === 'print';
 
+  // TOC: link every listed section to its rendered wrapper id so the print
+  // pipeline can resolve REAL page numbers via target-counter.
+  const TOC_LISTED: ChapterKind[] = [
+    ChapterKind.FOREWORD, ChapterKind.PREFACE, ChapterKind.PROLOGUE, ChapterKind.INTRODUCTION,
+    ChapterKind.PART, ChapterKind.CHAPTER, ChapterKind.EPILOGUE, ChapterKind.AFTERWORD,
+    ChapterKind.ACKNOWLEDGMENTS, ChapterKind.ABOUT_AUTHOR, ChapterKind.ALSO_BY, ChapterKind.APPENDIX,
+  ];
+  let chapterNo = 0;
+  const toc: TocEntry[] = [];
+  elements.forEach((el, i) => {
+    if (!TOC_LISTED.includes(el.kind as ChapterKind)) return;
+    if (el.kind === ChapterKind.CHAPTER) chapterNo += 1;
+    toc.push({
+      index: el.kind === ChapterKind.CHAPTER ? chapterNo : 0,
+      title: el.title || KIND_LABELS[el.kind as keyof typeof KIND_LABELS] || 'Untitled',
+      href: `#sec${i}`,
+    });
+  });
+
+  // Each section gets a wrapper with a UNIQUE named page: paged.js merges
+  // consecutive same-named pages, so unique names are what guarantee a real
+  // page break between sections — and let us blank headers/folios per section.
   let idx = 0;
   const body = elements
-    .map((el) => {
+    .map((el, i) => {
       if (el.kind === ChapterKind.CHAPTER) idx += 1;
-      return renderElement(theme, el, { meta, watermark, toc, chapterIndex: idx, style });
+      const inner = renderElement(theme, el, { meta, watermark, toc, chapterIndex: idx, style });
+      return `<div class="psec" id="sec${i}"${paginated ? ` style="page: s${i};"` : ''}>${inner}</div>`;
     })
     .join('\n');
 
-  const paginated = !!input.paginated && target === 'print';
+  // Pagination rules per section: front-matter furniture pages show no header
+  // or folio; chapters/prose sections hide the running header on their opening
+  // page only (standard book convention).
+  const NO_FURNITURE: ChapterKind[] = [
+    ChapterKind.TITLE_PAGE, ChapterKind.COPYRIGHT, ChapterKind.TOC,
+    ChapterKind.EPIGRAPH, ChapterKind.DEDICATION, ChapterKind.PART,
+  ];
+  const blankAll =
+    '@top-center { content: none; } @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } @bottom-left { content: none; } @bottom-right { content: none; }';
+  const blankTop =
+    '@top-center { content: none; } @top-left { content: none; } @top-right { content: none; }';
+  const bb = breaks.newPage === false ? 'auto' : breaks.recto ? 'right' : 'page';
+  const legacyBb = breaks.newPage === false ? 'auto' : breaks.recto ? 'right' : 'always';
+  const sectionCss = paginated
+    ? `.book .psec { break-before: ${bb}; page-break-before: ${legacyBb}; }
+.book .psec:first-child { break-before: avoid; page-break-before: avoid; }
+.book .psec .chapter, .book .psec .part, .book .psec .frontmatter, .book .psec .prose-section { break-before: auto; page-break-before: auto; }
+.book .toc a::after { content: target-counter(attr(href), page); font-variant-numeric: tabular-nums; }
+${elements
+  .map((el, i) =>
+    NO_FURNITURE.includes(el.kind as ChapterKind)
+      ? `@page s${i} { ${blankAll} }`
+      : `@page s${i}:first { ${blankTop} }`,
+  )
+  .join('\n')}`
+    : '';
+
   const fontsHref = googleFontsHref(theme);
   const fontLink = fontsHref ? `<link rel="stylesheet" href="${fontsHref}">` : '';
   const pagedCss = target === 'print' ? pagedMediaCss(meta, theme, input.typography) : '';
@@ -569,6 +621,7 @@ body { padding: ${target === 'print' ? (paginated ? '18px 0' : '24px') : '0'}; }
 ${themeCss(theme, target, style, breaks, paginated)}
 ${proseCss}
 ${pagedCss}
+${sectionCss}
 ${pagedPreviewCss}
 ${readingCss}
 </style>

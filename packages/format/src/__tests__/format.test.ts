@@ -204,6 +204,51 @@ describe('renderBookDocument', () => {
     const html = renderBookDocument({ ...base, target: 'print', watermark: false });
     expect(html).not.toContain('Made with Liberscript');
   });
+  it('title page prints the BOOK title, never the element label', () => {
+    const html = renderBookDocument({
+      theme: getTheme('novel-classic'),
+      target: 'print',
+      watermark: false,
+      meta: { title: 'Unbreakable', author: 'Jack Osborne' },
+      elements: [
+        { kind: 'TITLE_PAGE', title: 'Title Page' },
+        { kind: 'CHAPTER', title: 'Chapter 1', content: sampleDoc },
+      ],
+    });
+    expect(html).toContain('book-title">Unbreakable');
+    expect(html).not.toContain('book-title">Title Page');
+  });
+  it('paginated print: unique named page per section + real TOC page numbers', () => {
+    const html = renderBookDocument({
+      theme: getTheme('novel-classic'),
+      target: 'print',
+      watermark: false,
+      paginated: true,
+      meta: { title: 'Unbreakable' },
+      elements: [
+        { kind: 'TITLE_PAGE' },
+        { kind: 'TOC' },
+        { kind: 'CHAPTER', title: 'Chapter 1', content: sampleDoc },
+      ],
+    });
+    expect(html).toContain('id="sec0"');
+    expect(html).toContain('page: s0;');
+    expect(html).toContain('@page s0'); // furniture blanked on front matter
+    expect(html).toContain('@page s2:first'); // chapter opener: header blanked
+    expect(html).toContain('page-break-before: always'); // legacy alias for paged.js
+    expect(html).toContain('target-counter(attr(href), page)'); // real TOC numbers
+    expect(html).toContain('href="#sec2"'); // TOC links to the chapter
+  });
+  it('margin overrides flow into the @page geometry', () => {
+    const html = renderBookDocument({
+      ...base,
+      target: 'print',
+      watermark: false,
+      typography: { marginsIn: { top: 1.25, inner: 0.95 } },
+    });
+    expect(html).toContain('1.25in');
+    expect(html).toContain('0.95in');
+  });
   it('centers the copyright page by default, left when set', () => {
     const def = renderBookDocument({ ...base, target: 'print', watermark: false });
     expect(def).toContain('copyright-page auto-fit cp-center');

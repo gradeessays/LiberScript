@@ -19,6 +19,8 @@ interface Props {
   onTagField?: (field: TagField, text: string) => void;
   /** Show the Title/Subtitle/Quote/Attribution tag buttons (chapters only). */
   structureTags?: boolean;
+  /** Render without the outer border (embedded inside the page canvas). */
+  frameless?: boolean;
   editable?: boolean;
 }
 
@@ -26,14 +28,17 @@ function ToolbarButton({
   active,
   onClick,
   children,
+  tip,
 }: {
   active?: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  tip?: string;
 }) {
   return (
     <button
       type="button"
+      title={tip}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={cn(
@@ -52,6 +57,7 @@ export function ManuscriptEditor({
   onSplit,
   onTagField,
   structureTags = false,
+  frameless = false,
   editable = true,
 }: Props) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -110,58 +116,91 @@ export function ManuscriptEditor({
   if (!editor) return null;
 
   return (
-    <div className="rounded-lg border">
-      <div className="flex flex-wrap items-center gap-1 border-b p-1.5">
+    <div className={cn(!frameless && 'rounded-lg border')}>
+      <div
+        className={cn(
+          'sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b bg-background/95 p-1.5 backdrop-blur',
+          frameless && 'border-t',
+        )}
+      >
         {structureTags && onTagField && (
           <>
-            <span className="px-1 text-[11px] uppercase tracking-wide text-muted-foreground">Tag&nbsp;selection</span>
-            <ToolbarButton onClick={() => liftTo(editor, 'title')}>Title</ToolbarButton>
-            <ToolbarButton onClick={() => liftTo(editor, 'subtitle')}>Subtitle</ToolbarButton>
-            <ToolbarButton onClick={() => liftTo(editor, 'openingQuote')}>Quote</ToolbarButton>
-            <ToolbarButton onClick={() => liftTo(editor, 'attribution')}>Attrib.</ToolbarButton>
+            <span className="px-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+              Selection&nbsp;→
+            </span>
+            <ToolbarButton tip="Make the selected text this section's title" onClick={() => liftTo(editor, 'title')}>
+              Title
+            </ToolbarButton>
+            <ToolbarButton tip="Make the selected text the subtitle" onClick={() => liftTo(editor, 'subtitle')}>
+              Subtitle
+            </ToolbarButton>
+            <ToolbarButton
+              tip="Make the selected text the opening quote (epigraph)"
+              onClick={() => liftTo(editor, 'openingQuote')}
+            >
+              Opening quote
+            </ToolbarButton>
+            <ToolbarButton
+              tip="Make the selected text the quote's attribution"
+              onClick={() => liftTo(editor, 'attribution')}
+            >
+              Attribution
+            </ToolbarButton>
+            <ToolbarButton
+              tip="Format the selection as a block quote inside the chapter"
+              active={editor.isActive('blockquote')}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            >
+              Block quote
+            </ToolbarButton>
             <span className="mx-1 h-5 w-px bg-border" aria-hidden />
           </>
         )}
-        <ToolbarButton active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+        <ToolbarButton tip="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
           B
         </ToolbarButton>
-        <ToolbarButton active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+        <ToolbarButton tip="Italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
           <span className="italic">I</span>
         </ToolbarButton>
         <ToolbarButton
+          tip="Heading 1"
           active={editor.isActive('heading', { level: 1 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
         >
           H1
         </ToolbarButton>
         <ToolbarButton
+          tip="Heading 2"
           active={editor.isActive('heading', { level: 2 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
         >
           H2
         </ToolbarButton>
         <ToolbarButton
+          tip="Heading 3"
           active={editor.isActive('heading', { level: 3 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         >
           H3
         </ToolbarButton>
-        <ToolbarButton active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+        <ToolbarButton tip="Bullet list" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
           • List
         </ToolbarButton>
-        <ToolbarButton active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-          ❝
-        </ToolbarButton>
+        {!structureTags && (
+          <ToolbarButton tip="Block quote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+            ❝ Quote
+          </ToolbarButton>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
             {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : ''}
           </span>
-          <Button variant="outline" size="sm" onClick={() => splitHere(editor)}>
+          <Button variant="outline" size="sm" title="Split this section into two at the cursor" onClick={() => splitHere(editor)}>
             Split here
           </Button>
         </div>
       </div>
-      <div className="px-4">
+      <div className={cn('px-4', frameless && 'px-8 pb-6')}>
         <EditorContent editor={editor} />
       </div>
     </div>

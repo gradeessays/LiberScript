@@ -83,6 +83,8 @@ export interface BookElement {
 export interface TocEntry {
   index: number;
   title: string;
+  /** Anchor to the rendered section (e.g. "#sec4") for target-counter page numbers. */
+  href?: string;
 }
 
 export interface RenderOptions {

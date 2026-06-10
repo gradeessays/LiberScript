@@ -103,6 +103,8 @@ export interface TypographyOverrides {
   /** Override trim size; `custom` allows arbitrary W×H. */
   trimKey?: string;
   customTrim?: { widthIn: number; heightIn: number };
+  /** Page margin overrides in inches (print); partial, merged over the theme. */
+  marginsIn?: { top?: number; bottom?: number; inner?: number; outer?: number };
   bodyFontKey?: string;
   headingFontKey?: string;
   /** Block paragraphs (no indent, spaced) vs. indented. */
