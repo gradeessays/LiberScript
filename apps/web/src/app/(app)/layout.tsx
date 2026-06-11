@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <AppHeader userName={session.user.name} />
-      <main className="px-4 py-4 sm:px-6 sm:py-6">{children}</main>
+      <main className="px-4 py-6 sm:px-6 lg:px-10 xl:px-16 sm:py-8">{children}</main>
     </div>
   );
 }

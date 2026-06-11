@@ -21,8 +21,8 @@ export function AppHeader({ userName }: { userName: string }) {
   }
 
   return (
-    <header className="border-b">
-      <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
+      <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6 lg:px-10 xl:px-16">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="font-semibold tracking-tight">
             Liberscript

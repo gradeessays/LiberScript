@@ -226,7 +226,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
           />
         )}
 
-        <aside className="sticky top-4 max-h-[calc(100vh-5rem)] space-y-5 overflow-y-auto pb-4 pr-1 [scrollbar-width:thin]">
+        <aside className="sticky top-20 max-h-[calc(100vh-6rem)] space-y-5 overflow-y-auto pb-4 pr-1 [scrollbar-width:thin]">
           {embedded && (
             <Button size="sm" className="w-full" disabled={update.isPending} onClick={save}>
               {update.isPending ? 'Saving…' : 'Save design'}

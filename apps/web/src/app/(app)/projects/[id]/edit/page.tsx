@@ -264,41 +264,43 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-14 z-30 -mx-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-        <div className="flex items-center gap-3">
-          <ProjectSwitcher currentId={id} currentTitle={project.data?.title ?? 'Untitled book'} />
-          <Link href={`/projects/${id}/cover`} className="text-sm text-muted-foreground hover:underline">
-            Cover
-          </Link>
-          {project.data?.manuscript && project.data.manuscript.wordCount > 0 && (
-            <span className="hidden text-xs text-muted-foreground sm:inline" title="Total words · estimated reading time">
-              {project.data.manuscript.wordCount.toLocaleString()} words ·{' '}
-              {project.data.manuscript.readingMinutes} min
-            </span>
-          )}
+      {/* Sub-nav: sticks just below the app header (top-14 = 56 px). Bleeds
+          edge-to-edge by reversing the layout's horizontal padding. */}
+      <div className="sticky top-14 z-30 -mx-4 flex items-center gap-3 border-b bg-background/95 px-4 py-1.5 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10 xl:-mx-16 xl:px-16">
+        {/* Book identity */}
+        <ProjectSwitcher currentId={id} currentTitle={project.data?.title ?? 'Untitled book'} />
+        <Link href={`/projects/${id}/cover`} className="hidden text-xs text-muted-foreground hover:text-foreground sm:block">
+          Cover
+        </Link>
+        {project.data?.manuscript && project.data.manuscript.wordCount > 0 && (
+          <span className="hidden text-[11px] text-muted-foreground/70 lg:block" title="Total words · estimated reading time">
+            {project.data.manuscript.wordCount.toLocaleString()} w · {project.data.manuscript.readingMinutes} min
+          </span>
+        )}
+
+        {/* View switcher — centred in the remaining space */}
+        <div className="mx-auto flex rounded-md border p-0.5 text-xs">
+          {(['write', 'critique', 'preview'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={cn(
+                'rounded px-2.5 py-1 capitalize',
+                view === v ? 'bg-accent font-medium' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {v === 'preview' ? 'Preview' : v}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-md border p-0.5 text-sm">
-            {(['write', 'critique', 'preview'] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={cn(
-                  'rounded px-3 py-1 capitalize',
-                  view === v ? 'bg-accent font-medium' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {v === 'preview' ? 'Preview & export' : v}
-              </button>
-            ))}
-          </div>
-          {view === 'write' && <EditorUpload projectId={id} onParsed={refreshSoon} />}
-          {view === 'write' && (
-            <Button size="sm" onClick={() => create.mutate({ projectId: id, kind: ChapterKind.CHAPTER })}>
-              + Chapter
-            </Button>
-          )}
-        </div>
+
+        {/* Contextual actions (write mode only) */}
+        {view === 'write' && <EditorUpload projectId={id} onParsed={refreshSoon} />}
+        {view === 'write' && (
+          <Button size="sm" className="h-7 px-2.5 text-xs" onClick={() => create.mutate({ projectId: id, kind: ChapterKind.CHAPTER })}>
+            + Chapter
+          </Button>
+        )}
       </div>
 
       {actionError && (
@@ -320,7 +322,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       ) : (
       <div className="grid gap-4 items-start md:grid-cols-[280px_1fr]">
         {/* Sectioned outline — sticky so it stays visible while scrolling the editor */}
-        <aside className="sticky top-4 max-h-[calc(100vh-5rem)] space-y-3 overflow-y-auto rounded-lg border p-2 [scrollbar-width:thin]">
+        <aside className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-3 overflow-y-auto rounded-lg border p-2 [scrollbar-width:thin]">
           {groups.map((g) => {
             const items = elements.filter((e) => groupOfKind(e.kind as ChapterKind) === g);
             const addable = ADDABLE.filter((k) => groupOfKind(k) === g);
