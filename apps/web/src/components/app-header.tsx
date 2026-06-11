@@ -34,6 +34,9 @@ export function AppHeader({ userName }: { userName: string }) {
             <Link href="/settings/team" className="hover:text-foreground">
               Team
             </Link>
+            <Link href="/settings/ai" className="hover:text-foreground">
+              AI Keys
+            </Link>
           </nav>
         </div>
 

@@ -123,6 +123,8 @@ export interface PlanLimits {
   collaboratorsPerProject: number | null;
   analysisRunsPerMonth: number | null;
   exportsPerMonth: number | null;
+  /** Export formats the plan allows. null = all formats. */
+  exportFormats: ExportFormat[] | null;
   /** BYO-AI tools (content generation, AI critique). */
   aiEnabled: boolean;
   /** Upload + embed custom fonts. */
@@ -139,6 +141,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     collaboratorsPerProject: 1,
     analysisRunsPerMonth: 10,
     exportsPerMonth: 5,
+    exportFormats: [ExportFormat.PDF],
     aiEnabled: false,
     customFonts: false,
     removeWatermark: false,
@@ -149,6 +152,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     collaboratorsPerProject: 3,
     analysisRunsPerMonth: 200,
     exportsPerMonth: null,
+    exportFormats: null,
     aiEnabled: true,
     customFonts: true,
     removeWatermark: true,
@@ -159,6 +163,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     collaboratorsPerProject: null,
     analysisRunsPerMonth: null,
     exportsPerMonth: null,
+    exportFormats: null,
     aiEnabled: true,
     customFonts: true,
     removeWatermark: true,

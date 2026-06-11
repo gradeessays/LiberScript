@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { cn } from '@liberscript/ui';
+import { cn, Button } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
 
 const SEVERITY_STYLE: Record<string, string> = {
@@ -33,7 +33,11 @@ function scoreTone(score: number): string {
  */
 export function CritiquePanel({ projectId }: { projectId: string }) {
   const critique = trpc.analysis.critique.useQuery({ projectId });
+  const aiStatus = trpc.ai.status.useQuery();
+  const aiCritique = trpc.analysis.aiCritique.useMutation();
   const [open, setOpen] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState<string | null>(null);
+  const [focusAreas, setFocusAreas] = useState('');
 
   if (critique.isLoading) {
     return <p className="p-6 text-sm text-muted-foreground">Analyzing your manuscript…</p>;
@@ -145,6 +149,104 @@ export function CritiquePanel({ projectId }: { projectId: string }) {
       <p className="text-xs text-muted-foreground">
         Heuristic critique — a guide, not a verdict. Style rules are yours to break on purpose.
       </p>
+
+      {/* AI Editorial Analysis */}
+      <div className="rounded-lg border">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div>
+            <span className="font-medium">AI Editorial Analysis</span>
+            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">Pro</span>
+          </div>
+          {aiStatus.data?.enabled && aiStatus.data?.hasKey && !aiCritique.data && (
+            <div className="flex items-center gap-2">
+              <input
+                className="h-8 rounded-md border bg-background px-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder="Focus areas (optional)"
+                value={focusAreas}
+                onChange={(e) => setFocusAreas(e.target.value)}
+              />
+              <Button
+                size="sm"
+                onClick={() => aiCritique.mutate({ projectId, focusAreas: focusAreas || undefined })}
+                disabled={aiCritique.isPending}
+              >
+                {aiCritique.isPending ? 'Analysing…' : 'Run AI analysis'}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 py-3">
+          {!aiStatus.data?.enabled && (
+            <p className="text-sm text-muted-foreground">
+              Upgrade to Pro to unlock AI-powered developmental editing — plot structure, character arcs, pacing, voice, and more.
+            </p>
+          )}
+          {aiStatus.data?.enabled && !aiStatus.data?.hasKey && (
+            <p className="text-sm text-muted-foreground">
+              Add an API key in{' '}
+              <a href="/settings/ai" className="text-primary hover:underline">Settings → AI Keys</a>{' '}
+              to enable AI analysis.
+            </p>
+          )}
+          {aiCritique.error && (
+            <p className="text-sm text-destructive">{aiCritique.error.message}</p>
+          )}
+          {aiCritique.isPending && (
+            <p className="text-sm text-muted-foreground">Sending manuscript to AI for review… this may take 30–60 seconds.</p>
+          )}
+          {aiCritique.data && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <div className={cn('text-4xl font-bold tabular-nums', scoreTone(aiCritique.data.score))}>
+                    {aiCritique.data.score}
+                  </div>
+                  <div className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground">AI score</div>
+                </div>
+                <p className="flex-1 text-sm text-muted-foreground">{aiCritique.data.summary}</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {aiCritique.data.findings.map((f) => (
+                  <div key={f.category} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm">{f.label}</span>
+                      <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', SEVERITY_STYLE[f.severity] ?? SEVERITY_STYLE.info)}>
+                        {SEVERITY_LABEL[f.severity] ?? f.severity}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-sm text-muted-foreground">{f.guidance}</p>
+                    {f.examples.length > 0 && (
+                      <>
+                        <button
+                          className="mt-2 text-xs font-medium text-primary hover:underline"
+                          onClick={() => setAiOpen(aiOpen === f.category ? null : f.category)}
+                        >
+                          {aiOpen === f.category ? 'Hide examples' : `Show examples (${f.examples.length})`}
+                        </button>
+                        {aiOpen === f.category && (
+                          <ul className="mt-2 space-y-1.5">
+                            {f.examples.map((ex, i) => (
+                              <li key={i} className="rounded bg-muted/50 p-2 text-xs italic">{ex}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { aiCritique.reset(); setFocusAreas(''); }}
+              >
+                Run again
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

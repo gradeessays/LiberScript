@@ -2,17 +2,41 @@ import { z } from 'zod';
 import { enqueue, JobName } from '@liberscript/jobs';
 import { presignDownload } from '@liberscript/storage';
 import type { ExportFormat } from '@liberscript/db';
+import { ExportFormat as EF, planLimitExceeded } from '@liberscript/core';
 import { protectedProcedure, router } from '../trpc';
 import { requireProjectAccess } from '../lib/ownership';
+import { resolvePlanLimits } from '../lib/plan';
 
 const EXPORT_FORMATS = ['EPUB', 'DOCX', 'COVER_PDF', 'PRINT_PDF'] as const;
+
+// Map our worker format strings to the core ExportFormat enum for plan gate checks.
+const FORMAT_TO_CORE: Record<string, EF | null> = {
+  EPUB: EF.EPUB,
+  DOCX: EF.DOCX,
+  COVER_PDF: null,  // always allowed (cover-only, no prose content)
+  PRINT_PDF: EF.PDF,
+};
 
 export const exportRouter = router({
   /** Queue an export; the worker builds the file and stores it. */
   create: protectedProcedure
     .input(z.object({ projectId: z.string(), format: z.enum(EXPORT_FORMATS) }))
     .mutation(async ({ ctx, input }) => {
-      await requireProjectAccess(ctx, input.projectId);
+      const project = await requireProjectAccess(ctx, input.projectId);
+      const owner = { ownerType: project.ownerType, ownerId: project.ownerId };
+      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId);
+
+      const coreFormat = FORMAT_TO_CORE[input.format] ?? null;
+      if (coreFormat !== null && limits.exportFormats !== null) {
+        const allowed = limits.exportFormats;
+        if (!allowed.includes(coreFormat)) {
+          throw planLimitExceeded(
+            `${input.format} export requires a Pro plan. Free plan supports: ${allowed.join(', ')}.`,
+            { format: input.format, allowedFormats: allowed },
+          );
+        }
+      }
+
       const job = await ctx.prisma.exportJob.create({
         data: { projectId: input.projectId, format: input.format as ExportFormat, status: 'QUEUED' },
       });

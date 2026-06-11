@@ -13,6 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
     "@liberscript/analysis": "workspace:*",
     "@liberscript/auth": "workspace:*",
     "@liberscript/core": "workspace:*",
@@ -30,6 +31,7 @@
     "@trpc/server": "^11.0.0-rc.553",
     "better-auth": "^1.6.0",
     "next": "^15.0.0",
+    "openai": "^6.42.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
@@ -39,10 +41,10 @@
   "devDependencies": {
     "@liberscript/config": "workspace:*",
     "@types/node": "^20.16.11",
-    "dotenv-cli": "^7.4.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "dotenv-cli": "^7.4.2",
     "eslint": "^9.12.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",

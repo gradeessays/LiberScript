@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { slugify, createId, MemberRole } from '@liberscript/core';
+import { slugify, createId, MemberRole, planLimitExceeded } from '@liberscript/core';
 import { protectedProcedure, router } from '../trpc';
 import { currentOwner, requireCreateAccess, requireProjectAccess } from '../lib/ownership';
+import { resolvePlanLimits } from '../lib/plan';
 
 export const projectRouter = router({
   /** Projects in the caller's current workspace (personal or active team). */
@@ -47,6 +48,18 @@ export const projectRouter = router({
     .input(z.object({ title: z.string().min(1).max(200) }))
     .mutation(async ({ ctx, input }) => {
       const owner = await requireCreateAccess(ctx);
+      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId);
+      if (limits.projects !== null) {
+        const count = await ctx.prisma.project.count({
+          where: { ownerType: owner.ownerType, ownerId: owner.ownerId, archivedAt: null },
+        });
+        if (count >= limits.projects) {
+          throw planLimitExceeded(
+            `Free plan is limited to ${limits.projects} projects. Upgrade to Pro for unlimited projects.`,
+            { limit: limits.projects, current: count },
+          );
+        }
+      }
       const slug = `${slugify(input.title) || 'book'}-${createId('x').slice(2, 8)}`;
       return ctx.prisma.project.create({
         data: {

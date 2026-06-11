@@ -19,6 +19,7 @@ import { DesignStudio } from '@/components/design-studio';
 import { ProjectSwitcher } from '@/components/project-switcher';
 import { EditorUpload } from '@/components/editor-upload';
 import { CritiquePanel } from '@/components/critique-panel';
+import { GenerateBookModal } from '@/components/editor/generate-book-modal';
 
 // TipTap is heavy; load it only when the editor is actually shown.
 const ManuscriptEditor = dynamic(
@@ -205,7 +206,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     },
   });
 
+  const aiStatus = trpc.ai.status.useQuery();
+
   const [view, setView] = useState<'write' | 'critique' | 'preview'>('write');
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [openingQuote, setOpeningQuote] = useState('');
@@ -296,6 +300,16 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
         {/* Contextual actions (write mode only) */}
         {view === 'write' && <EditorUpload projectId={id} onParsed={refreshSoon} />}
+        {view === 'write' && aiStatus.data?.enabled && aiStatus.data?.hasKey && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-xs"
+            onClick={() => setGenerateModalOpen(true)}
+          >
+            ✦ Generate
+          </Button>
+        )}
         {view === 'write' && (
           <Button size="sm" className="h-7 px-2.5 text-xs" onClick={() => create.mutate({ projectId: id, kind: ChapterKind.CHAPTER })}>
             + Chapter
@@ -600,6 +614,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     <ManuscriptEditor
                     key={selectedId}
                     frameless
+                    aiEnabled={aiStatus.data?.enabled && aiStatus.data?.hasKey}
+                    projectId={id}
+                    chapterId={selectedId ?? undefined}
+                    bookTitle={project.data?.title}
                     initialContent={chapter.data.content as JSONContent}
                     structureTags={OPENING_QUOTE_KINDS.includes(selectedKind as ChapterKind)}
                     onTagField={(field, text) => {
@@ -641,6 +659,18 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           )}
         </section>
       </div>
+      )}
+
+      {generateModalOpen && (
+        <GenerateBookModal
+          projectId={id}
+          projectTitle={project.data?.title ?? 'Untitled book'}
+          onCreated={() => {
+            setGenerateModalOpen(false);
+            void refresh();
+          }}
+          onClose={() => setGenerateModalOpen(false)}
+        />
       )}
     </div>
   );

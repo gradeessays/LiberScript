@@ -4,6 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useEditor, EditorContent, type Editor, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Button, cn } from '@liberscript/ui';
+import { AiPanel } from './ai-panel';
 
 type SaveState = 'idle' | 'saving' | 'saved';
 
@@ -22,6 +23,11 @@ interface Props {
   /** Render without the outer border (embedded inside the page canvas). */
   frameless?: boolean;
   editable?: boolean;
+  /** Show the AI Generate panel controls (requires aiEnabled + valid key). */
+  aiEnabled?: boolean;
+  projectId?: string;
+  chapterId?: string;
+  bookTitle?: string;
 }
 
 function ToolbarButton({
@@ -59,8 +65,14 @@ export function ManuscriptEditor({
   structureTags = false,
   frameless = false,
   editable = true,
+  aiEnabled = false,
+  projectId,
+  chapterId,
+  bookTitle,
 }: Props) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [selectionText, setSelectionText] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Force toolbar re-render when the cursor moves so isActive() always reflects
   // the current node/mark at the caret position, not just after selections.
@@ -85,7 +97,11 @@ export function ManuscriptEditor({
         setSaveState('saved');
       }, 1200);
     },
-    onSelectionUpdate: tickToolbar,
+    onSelectionUpdate: ({ editor: ed }) => {
+      tickToolbar();
+      const { from, to } = ed.state.selection;
+      setSelectionText(from !== to ? ed.state.doc.textBetween(from, to, ' ').trim() : '');
+    },
     onFocus: tickToolbar,
   });
 
@@ -201,11 +217,40 @@ export function ManuscriptEditor({
           <span className="text-xs text-muted-foreground">
             {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : ''}
           </span>
+          {frameless && aiEnabled && projectId && chapterId && (
+            <Button
+              variant={aiPanelOpen ? 'default' : 'outline'}
+              size="sm"
+              title="Generate or rewrite text with AI"
+              onClick={() => setAiPanelOpen((o) => !o)}
+            >
+              ✦ Generate
+            </Button>
+          )}
           <Button variant="outline" size="sm" title="Split this section into two at the cursor" onClick={() => splitHere(editor)}>
             Split here
           </Button>
         </div>
       </div>
+
+      {frameless && aiEnabled && aiPanelOpen && projectId && chapterId && (
+        <AiPanel
+          projectId={projectId}
+          chapterId={chapterId}
+          contextText={editor.getText()}
+          selectionText={selectionText || undefined}
+          bookTitle={bookTitle}
+          onClose={() => setAiPanelOpen(false)}
+          onInsert={(text) => {
+            editor.chain().focus().insertContentAt(editor.state.doc.content.size, '\n' + text).run();
+          }}
+          onReplace={(text) => {
+            const { from, to } = editor.state.selection;
+            editor.chain().focus().insertContentAt({ from, to }, text).run();
+          }}
+        />
+      )}
+
       <div className={cn('px-4', frameless && 'px-8 pb-6')}>
         <EditorContent editor={editor} />
       </div>

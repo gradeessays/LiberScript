@@ -212,7 +212,7 @@ function cssString(s: string): string {
  * `string-set`, `counter(page)`). Applied for the print target; rendered by the
  * paged.js / Chromium print pipeline (no effect in the scrolling screen preview).
  */
-export function pagedMediaCss(meta: BookMeta, theme: BookTheme, o?: TypographyOverrides): string {
+export function pagedMediaCss(meta: BookMeta, theme: BookTheme, o?: TypographyOverrides, watermark?: boolean): string {
   const pageNumbers = o?.pageNumbers !== false;
   const headers = o?.runningHeaders !== false;
   const placement = o?.pageNumberPlacement ?? 'bottom-center';
@@ -245,12 +245,24 @@ export function pagedMediaCss(meta: BookMeta, theme: BookTheme, o?: TypographyOv
     return `${box} { content: counter(page); ${numFont} }`;
   };
 
+  // Watermark margin-box position — pick one not used by folios/headers.
+  // bottom-center folio → use @bottom-left; top-outer folio → use @bottom-center;
+  // bottom-outer folio → use @top-center (may overlap header, but it's the free slot).
+  const wmBox =
+    placement === 'bottom-center' ? '@bottom-left' :
+    placement === 'top-outer'     ? '@bottom-center' :
+                                    '@top-center';
+  const wmStyle = 'font-size: 6pt; color: rgba(0,0,0,0.18); font-family: sans-serif; font-style: italic;';
+  const wmCss = watermark
+    ? `\n/* Free-plan watermark — suppressed by named-page rules on furniture/blank pages */\n@page { ${wmBox} { content: "Made with Liberscript"; ${wmStyle} } }`
+    : '';
+
   return `
 .book .chapter-title { string-set: chaptertitle content(text); }
 .book .part h1 { string-set: chaptertitle content(text); }
 .book .prose-section h1 { string-set: chaptertitle content(text); }
 @page :left { ${headers && verso !== 'none' ? `@top-center { content: ${verso}; ${headFont} }` : ''} ${folio('left')} }
-@page :right { ${headers && recto !== 'none' ? `@top-center { content: ${recto}; ${headFont} }` : ''} ${folio('right')} }`;
+@page :right { ${headers && recto !== 'none' ? `@top-center { content: ${recto}; ${headFont} }` : ''} ${folio('right')} }${wmCss}`;
 }
 
 /** Stylesheet for a theme + render target. */
@@ -744,7 +756,7 @@ ${elements.map((el, i) => {
 
   const fontsHref = googleFontsHref(theme);
   const fontLink = fontsHref ? `<link rel="stylesheet" href="${fontsHref}">` : '';
-  const pagedCss = target === 'print' ? pagedMediaCss(meta, theme, input.typography) : '';
+  const pagedCss = target === 'print' ? pagedMediaCss(meta, theme, input.typography, watermark) : '';
   const proseCss = `${openingQuoteCss(input.typography?.openingQuoteStyleKey, theme)}
 ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
 

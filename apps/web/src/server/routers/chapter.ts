@@ -314,4 +314,55 @@ export const chapterRouter = router({
       });
       return { ok: true, mergedIntoId: prev.id };
     }),
+
+  /**
+   * Bulk-create chapters from an AI-generated outline. Creates the manuscript
+   * if it doesn't exist, then appends one CHAPTER per outline entry in order.
+   */
+  createFromOutline: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        chapters: z.array(z.object({ title: z.string().min(1).max(300) })).min(1).max(40),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireProjectAccess(ctx, input.projectId, MemberRole.EDITOR);
+      return withDbRetry(async () => {
+        const manuscript = await ctx.prisma.manuscript.upsert({
+          where: { projectId: input.projectId },
+          create: { projectId: input.projectId },
+          update: {},
+        });
+        const last = await ctx.prisma.chapter.findFirst({
+          where: { manuscriptId: manuscript.id },
+          orderBy: { order: 'desc' },
+          select: { order: true },
+        });
+        let nextOrder = (last?.order ?? -1) + 1;
+        const created = await ctx.prisma.$transaction(
+          async (tx) => {
+            const results = [];
+            for (const ch of input.chapters) {
+              results.push(
+                await tx.chapter.create({
+                  data: {
+                    manuscriptId: manuscript.id,
+                    kind: 'CHAPTER' as PrismaChapterKind,
+                    title: ch.title,
+                    order: nextOrder++,
+                    content: EMPTY_DOC,
+                  },
+                }),
+              );
+            }
+            await regroupOrder(tx, manuscript.id);
+            await touchProject(tx, input.projectId);
+            return results;
+          },
+          { timeout: 30000, maxWait: 15000 },
+        );
+        return { count: created.length, firstId: created[0]?.id };
+      });
+    }),
 });
