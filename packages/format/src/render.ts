@@ -426,12 +426,12 @@ function renderEpigraph(el: BookElement): string {
 }
 
 function renderToc(entries: TocEntry[]): string {
-  // Page numbers are NOT rendered inline — in the paginated print pipeline a
-  // target-counter(attr(href), page) rule fills them in from real pagination.
+  // Page numbers filled in by target-counter CSS rules (roman for front matter,
+  // arabic for body/back) — see sectionCss in renderBookDocument.
   const items = entries
     .map(
       (e) =>
-        `<li><a${e.href ? ` href="${e.href}"` : ''}><span class="toc-t">${esc(e.title)}</span></a></li>`,
+        `<li${e.front ? ' data-front="1"' : ''}><a${e.href ? ` href="${e.href}"` : ''}><span class="toc-t">${esc(e.title)}</span></a></li>`,
     )
     .join('');
   return `<section class="frontmatter toc"><h1>Contents</h1><ol>${items}</ol></section>`;
@@ -598,10 +598,16 @@ export function renderBookDocument(input: RenderBookInput): string {
 
   // TOC: link every listed section to its rendered wrapper id so the print
   // pipeline can resolve REAL page numbers via target-counter.
+  // Excluded: TITLE_PAGE, COPYRIGHT, EPIGRAPH, DEDICATION, TOC (itself), PART.
+  // Included front matter (roman page numbers): FOREWORD, PREFACE, PROLOGUE, INTRODUCTION.
+  // Included body/back (arabic): PART (excluded—divider), CHAPTER, EPILOGUE, AFTERWORD, etc.
   const TOC_LISTED: ChapterKind[] = [
     ChapterKind.FOREWORD, ChapterKind.PREFACE, ChapterKind.PROLOGUE, ChapterKind.INTRODUCTION,
     ChapterKind.PART, ChapterKind.CHAPTER, ChapterKind.EPILOGUE, ChapterKind.AFTERWORD,
     ChapterKind.ACKNOWLEDGMENTS, ChapterKind.ABOUT_AUTHOR, ChapterKind.ALSO_BY, ChapterKind.APPENDIX,
+  ];
+  const TOC_FRONT: ChapterKind[] = [
+    ChapterKind.FOREWORD, ChapterKind.PREFACE, ChapterKind.PROLOGUE, ChapterKind.INTRODUCTION,
   ];
   let chapterNo = 0;
   const toc: TocEntry[] = [];
@@ -612,6 +618,7 @@ export function renderBookDocument(input: RenderBookInput): string {
       index: el.kind === ChapterKind.CHAPTER ? chapterNo : 0,
       title: el.title || KIND_LABELS[el.kind as keyof typeof KIND_LABELS] || 'Untitled',
       href: `#sec${i}`,
+      front: TOC_FRONT.includes(el.kind as ChapterKind),
     });
   });
 
@@ -629,11 +636,12 @@ export function renderBookDocument(input: RenderBookInput): string {
     })
     .join('\n');
 
-  // Pagination rules per section: front-matter furniture pages show no header
-  // or folio; chapters/prose sections hide the running header on their opening
-  // page only (standard book convention).
+  // Pagination rules per section.
+  // NO_FURNITURE: pages that never show running headers or folios (title page,
+  // copyright, epigraph, dedication, part dividers). TOC is intentionally NOT
+  // in this list — it shows roman-numeral page numbers.
   const NO_FURNITURE: ChapterKind[] = [
-    ChapterKind.TITLE_PAGE, ChapterKind.COPYRIGHT, ChapterKind.TOC,
+    ChapterKind.TITLE_PAGE, ChapterKind.COPYRIGHT,
     ChapterKind.EPIGRAPH, ChapterKind.DEDICATION, ChapterKind.PART,
   ];
   const blankAll =
@@ -642,19 +650,81 @@ export function renderBookDocument(input: RenderBookInput): string {
     '@top-center { content: none; } @top-left { content: none; } @top-right { content: none; }';
   const bb = breaks.newPage === false ? 'auto' : breaks.recto ? 'right' : 'page';
   const legacyBb = breaks.newPage === false ? 'auto' : breaks.recto ? 'right' : 'always';
+
+  // ── Dual-counter page numbering ──────────────────────────────────
+  // • Title page: NOT counted (counter reset to 0, folio hidden).
+  // • Copyright page → first chapter: roman numerals (i, ii, iii…).
+  //   Counter resets to 1 at the copyright page (or first non-title front matter
+  //   if no copyright page exists).
+  // • First chapter → end (including back matter): Arabic (1, 2, 3…).
+  //   Counter resets to 1 at the first CHAPTER element.
+  const _titleIdx   = paginated ? elements.findIndex((e) => e.kind === ChapterKind.TITLE_PAGE) : -1;
+  const _romanIdx   = paginated ? elements.findIndex(
+    (e) => e.kind !== ChapterKind.TITLE_PAGE && groupOfKind(e.kind as ChapterKind) === 'front',
+  ) : -1;
+  const _arabicIdx  = paginated ? elements.findIndex((e) => e.kind === ChapterKind.CHAPTER) : -1;
+
+  const _isRoman = (i: number) =>
+    _romanIdx >= 0 && i >= _romanIdx && (_arabicIdx < 0 || i < _arabicIdx);
+
+  // Folio and header helpers (mirrors pagedMediaCss logic but per-section).
+  const _pn  = input.typography?.pageNumbers !== false;
+  const _pl  = input.typography?.pageNumberPlacement ?? 'bottom-center';
+  const _hdr = input.typography?.runningHeaders !== false;
+  const _nf  = `font-family: ${theme.bodyFont.stack}; font-size: 9pt;`;
+  const _hf  = `font-family: ${theme.headingFont.stack}; font-size: 9pt; font-style: italic; letter-spacing: 0.02em;`;
+  const _hval = (k: string | undefined, fb: string) => {
+    const key = k ?? fb;
+    if (key === 'chapterTitle') return 'string(chaptertitle)';
+    if (key === 'author') return meta.author ? cssString(meta.author) : '""';
+    if (key === 'bookTitle') return cssString(meta.title);
+    return 'none';
+  };
+  const _verso = _hval(input.typography?.headerVersoContent, 'bookTitle');
+  const _recto = _hval(input.typography?.headerRectoContent, 'chapterTitle');
+
+  const _folio = (i: number, side: 'left' | 'right') => {
+    if (!_pn) return '';
+    const style = _isRoman(i) ? 'lower-roman' : 'decimal';
+    const box =
+      _pl === 'bottom-center' ? '@bottom-center' :
+      _pl === 'top-outer'     ? (side === 'left' ? '@top-left' : '@top-right') :
+                                (side === 'left' ? '@bottom-left' : '@bottom-right');
+    return `${box} { content: counter(page, ${style}); ${_nf} }`;
+  };
+  const _header = (side: 'left' | 'right') => {
+    if (!_hdr || _pl === 'top-outer') return ''; // folio and header share top — skip header
+    const v = side === 'left' ? _verso : _recto;
+    return v !== 'none' ? `@top-center { content: ${v}; ${_hf} }` : '';
+  };
+
   const sectionCss = paginated
     ? `.book .psec { break-before: ${bb}; page-break-before: ${legacyBb}; }
 .book .psec:first-child { break-before: avoid; page-break-before: avoid; }
 .book .psec .chapter, .book .psec .part, .book .psec .frontmatter, .book .psec .prose-section { break-before: auto; page-break-before: auto; }
-.book .toc a::after { content: target-counter(attr(href), page); font-variant-numeric: tabular-nums; }
+.book .toc li[data-front] a::after { content: target-counter(attr(href), page, lower-roman); font-variant-numeric: tabular-nums; }
+.book .toc li:not([data-front]) a::after { content: target-counter(attr(href), page); font-variant-numeric: tabular-nums; }
 ${elements.map((_, i) => `#sec${i} { page: s${i}; }`).join('\n')}
-${elements
-  .map((el, i) =>
-    NO_FURNITURE.includes(el.kind as ChapterKind)
-      ? `@page s${i} { ${blankAll} }`
-      : `@page s${i}:first { ${blankTop} }`,
-  )
-  .join('\n')}`
+${elements.map((el, i) => {
+  const kind = el.kind as ChapterKind;
+  // Counter resets: title page → 0 (uncounted), roman start → 1, arabic start → 1.
+  const reset =
+    i === _titleIdx  ? 'counter-reset: page 0; ' :
+    i === _romanIdx  ? 'counter-reset: page 1; ' :
+    i === _arabicIdx ? 'counter-reset: page 1; ' :
+    '';
+  if (NO_FURNITURE.includes(kind)) {
+    return `@page s${i} { ${reset}${blankAll} }`;
+  }
+  const lines: string[] = [];
+  if (reset) lines.push(`@page s${i} { ${reset}}`);
+  lines.push(`@page s${i}:first { ${blankTop} }`);
+  const lh = _header('left');  const lf = _folio(i, 'left');
+  const rh = _header('right'); const rf = _folio(i, 'right');
+  if (lh || lf) lines.push(`@page s${i}:left { ${lh} ${lf} }`);
+  if (rh || rf) lines.push(`@page s${i}:right { ${rh} ${rf} }`);
+  return lines.join('\n');
+}).join('\n')}`
     : '';
 
   const fontsHref = googleFontsHref(theme);

@@ -91,6 +91,8 @@ export interface TocEntry {
   title: string;
   /** Anchor to the rendered section (e.g. "#sec4") for target-counter page numbers. */
   href?: string;
+  /** True for front-matter sections (foreword, preface, prologue, intro) — uses roman counter in TOC. */
+  front?: boolean;
 }
 
 export interface RenderOptions {
