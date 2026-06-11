@@ -10,9 +10,10 @@ const nextConfig = {
   // tracing root is the monorepo root so workspace packages are bundled in.
   output: 'standalone',
   outputFileTracingRoot: path.join(__dirname, '../../'),
-  // Linting runs as a dedicated `turbo lint` task (with the Next.js plugin),
-  // so skip Next's redundant build-time lint pass.
+  // Linting and type-checking run as dedicated CI tasks; skip them here so
+  // the production build doesn't OOM on the 1 GB deploy server.
   eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
   // Internal workspace packages ship TypeScript source; let Next transpile them.
   transpilePackages: [
     '@liberscript/analysis',
