@@ -63,7 +63,7 @@ export const THEMES: BookTheme[] = [
     },
     sceneBreak: { style: 'asterism', glyph: '* * *' },
     trim: { widthIn: 5, heightIn: 8 },
-    marginsIn: { top: 0.75, bottom: 0.75, inner: 0.75, outer: 0.5 },
+    marginsIn: { top: 0.75, bottom: 0.75, inner: 0.875, outer: 0.5 },
   },
   {
     key: 'novel-modern',
@@ -77,7 +77,7 @@ export const THEMES: BookTheme[] = [
     chapterStart: { style: 'rule', align: 'left', dropCap: false, smallCapsFirstLine: false },
     sceneBreak: { style: 'glyph', glyph: '◆' },
     trim: { widthIn: 5.25, heightIn: 8 },
-    marginsIn: { top: 0.75, bottom: 0.75, inner: 0.75, outer: 0.5 },
+    marginsIn: { top: 0.75, bottom: 0.75, inner: 0.875, outer: 0.5 },
   },
   {
     key: 'selfhelp',

@@ -117,18 +117,23 @@ function frontMatterCss(theme: BookTheme): string {
 .book .copyright-page.auto-fit { font-size: 0.72em; }
 .book .copyright-page p { text-indent: 0; margin: 0 0 0.7em; }
 .book .copyright-page.cp-center { text-align: center; }
+.book .copyright-page.cp-center p { text-align: center; }
 .book .copyright-page.cp-left { text-align: left; }
 .book .copyright-page .published-by { margin-top: 1.4em; }
 .book .copyright-page .publisher-logo { max-height: 44px; margin-bottom: 0.4em; }
 .book .copyright-page .watermark { margin-top: 1.4em; color: #888; font-style: italic; }
-.book .epigraph { padding-top: 28%; }
-.book .epigraph.eg-centered { text-align: center; font-style: italic; }
-.book .epigraph.eg-bordered { border-left: 3px solid #ccc; padding-left: 1.2em; font-style: italic; }
-.book .epigraph.eg-large { text-align: center; font-size: 1.3em; font-style: italic; }
-.book .epigraph .attribution { margin-top: 1em; font-style: normal; font-variant: small-caps; color: #555; }
+/* Epigraph: centered with hairline top/bottom borders framing the quote. */
+.book .epigraph { padding-top: 28%; text-align: center; }
+.book .epigraph .epigraph-inner { display: inline-block; max-width: 74%; text-align: center; }
+.book .epigraph .epigraph-quote { font-style: italic; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; padding: 0.9em 0.2em; }
+.book .epigraph.eg-bordered .epigraph-inner { text-align: left; }
+.book .epigraph.eg-bordered .epigraph-quote { border-top: none; border-bottom: none; border-left: 3px solid #ccc; padding: 0.3em 0 0.3em 1.2em; }
+.book .epigraph.eg-large .epigraph-inner { font-size: 1.3em; }
+.book .epigraph .attribution { margin-top: 0.75em; font-style: normal; font-variant: small-caps; color: #555; text-align: right; }
+.book .epigraph.eg-bordered .attribution { text-align: left; }
 .book .dedication { text-align: center; font-style: italic; padding-top: 30%; }
-/* Centered front matter must not inherit the body paragraph indent. */
-.book .epigraph p, .book .dedication p, .book .title-page p { text-indent: 0; margin: 0 0 0.6em; }
+/* Override body-level justify for centered front matter; also reset indent. */
+.book .epigraph p, .book .dedication p, .book .title-page p { text-indent: 0; text-align: center; margin: 0 0 0.6em; }
 /* Foreword / Preface / Prologue / Introduction / back-matter prose headings. */
 .book .prose-section h1 { text-align: center; font-size: 1.7em; font-weight: 700; margin: 0 0 0.6em; line-height: 1.15; }
 .book .prose-section .chapter-subtitle { text-align: center; }
@@ -347,8 +352,10 @@ function renderEpigraph(el: BookElement): string {
   const style = dataStr(el.data, 'style') ?? 'centered';
   const attribution = dataStr(el.data, 'attribution');
   return `<section class="frontmatter epigraph eg-${esc(style)}">
-  <div class="epigraph-quote">${tiptapToHtml(el.content)}</div>
-  ${attribution ? `<div class="attribution">— ${esc(attribution)}</div>` : ''}
+  <div class="epigraph-inner">
+    <div class="epigraph-quote">${tiptapToHtml(el.content)}</div>
+    ${attribution ? `<div class="attribution">— ${esc(attribution)}</div>` : ''}
+  </div>
 </section>`;
 }
 
@@ -592,19 +599,20 @@ ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
 
   // Ebook reading mode recolors the page; print always shows a paper surface.
   const rm = target === 'ebook' && input.readingMode ? READING_MODE[input.readingMode] : null;
-  // Paginated preview uses the dark PDF-viewer surround; it must be set here
-  // (not only in the preview-UI sheet) because paged.js re-injects this
-  // stylesheet after that sheet, which would win the cascade otherwise.
-  const pageBg = target === 'print' ? (paginated ? '#525659' : '#e9e9ee') : (rm?.page ?? '#fafafa');
-  const readingCss = rm
-    ? `.book { background: ${rm.book} !important; color: ${rm.text} !important; } .book .chapter-subtitle, .book blockquote { color: ${rm.text}; opacity: 0.8; }`
-    : '';
-
   // paged.js paginates the document into real page boxes honoring the @page /
   // running-header / folio rules. Loaded only for the paginated print preview;
   // the PDF exporter (injectPagedPolyfill: false) runs paged.js in Chromium.
   const previewPaginated = paginated && input.injectPagedPolyfill !== false;
   const flip = previewPaginated && input.pageView === 'flip';
+  // Paginated preview uses the dark PDF-viewer surround. PDF export must get a
+  // white background (no grey) because paged.js in Chromium controls the page
+  // geometry — the body background leaks outside page boxes if it isn't white.
+  const pageBg = target === 'print'
+    ? (previewPaginated ? '#525659' : paginated ? '#ffffff' : '#e9e9ee')
+    : (rm?.page ?? '#fafafa');
+  const readingCss = rm
+    ? `.book { background: ${rm.book} !important; color: ${rm.text} !important; } .book .chapter-subtitle, .book blockquote { color: ${rm.text}; opacity: 0.8; }`
+    : '';
   const previewUiStyle = previewPaginated ? pagedPreviewUiStyle(theme, flip) : '';
   const pagedScript = previewPaginated
     ? pagedPreviewScript(flip, input.pagedPolyfillUrl ?? PAGED_POLYFILL_CDN, input.pagedPolyfillUrl ? PAGED_POLYFILL_CDN : undefined)
@@ -627,7 +635,7 @@ ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
 ${fontLink}
 <style>
 html, body { margin: 0; padding: 0; background: ${pageBg}; }
-body { padding: ${target === 'print' ? (paginated ? '18px 0' : '24px') : '0'}; }
+body { padding: ${target === 'print' ? (previewPaginated ? '18px 0' : '24px') : '0'}; }
 ${themeCss(theme, target, style, breaks, paginated)}
 ${proseCss}
 ${pagedCss}
