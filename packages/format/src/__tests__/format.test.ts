@@ -232,7 +232,10 @@ describe('renderBookDocument', () => {
       ],
     });
     expect(html).toContain('id="sec0"');
-    expect(html).toContain('page: s0;');
+    // Named pages must be assigned via the STYLESHEET: paged.js only parses
+    // stylesheets (css-tree) and never reads inline style attributes.
+    expect(html).toContain('#sec0 { page: s0; }');
+    expect(html).not.toContain('style="page:');
     expect(html).toContain('@page s0'); // furniture blanked on front matter
     expect(html).toContain('@page s2:first'); // chapter opener: header blanked
     expect(html).toContain('page-break-before: always'); // legacy alias for paged.js
@@ -264,6 +267,9 @@ describe('renderBookDocument', () => {
     const paged = renderBookDocument({ ...base, target: 'print', watermark: false, paginated: true });
     expect(paged).toContain('paged.polyfill.js');
     expect(paged).toContain('pagedjs_page');
+    // Content is handed to paged.js via its template so the unpaginated source
+    // never flashes and preview chrome added to <body> isn't swallowed.
+    expect(paged).toContain('data-ref="pagedjs-content"');
     expect(paged).not.toContain('min-height'); // .book no longer owns page geometry
     const flow = renderBookDocument({ ...base, target: 'print', watermark: false });
     expect(flow).not.toContain('paged.polyfill.js');
@@ -275,7 +281,11 @@ describe('renderBookDocument', () => {
     const flip = renderBookDocument({ ...base, target: 'print', watermark: false, paginated: true, pageView: 'flip' });
     expect(flip).toContain('__initFlip');
     expect(flip).toContain('flip-nav');
-    expect(flip).toContain('<body class="flip">');
+    expect(flip).toContain('flip-zone'); // edge click zones
+    // The flip class is applied only AFTER pagination — hiding pages during
+    // layout breaks paged.js overflow measurement (no real page breaks).
+    expect(flip).not.toContain('<body class="flip">');
+    expect(flip).toContain('<body class="">');
     const scroll = renderBookDocument({ ...base, target: 'print', watermark: false, paginated: true, pageView: 'scroll' });
     expect(scroll).not.toContain('__initFlip');
     expect(scroll).toContain('<body class="">');

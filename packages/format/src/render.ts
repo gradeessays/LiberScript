@@ -485,7 +485,15 @@ export interface RenderBookInput {
    * paged.js itself in headless Chromium. Default true when `paginated`.
    */
   injectPagedPolyfill?: boolean;
+  /**
+   * URL of the paged.js polyfill script. The web app passes its self-hosted
+   * copy (no CDN dependency); when set, the pinned unpkg build is kept as an
+   * automatic fallback if the primary fails to load.
+   */
+  pagedPolyfillUrl?: string;
 }
+
+const PAGED_POLYFILL_CDN = 'https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js';
 
 /** Full standalone HTML document used by the live preview and the exporters. */
 export function renderBookDocument(input: RenderBookInput): string {
@@ -537,12 +545,14 @@ export function renderBookDocument(input: RenderBookInput): string {
   // Each section gets a wrapper with a UNIQUE named page: paged.js merges
   // consecutive same-named pages, so unique names are what guarantee a real
   // page break between sections — and let us blank headers/folios per section.
+  // The `page:` assignment MUST live in the stylesheet: paged.js only parses
+  // stylesheets (css-tree), it never reads inline style attributes.
   let idx = 0;
   const body = elements
     .map((el, i) => {
       if (el.kind === ChapterKind.CHAPTER) idx += 1;
       const inner = renderElement(theme, el, { meta, watermark, toc, chapterIndex: idx, style });
-      return `<div class="psec" id="sec${i}"${paginated ? ` style="page: s${i};"` : ''}>${inner}</div>`;
+      return `<div class="psec" id="sec${i}">${inner}</div>`;
     })
     .join('\n');
 
@@ -564,6 +574,7 @@ export function renderBookDocument(input: RenderBookInput): string {
 .book .psec:first-child { break-before: avoid; page-break-before: avoid; }
 .book .psec .chapter, .book .psec .part, .book .psec .frontmatter, .book .psec .prose-section { break-before: auto; page-break-before: auto; }
 .book .toc a::after { content: target-counter(attr(href), page); font-variant-numeric: tabular-nums; }
+${elements.map((_, i) => `#sec${i} { page: s${i}; }`).join('\n')}
 ${elements
   .map((el, i) =>
     NO_FURNITURE.includes(el.kind as ChapterKind)
@@ -581,32 +592,31 @@ ${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
 
   // Ebook reading mode recolors the page; print always shows a paper surface.
   const rm = target === 'ebook' && input.readingMode ? READING_MODE[input.readingMode] : null;
-  const pageBg = target === 'print' ? '#e9e9ee' : (rm?.page ?? '#fafafa');
+  // Paginated preview uses the dark PDF-viewer surround; it must be set here
+  // (not only in the preview-UI sheet) because paged.js re-injects this
+  // stylesheet after that sheet, which would win the cascade otherwise.
+  const pageBg = target === 'print' ? (paginated ? '#525659' : '#e9e9ee') : (rm?.page ?? '#fafafa');
   const readingCss = rm
     ? `.book { background: ${rm.book} !important; color: ${rm.text} !important; } .book .chapter-subtitle, .book blockquote { color: ${rm.text}; opacity: 0.8; }`
     : '';
 
   // paged.js paginates the document into real page boxes honoring the @page /
-  // running-header / folio rules. Loaded only for the paginated print preview.
-  const flip = paginated && input.pageView === 'flip';
-  const pagedPreviewCss = paginated
-    ? `@media screen {
-  html, body { background: #525659; }
-  .pagedjs_page { background: #fff; box-shadow: 0 2px 18px rgba(0,0,0,0.45); margin: 0 auto 18px; }
-  .pagedjs_pages { display: block; }
-}
-@media screen {
-  body.flip { padding-bottom: 64px; }
-  body.flip .pagedjs_page { display: none; margin-bottom: 0; }
-  body.flip .pagedjs_page.is-current { display: block; }
-  .flip-nav { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(20,20,22,0.82); color: #fff; padding: 6px 10px; border-radius: 999px; font: 14px system-ui, sans-serif; z-index: 9999; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
-  .flip-nav button { background: transparent; color: #fff; border: 0; font-size: 22px; line-height: 1; cursor: pointer; padding: 0 8px; }
-  .flip-nav button:disabled { opacity: 0.3; cursor: default; }
-  .flip-nav span { min-width: 64px; text-align: center; }
-}`
+  // running-header / folio rules. Loaded only for the paginated print preview;
+  // the PDF exporter (injectPagedPolyfill: false) runs paged.js in Chromium.
+  const previewPaginated = paginated && input.injectPagedPolyfill !== false;
+  const flip = previewPaginated && input.pageView === 'flip';
+  const previewUiStyle = previewPaginated ? pagedPreviewUiStyle(theme, flip) : '';
+  const pagedScript = previewPaginated
+    ? pagedPreviewScript(flip, input.pagedPolyfillUrl ?? PAGED_POLYFILL_CDN, input.pagedPolyfillUrl ? PAGED_POLYFILL_CDN : undefined)
     : '';
-  const pagedScript =
-    paginated && input.injectPagedPolyfill !== false ? pagedPreviewScript(flip) : '';
+
+  // Preview: hand the book to paged.js via its content template — the source
+  // never paints (no flash of the unpaginated flow) and the preview chrome we
+  // add to <body> (progress chip, flip nav) is not swallowed into the book.
+  const bookHtml = `<div class="book">\n${body}\n</div>`;
+  const bodyContent = previewPaginated
+    ? `<template data-ref="pagedjs-content">${bookHtml}</template>`
+    : bookHtml;
 
   return `<!doctype html>
 <html lang="en">
@@ -622,42 +632,201 @@ ${themeCss(theme, target, style, breaks, paginated)}
 ${proseCss}
 ${pagedCss}
 ${sectionCss}
-${pagedPreviewCss}
 ${readingCss}
 </style>
+${previewUiStyle}
 </head>
-<body class="${flip ? 'flip' : ''}">
-<div class="book">
-${body}
-</div>
+<body class="">
+${bodyContent}
 ${pagedScript}
 </body>
 </html>`;
 }
 
-/** Inline paged.js bootstrap; in flip mode it adds single-page navigation. */
-function pagedPreviewScript(flip: boolean): string {
+/**
+ * Preview-chrome stylesheet (progress chip, stacked-pages look, flip viewer,
+ * fail-open fallback). `media="screen"` + `data-pagedjs-ignore` keep it out of
+ * both print output and the paged.js polisher, so paged.js never rewrites it.
+ */
+function pagedPreviewUiStyle(theme: BookTheme, flip: boolean): string {
+  const { widthIn } = theme.trim;
+  const m = theme.marginsIn;
+  const base = `html, body { background: #525659; }
+.pagedjs_pages { display: block; }
+.pagedjs_page { background: #fff; box-shadow: 0 2px 18px rgba(0,0,0,0.45); margin: 0 auto 18px; }
+.paged-progress { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(20,20,22,0.85); color: #fff; padding: 6px 14px; border-radius: 999px; font: 12px/1.4 system-ui, sans-serif; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+body.paged-ready .paged-progress, body.paged-failed .paged-progress { display: none; }
+/* Fail-open: if paged.js cannot load, the book is restored as a continuous
+   page-shaped flow so the preview is never blank. */
+body.paged-failed::before { content: "The page-layout engine could not load — showing a continuous preview without page breaks."; display: block; background: #8a4b3b; color: #fff; font: 12px/1.5 system-ui, sans-serif; text-align: center; padding: 6px 12px; }
+body.paged-failed .book { width: ${widthIn}in; margin: 16px auto; padding: ${m.top}in ${m.outer}in ${m.bottom}in ${m.inner}in; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.35); box-sizing: border-box; }`;
+  const flipCss = flip
+    ? `
+/* —— flip viewer: one page, fitted to the viewport, real page-turns —— */
+body.flip { overflow: hidden; height: 100vh; padding: 0; }
+body.flip .pagedjs_pages { position: fixed; left: 50%; transform-origin: top center; perspective: 2800px; }
+body.flip .pagedjs_page { display: none; position: absolute; top: 0; left: 0; margin: 0; backface-visibility: hidden; }
+body.flip .pagedjs_page.is-current { display: block; }
+body.flip .pagedjs_page.turn-out { display: block; z-index: 3; transform-origin: left center; animation: lbs-turn-out 0.45s cubic-bezier(0.25, 0.6, 0.35, 1) both; }
+body.flip .pagedjs_page.turn-in { z-index: 3; transform-origin: left center; animation: lbs-turn-in 0.45s cubic-bezier(0.25, 0.6, 0.35, 1) both; }
+@keyframes lbs-turn-out { from { transform: rotateY(0deg); opacity: 1; } 60% { opacity: 1; } to { transform: rotateY(-76deg); opacity: 0; } }
+@keyframes lbs-turn-in { from { transform: rotateY(-76deg); opacity: 0; } 40% { opacity: 1; } to { transform: rotateY(0deg); opacity: 1; } }
+.flip-nav { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(20,20,22,0.82); color: #fff; padding: 6px 10px; border-radius: 999px; font: 14px system-ui, sans-serif; z-index: 9999; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+.flip-nav button { background: transparent; color: #fff; border: 0; font-size: 22px; line-height: 1; cursor: pointer; padding: 0 8px; }
+.flip-nav button:disabled { opacity: 0.3; cursor: default; }
+.flip-nav span { min-width: 64px; text-align: center; }
+.flip-zone { position: fixed; top: 0; bottom: 64px; width: 16%; min-width: 56px; border: 0; padding: 0; background: transparent; cursor: pointer; z-index: 9998; display: flex; align-items: center; outline: none; }
+.flip-zone span { font: 54px/1 system-ui, sans-serif; color: rgba(255,255,255,0); transition: color 0.15s; user-select: none; }
+.flip-zone:hover span, .flip-zone:focus-visible span { color: rgba(255,255,255,0.6); }
+.flip-zone-left { left: 0; justify-content: flex-start; padding-left: 10px; }
+.flip-zone-right { right: 0; justify-content: flex-end; padding-right: 10px; }`
+    : '';
+  return `<style media="screen" data-pagedjs-ignore>\n${base}${flipCss}\n</style>`;
+}
+
+/**
+ * Inline paged.js bootstrap: progress chip while paginating, fail-open if the
+ * polyfill can't load (optional CDN fallback first), and — in flip mode — the
+ * single-page viewer, initialized only AFTER pagination so hidden pages never
+ * break paged.js layout measurement.
+ */
+function pagedPreviewScript(flip: boolean, src: string, fallbackSrc?: string): string {
   const flipInit = flip
     ? `
 function __initFlip(){
   var pages = Array.prototype.slice.call(document.querySelectorAll('.pagedjs_page'));
-  if(!pages.length) return;
-  if(document.querySelector('.flip-nav')) return;
-  var i = 0;
+  var stage = document.querySelector('.pagedjs_pages');
+  if(!pages.length || !stage || document.querySelector('.flip-nav')) return;
+  var pw = pages[0].offsetWidth, ph = pages[0].offsetHeight;
+  var current = 0, busy = false;
+  document.body.classList.add('flip');
+
+  // Fit the whole page in the viewport, like a PDF viewer's "fit page".
+  function fit(){
+    var navH = 64;
+    var s = Math.min((window.innerWidth - 32) / pw, (window.innerHeight - navH - 20) / ph);
+    stage.style.width = pw + 'px';
+    stage.style.height = ph + 'px';
+    stage.style.top = Math.max(10, (window.innerHeight - navH - ph * s) / 2) + 'px';
+    stage.style.transform = 'translateX(-50%) scale(' + s + ')';
+  }
+
   var nav = document.createElement('div'); nav.className = 'flip-nav';
   var prev = document.createElement('button'); prev.textContent = '\\u2039'; prev.setAttribute('aria-label','Previous page');
   var label = document.createElement('span');
   var next = document.createElement('button'); next.textContent = '\\u203A'; next.setAttribute('aria-label','Next page');
   nav.appendChild(prev); nav.appendChild(label); nav.appendChild(next);
   document.body.appendChild(nav);
-  function show(n){ i = Math.max(0, Math.min(pages.length-1, n)); for(var k=0;k<pages.length;k++){ pages[k].classList.toggle('is-current', k===i); } label.textContent = (i+1)+' / '+pages.length; prev.disabled = i===0; next.disabled = i===pages.length-1; window.scrollTo(0,0); }
-  prev.onclick = function(){ show(i-1); };
-  next.onclick = function(){ show(i+1); };
-  document.addEventListener('keydown', function(e){ if(e.key==='ArrowRight'||e.key==='PageDown'){ show(i+1); } else if(e.key==='ArrowLeft'||e.key==='PageUp'){ show(i-1); } });
-  show(0);
+  function zone(side){
+    var z = document.createElement('button');
+    z.className = 'flip-zone flip-zone-' + side;
+    z.setAttribute('aria-label', side === 'left' ? 'Previous page' : 'Next page');
+    var s = document.createElement('span'); s.textContent = side === 'left' ? '\\u2039' : '\\u203A';
+    z.appendChild(s); document.body.appendChild(z); return z;
+  }
+  var zoneL = zone('left'), zoneR = zone('right');
+
+  function paint(){
+    label.textContent = (current + 1) + ' / ' + pages.length;
+    prev.disabled = current === 0; next.disabled = current === pages.length - 1;
+    zoneL.style.visibility = current === 0 ? 'hidden' : 'visible';
+    zoneR.style.visibility = current === pages.length - 1 ? 'hidden' : 'visible';
+  }
+  function settle(n){
+    for(var k = 0; k < pages.length; k++){
+      pages[k].classList.remove('turn-out','turn-in');
+      pages[k].classList.toggle('is-current', k === n);
+    }
+    busy = false;
+  }
+  function go(n){
+    n = Math.max(0, Math.min(pages.length - 1, n));
+    if(busy || n === current) return;
+    busy = true;
+    var out = pages[current], inn = pages[n], forward = n > current;
+    current = n;
+    paint();
+    inn.classList.add('is-current'); // both pages visible during the turn
+    var turning = forward ? out : inn;
+    turning.classList.add(forward ? 'turn-out' : 'turn-in');
+    var finished = false;
+    var done = function(){ if(finished) return; finished = true; settle(n); };
+    turning.addEventListener('animationend', done, { once: true });
+    setTimeout(done, 600); // safety: settle even if animationend never fires
+  }
+  prev.onclick = function(){ go(current - 1); };
+  next.onclick = function(){ go(current + 1); };
+  zoneL.onclick = function(){ go(current - 1); };
+  zoneR.onclick = function(){ go(current + 1); };
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' '){ e.preventDefault(); go(current + 1); }
+    else if(e.key === 'ArrowLeft' || e.key === 'PageUp'){ e.preventDefault(); go(current - 1); }
+    else if(e.key === 'Home'){ go(0); }
+    else if(e.key === 'End'){ go(pages.length - 1); }
+  });
+  window.addEventListener('resize', fit);
+  fit(); settle(0); paint();
 }`
     : '';
-  const after = flip ? 'after: function(){ try { __initFlip(); } catch(e){} }' : '';
-  return `<script>window.PagedConfig = { auto: true${after ? ', ' + after : ''} };${flipInit}</script>
-<script src="https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js"></script>`;
+  const onDone = flip ? 'try { __initFlip(); } catch(e){}' : '';
+  return `<script>
+window.PagedConfig = { auto: true, after: function(){ window.__pagedDone(); } };
+(function(){
+  var chip, observer;
+  function onReady(fn){ if(document.readyState !== 'loading'){ fn(); } else { document.addEventListener('DOMContentLoaded', fn); } }
+  onReady(function(){
+    chip = document.createElement('div');
+    chip.className = 'paged-progress';
+    chip.textContent = 'Laying out pages\\u2026';
+    document.body.appendChild(chip);
+    var pending = false;
+    observer = new MutationObserver(function(){
+      if(pending) return;
+      pending = true;
+      requestAnimationFrame(function(){
+        pending = false;
+        var n = document.querySelectorAll('.pagedjs_page').length;
+        if(n && chip) chip.textContent = 'Laying out pages\\u2026 ' + n;
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  function stopProgress(){ if(observer) observer.disconnect(); if(chip){ chip.remove(); chip = null; } }
+  window.__pagedDone = function(){
+    stopProgress();
+    document.body.classList.add('paged-ready');
+    ${onDone}
+  };
+  window.__pagedFailed = function(){
+    var b = document.body;
+    if(b.classList.contains('paged-ready') || b.classList.contains('paged-failed')) return;
+    stopProgress();
+    var t = document.querySelector("template[data-ref='pagedjs-content']");
+    if(t) b.appendChild(t.content.cloneNode(true));
+    b.classList.add('paged-failed');
+  };
+  window.__pagedScriptError = function(){
+    ${
+      fallbackSrc
+        ? `if(!window.__pagedTriedFallback){
+      window.__pagedTriedFallback = true;
+      var s = document.createElement('script');
+      s.src = ${JSON.stringify(fallbackSrc)};
+      s.onerror = function(){ window.__pagedFailed(); };
+      document.body.appendChild(s);
+      return;
+    }
+    window.__pagedFailed();`
+        : 'window.__pagedFailed();'
+    }
+  };
+  // Watchdog: nothing paginated after 25s → fail open to the continuous view.
+  setTimeout(function(){
+    if(!document.body.classList.contains('paged-ready') && !document.querySelector('.pagedjs_page')){
+      window.__pagedFailed();
+    }
+  }, 25000);
+})();${flipInit}
+</script>
+<script src="${src}" onerror="window.__pagedScriptError()"></script>`;
 }

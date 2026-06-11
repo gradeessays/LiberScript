@@ -88,6 +88,9 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
       readingMode,
       paginated: target === 'print' && printMode !== 'flow',
       pageView: printMode === 'flip' ? 'flip' : 'scroll',
+      // Self-hosted polyfill (apps/web/public/vendor) — the srcDoc iframe
+      // resolves this against the app origin; unpkg stays as auto-fallback.
+      pagedPolyfillUrl: '/vendor/pagedjs/paged.polyfill.min.js',
       watermark: preview.data.watermark,
       typography: typo,
       meta: {
@@ -735,7 +738,7 @@ function PreviewPane({
         <p className="text-xs text-muted-foreground">
           Real page layout at your trim size — margins, running headers &amp; page numbers.
           {printMode === 'flip'
-            ? ' Use the ‹ › arrows (or ← → keys) to turn pages.'
+            ? ' Click the page edges, the ‹ › arrows or use ← → keys to turn pages.'
             : ' Large books take a moment to paginate — use Continuous for fast scrolling while editing.'}
         </p>
       )}
