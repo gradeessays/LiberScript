@@ -507,7 +507,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   chapters — no editing needed.
                 </div>
               ) : selectedKind === ChapterKind.TITLE_PAGE ? (
-                <TitlePageForm key={selectedId} data={data} onSave={(d) => updateData.mutate({ id: selectedId, data: d })} />
+                <TitlePageForm key={selectedId} projectId={id} data={data} onSave={(d) => updateData.mutate({ id: selectedId, data: d })} />
               ) : selectedKind === ChapterKind.COPYRIGHT ? (
                 <CopyrightForm
                   key={selectedId}

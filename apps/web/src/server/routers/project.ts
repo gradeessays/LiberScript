@@ -71,6 +71,23 @@ export const projectRouter = router({
       return { ok: true };
     }),
 
+  /** All unique author names and publisher names across the workspace — for autocomplete. */
+  authorSuggestions: protectedProcedure.query(async ({ ctx }) => {
+    const owner = currentOwner(ctx);
+    const projects = await ctx.prisma.project.findMany({
+      where: { ownerType: owner.ownerType, ownerId: owner.ownerId, archivedAt: null },
+      select: { formatting: true },
+    });
+    const authors = new Set<string>();
+    const publishers = new Set<string>();
+    for (const p of projects) {
+      const fmt = (p.formatting ?? {}) as { author?: string; publisherName?: string };
+      if (fmt.author?.trim()) authors.add(fmt.author.trim());
+      if (fmt.publisherName?.trim()) publishers.add(fmt.publisherName.trim());
+    }
+    return { authors: [...authors], publishers: [...publishers] };
+  }),
+
   /** Archive (soft-delete) a project; team projects require admin+. */
   archive: protectedProcedure
     .input(z.object({ id: z.string() }))

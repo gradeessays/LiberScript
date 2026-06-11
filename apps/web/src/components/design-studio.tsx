@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useId } from 'react';
 import {
   THEMES,
   FONTS,
@@ -66,9 +66,15 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
   const [author, setAuthor] = useState('');
   const [typo, setTypo] = useState<TypographyOverrides>({});
   const logoInput = useRef<HTMLInputElement>(null);
+  // Tracks whether the user has manually edited author/publisher in this session.
+  const userEditedRef = useRef(false);
+  const listId = useId();
+
+  const suggestions = trpc.project.authorSuggestions.useQuery();
 
   useEffect(() => {
     if (preview.data) {
+      userEditedRef.current = false;
       setThemeKey(preview.data.themeKey);
       setPublisher(preview.data.meta.publisherName ?? '');
       setAuthor(preview.data.meta.author ?? '');
@@ -80,6 +86,16 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
     onSuccess: () => utils.formatting.previewData.invalidate({ projectId: id }),
   });
   const logoUploadUrl = trpc.formatting.logoUploadUrl.useMutation();
+
+  // Auto-save author/publisher 800 ms after the user stops typing — preview
+  // updates immediately from local state; this just persists the change.
+  const debouncedAuthor = useDebouncedValue(author, 800);
+  const debouncedPublisher = useDebouncedValue(publisher, 800);
+  useEffect(() => {
+    if (!userEditedRef.current) return;
+    update.mutate({ projectId: id, author: debouncedAuthor || null, publisherName: debouncedPublisher || null });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedAuthor, debouncedPublisher]);
 
   const html = useMemo(() => {
     if (!preview.data) return '';
@@ -614,13 +630,31 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
           {/* Front matter quick fields */}
           <section className="space-y-2">
             <h2 className="text-sm font-medium">Cover / front matter</h2>
+            <datalist id={`${listId}-authors`}>
+              {suggestions.data?.authors.map((a) => <option key={a} value={a} />)}
+            </datalist>
+            <datalist id={`${listId}-publishers`}>
+              {suggestions.data?.publishers.map((p) => <option key={p} value={p} />)}
+            </datalist>
             <div className="space-y-1">
-              <Label htmlFor="author">Author</Label>
-              <Input id="author" value={author} onChange={(e) => setAuthor(e.target.value)} />
+              <Label htmlFor="author">Author / pen name</Label>
+              <Input
+                id="author"
+                list={`${listId}-authors`}
+                value={author}
+                onChange={(e) => { setAuthor(e.target.value); userEditedRef.current = true; }}
+                placeholder="e.g. J.K. Rowling"
+              />
             </div>
             <div className="space-y-1">
               <Label htmlFor="publisher">Publisher / imprint</Label>
-              <Input id="publisher" value={publisher} onChange={(e) => setPublisher(e.target.value)} />
+              <Input
+                id="publisher"
+                list={`${listId}-publishers`}
+                value={publisher}
+                onChange={(e) => { setPublisher(e.target.value); userEditedRef.current = true; }}
+                placeholder="e.g. Penguin Books"
+              />
             </div>
             <input
               ref={logoInput}

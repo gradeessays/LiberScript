@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Input, Label } from '@liberscript/ui';
 import { TITLE_PAGE_LAYOUTS } from '@liberscript/format';
+import { trpc } from '@/lib/trpc/client';
 
 export interface TitlePageData {
   title?: string;
@@ -13,20 +14,26 @@ export interface TitlePageData {
 }
 
 export function TitlePageForm({
+  projectId,
   data,
   onSave,
 }: {
+  projectId?: string;
   data: TitlePageData;
   onSave: (data: TitlePageData) => void;
 }) {
   const [form, setForm] = useState<TitlePageData>(data);
   useEffect(() => setForm(data), [data]);
+  const listId = useId();
 
-  const field = (key: keyof Omit<TitlePageData, 'layout'>, label: string) => (
+  const suggestions = trpc.project.authorSuggestions.useQuery(undefined, { enabled: !!projectId });
+
+  const field = (key: keyof Omit<TitlePageData, 'layout'>, label: string, list?: string) => (
     <div className="space-y-1">
       <Label htmlFor={key}>{label}</Label>
       <Input
         id={key}
+        list={list}
         value={form[key] ?? ''}
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
         onBlur={() => onSave(form)}
@@ -70,10 +77,17 @@ export function TitlePageForm({
         </div>
       </div>
 
+      <datalist id={`${listId}-authors`}>
+        {suggestions.data?.authors.map((a) => <option key={a} value={a} />)}
+      </datalist>
+      <datalist id={`${listId}-publishers`}>
+        {suggestions.data?.publishers.map((p) => <option key={p} value={p} />)}
+      </datalist>
+
       {field('title', 'Title')}
       {field('subtitle', 'Subtitle')}
-      {field('author', 'Author')}
-      {field('publisher', 'Publisher / imprint')}
+      {field('author', 'Author / pen name', `${listId}-authors`)}
+      {field('publisher', 'Publisher / imprint', `${listId}-publishers`)}
     </div>
   );
 }
