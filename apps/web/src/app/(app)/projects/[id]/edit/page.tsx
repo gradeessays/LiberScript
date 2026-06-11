@@ -264,7 +264,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="sticky top-14 z-30 -mx-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex items-center gap-3">
           <ProjectSwitcher currentId={id} currentTitle={project.data?.title ?? 'Untitled book'} />
           <Link href={`/projects/${id}/cover`} className="text-sm text-muted-foreground hover:underline">
