@@ -318,9 +318,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       ) : view === 'critique' ? (
         <CritiquePanel projectId={id} />
       ) : (
-      <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        {/* Sectioned outline */}
-        <aside className="h-fit space-y-3 rounded-lg border p-2">
+      <div className="grid gap-4 items-start md:grid-cols-[280px_1fr]">
+        {/* Sectioned outline — sticky so it stays visible while scrolling the editor */}
+        <aside className="sticky top-4 max-h-[calc(100vh-5rem)] space-y-3 overflow-y-auto rounded-lg border p-2 [scrollbar-width:thin]">
           {groups.map((g) => {
             const items = elements.filter((e) => groupOfKind(e.kind as ChapterKind) === g);
             const addable = ADDABLE.filter((k) => groupOfKind(k) === g);
@@ -618,6 +618,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     }}
                     onSave={async (content) => {
                       await updateContent.mutateAsync({ id: selectedId, content });
+                      // Keep the embedded preview in sync without a page reload.
+                      void utils.formatting.previewData.invalidate({ projectId: id });
                     }}
                     onSplit={(before, after) =>
                       split.mutate({ id: selectedId, before, after, newTitle: 'Untitled chapter' })

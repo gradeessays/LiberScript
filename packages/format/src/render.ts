@@ -30,6 +30,27 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+export const SUBTITLE_STYLES = [
+  { key: 'italic',      name: 'Italic (default)' },
+  { key: 'bold-italic', name: 'Bold italic' },
+  { key: 'bold',        name: 'Bold' },
+  { key: 'uppercase',   name: 'Uppercase' },
+  { key: 'small-caps',  name: 'Small caps' },
+  { key: 'plain',       name: 'Plain' },
+] as const;
+export type SubtitleStyle = (typeof SUBTITLE_STYLES)[number]['key'];
+
+function subtitleVariantCss(style?: string): string {
+  switch (style) {
+    case 'bold-italic': return 'font-style:italic;font-weight:700;';
+    case 'bold':        return 'font-style:normal;font-weight:700;';
+    case 'uppercase':   return 'font-style:normal;text-transform:uppercase;letter-spacing:0.12em;font-size:0.85em;';
+    case 'small-caps':  return 'font-variant:small-caps;font-style:normal;letter-spacing:0.04em;';
+    case 'plain':       return 'font-style:normal;font-weight:400;';
+    default:            return 'font-style:italic;'; // 'italic'
+  }
+}
+
 /** Google Fonts stylesheet href for a theme's body + heading fonts (preview). */
 export function googleFontsHref(theme: BookTheme): string | null {
   const families = [theme.bodyFont.google, theme.headingFont.google].filter(Boolean);
@@ -73,6 +94,9 @@ export function applyTypography(theme: BookTheme, o?: TypographyOverrides): Book
           ...theme.paragraph,
           spacingEm: o.paragraphSpacingEm ?? theme.paragraph.spacingEm,
         },
+    subtitleStyle: o.subtitleStyleKey ?? theme.subtitleStyle,
+    subtitleSpacingEm: o.subtitleSpacingEm ?? theme.subtitleSpacingEm,
+    headingSpacingEm: o.headingSpacingEm ?? theme.headingSpacingEm,
   };
 }
 
@@ -89,9 +113,11 @@ function sceneBreakCss(theme: BookTheme): string {
 function chapterStartCss(theme: BookTheme): string {
   const cs = theme.chapterStart;
   const align = cs.align === 'center' ? 'center' : 'left';
-  let css = `.book .chapter-heading { text-align: ${align}; margin: 0 0 1.6em; }
+  const headingGap = theme.headingSpacingEm ?? 1.6;
+  const subtitleGap = theme.subtitleSpacingEm ?? 0.3;
+  let css = `.book .chapter-heading { text-align: ${align}; margin: 0 0 ${headingGap}em; }
 .book .chapter-title { font-family: ${theme.headingFont.stack}; font-weight: 700; font-size: 1.8em; margin: 0; }
-.book .chapter-subtitle { font-family: ${theme.headingFont.stack}; font-style: italic; color: #444; margin-top: 0.3em; }
+.book .chapter-subtitle { font-family: ${theme.headingFont.stack}; ${subtitleVariantCss(theme.subtitleStyle)} color: #444; margin-top: ${subtitleGap}em; }
 .book .chapter-ornament, .book .chapter-number { font-family: ${theme.headingFont.stack}; }`;
   if (cs.style === 'rule')
     css += `\n.book .chapter-title { border-bottom: 2px solid currentColor; padding-bottom: 0.3em; display: inline-block; }`;
@@ -136,22 +162,24 @@ function frontMatterCss(theme: BookTheme): string {
 .book .copyright-page { font-size: 0.8em; color: #222; line-height: 1.5; }
 .book .copyright-page.auto-fit { font-size: 0.72em; }
 .book .copyright-page p { text-indent: 0; margin: 0 0 0.7em; }
-.book .copyright-page.cp-center { text-align: center; }
+.book .copyright-page.cp-center { padding-left: 8%; padding-right: 8%; text-align: center; }
 .book .copyright-page.cp-center p { text-align: center; }
 .book .copyright-page.cp-left { text-align: left; }
 .book .copyright-page .published-by { margin-top: 1.4em; }
 .book .copyright-page .publisher-logo { max-height: 44px; margin-bottom: 0.4em; }
 .book .copyright-page .watermark { margin-top: 1.4em; color: #888; font-style: italic; }
-/* Epigraph: centered with hairline top/bottom borders framing the quote. */
-.book .epigraph { padding-top: 28%; text-align: center; }
-.book .epigraph .epigraph-inner { display: inline-block; max-width: 74%; text-align: center; }
+/* Epigraph: hairline-framed quote block centered via margin:auto. */
+.book .epigraph { padding-top: 28%; }
+.book .epigraph .epigraph-inner { display: block; width: 72%; margin: 0 auto; text-align: center; }
 .book .epigraph .epigraph-quote { font-style: italic; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; padding: 0.9em 0.2em; }
 .book .epigraph.eg-bordered .epigraph-inner { text-align: left; }
 .book .epigraph.eg-bordered .epigraph-quote { border-top: none; border-bottom: none; border-left: 3px solid #ccc; padding: 0.3em 0 0.3em 1.2em; }
 .book .epigraph.eg-large .epigraph-inner { font-size: 1.3em; }
 .book .epigraph .attribution { margin-top: 0.75em; font-style: normal; font-variant: small-caps; color: #555; text-align: right; }
 .book .epigraph.eg-bordered .attribution { text-align: left; }
-.book .dedication { text-align: center; font-style: italic; padding-top: 30%; }
+/* Dedication: narrow centered column via margin:auto on the body block. */
+.book .dedication { font-style: italic; padding-top: 30%; }
+.book .dedication .chapter-body { width: 70%; margin: 0 auto; text-align: center; }
 /* Override body-level justify for centered front matter; also reset indent. */
 .book .epigraph p, .book .dedication p, .book .title-page p { text-indent: 0; text-align: center; margin: 0 0 0.6em; }
 /* Foreword / Preface / Prologue / Introduction / back-matter prose headings. */
@@ -374,7 +402,7 @@ function renderCopyright(meta: BookMeta, el: BookElement, watermark: boolean): s
   const publishedBy = publisher
     ? `<div class="published-by">${logo}<p>Published by ${esc(publisher)}</p></div>`
     : '';
-  const isbnLine = `<p>ISBN: ${isbn ? esc(isbn) : '_____________'}</p>`;
+  const isbnLine = isbn ? `<p>ISBN: ${esc(isbn)}</p>` : '';
   // Centered by default (the common title-verso look); 'left' is opt-in.
   const align = dataStr(el.data, 'align') === 'left' ? 'cp-left' : 'cp-center';
 

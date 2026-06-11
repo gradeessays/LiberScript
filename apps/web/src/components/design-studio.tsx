@@ -7,6 +7,7 @@ import {
   CHAPTER_STYLES,
   OPENING_QUOTE_STYLES,
   BLOCKQUOTE_STYLES,
+  SUBTITLE_STYLES,
   getTheme,
   renderBookDocument,
   type ReadingMode,
@@ -571,6 +572,42 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
                 onChange={(e) => setT({ blockParagraphs: e.target.checked })}
               />
               Block paragraphs (no indent)
+            </label>
+
+            {/* Subtitle & heading spacing */}
+            <div className="space-y-1 border-t pt-2">
+              <Label className="text-[11px]">Subtitle style</Label>
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
+                value={typo.subtitleStyleKey ?? 'italic'}
+                onChange={(e) => setT({ subtitleStyleKey: e.target.value })}
+              >
+                {SUBTITLE_STYLES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <label className="block text-xs">
+              Title → subtitle gap: {(typo.subtitleSpacingEm ?? 0.3).toFixed(2)}em
+              <input
+                type="range"
+                min={0}
+                max={150}
+                value={Math.round((typo.subtitleSpacingEm ?? 0.3) * 100)}
+                onChange={(e) => setT({ subtitleSpacingEm: Number(e.target.value) / 100 })}
+                className="w-full"
+              />
+            </label>
+            <label className="block text-xs">
+              Heading → body gap: {(typo.headingSpacingEm ?? 1.6).toFixed(2)}em
+              <input
+                type="range"
+                min={0}
+                max={300}
+                value={Math.round((typo.headingSpacingEm ?? 1.6) * 100)}
+                onChange={(e) => setT({ headingSpacingEm: Number(e.target.value) / 100 })}
+                className="w-full"
+              />
             </label>
           </section>
 

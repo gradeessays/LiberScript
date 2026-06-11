@@ -34,7 +34,9 @@ export {
   renderFrontMatter,
   renderBookDocument,
   TITLE_PAGE_LAYOUTS,
+  SUBTITLE_STYLES,
   type TitlePageLayout,
+  type SubtitleStyle,
   type RenderBookInput,
   type ReadingMode,
 } from './render';

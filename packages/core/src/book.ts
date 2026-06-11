@@ -129,6 +129,12 @@ export interface TypographyOverrides {
   headerVersoContent?: HeaderContent;
   /** What the right-hand (recto / odd) running header shows. Default 'chapterTitle'. */
   headerRectoContent?: HeaderContent;
+  /** Subtitle text style — one of the SUBTITLE_STYLES keys. Default 'italic'. */
+  subtitleStyleKey?: string;
+  /** Gap (em) between the chapter title line and the subtitle. Default 0.3. */
+  subtitleSpacingEm?: number;
+  /** Gap (em) between the heading block and the body / opening quote. Default 1.6. */
+  headingSpacingEm?: number;
 }
 
 /** Content a running header can display. `chapterTitle` updates per chapter. */

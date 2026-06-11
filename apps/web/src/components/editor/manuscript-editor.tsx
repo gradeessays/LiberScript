@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useEditor, EditorContent, type Editor, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Button, cn } from '@liberscript/ui';
@@ -62,6 +62,9 @@ export function ManuscriptEditor({
 }: Props) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Force toolbar re-render when the cursor moves so isActive() always reflects
+  // the current node/mark at the caret position, not just after selections.
+  const [, tickToolbar] = useReducer((n: number) => n + 1, 0);
 
   const editor = useEditor({
     extensions: [StarterKit],
@@ -74,6 +77,7 @@ export function ManuscriptEditor({
       },
     },
     onUpdate: ({ editor }) => {
+      tickToolbar();
       setSaveState('saving');
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(async () => {
@@ -81,6 +85,8 @@ export function ManuscriptEditor({
         setSaveState('saved');
       }, 1200);
     },
+    onSelectionUpdate: tickToolbar,
+    onFocus: tickToolbar,
   });
 
   useEffect(() => {

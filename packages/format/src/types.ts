@@ -45,6 +45,12 @@ export interface BookTheme {
   /** Print trim size in inches. */
   trim: { widthIn: number; heightIn: number };
   marginsIn: { top: number; bottom: number; inner: number; outer: number };
+  /** Subtitle text style key — set by applyTypography from TypographyOverrides. */
+  subtitleStyle?: string;
+  /** Gap (em) between the chapter title and its subtitle. */
+  subtitleSpacingEm?: number;
+  /** Gap (em) between the entire heading block and the chapter body / opening quote. */
+  headingSpacingEm?: number;
 }
 
 export interface BookMeta {
