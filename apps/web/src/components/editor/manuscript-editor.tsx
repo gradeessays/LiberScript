@@ -125,8 +125,8 @@ export function ManuscriptEditor({
     <div className={cn(!frameless && 'rounded-lg border')}>
       <div
         className={cn(
-          'sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b bg-background/95 p-1.5 backdrop-blur',
-          frameless && 'border-t',
+          'sticky z-10 flex flex-wrap items-center gap-1 border-b bg-background/95 p-1.5 backdrop-blur',
+          frameless ? 'top-24 border-t' : 'top-0',
         )}
       >
         {structureTags && onTagField && (
