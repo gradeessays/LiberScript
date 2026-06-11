@@ -59,6 +59,18 @@ export const projectRouter = router({
       });
     }),
 
+  /** Rename a project title. */
+  rename: protectedProcedure
+    .input(z.object({ id: z.string(), title: z.string().min(1).max(200) }))
+    .mutation(async ({ ctx, input }) => {
+      await requireProjectAccess(ctx, input.id, MemberRole.EDITOR);
+      await ctx.prisma.project.update({
+        where: { id: input.id },
+        data: { title: input.title },
+      });
+      return { ok: true };
+    }),
+
   /** Archive (soft-delete) a project; team projects require admin+. */
   archive: protectedProcedure
     .input(z.object({ id: z.string() }))

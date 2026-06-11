@@ -192,7 +192,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
         </div>
       )}
 
-      <div className={cn('grid gap-4', embedded ? 'lg:grid-cols-[1fr_300px]' : 'lg:grid-cols-[320px_1fr]')}>
+      <div className={cn('grid gap-4 items-start', embedded ? 'lg:grid-cols-[1fr_300px]' : 'lg:grid-cols-[320px_1fr]')}>
         {/* Preview comes first when embedded so the book is the focus; controls sit
             to the right. Standalone keeps controls on the left. */}
         {embedded && (
@@ -209,7 +209,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
           />
         )}
 
-        <aside className="space-y-5">
+        <aside className="sticky top-4 max-h-[calc(100vh-5rem)] space-y-5 overflow-y-auto pb-4 pr-1 [scrollbar-width:thin]">
           {embedded && (
             <Button size="sm" className="w-full" disabled={update.isPending} onClick={save}>
               {update.isPending ? 'Saving…' : 'Save design'}

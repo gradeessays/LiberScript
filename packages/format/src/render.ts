@@ -113,6 +113,26 @@ function frontMatterCss(theme: BookTheme): string {
 .book .title-page .book-author { margin-top: 1.4em; font-size: 1.2em; }
 .book .title-page .book-publisher { margin-top: 3em; font-size: 0.95em; color: #555; }
 .book .title-page .publisher-logo { max-height: 60px; margin: 0 auto 0.6em; display: block; }
+/* tp-modern: single hairline rule separates title block from author */
+.book .title-page.tp-modern .tp-author-block { display: inline-block; border-top: 1px solid currentColor; padding-top: 0.9em; margin-top: 2em; min-width: 56%; }
+.book .title-page.tp-modern .book-author { margin-top: 0; }
+/* tp-ruled: hairlines above + below the title block */
+.book .title-page.tp-ruled { padding-top: 22%; }
+.book .title-page.tp-ruled .tp-title-block { display: inline-block; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; padding: 0.85em 2em; }
+.book .title-page.tp-ruled .book-author { margin-top: 2em; letter-spacing: 0.1em; text-transform: uppercase; font-size: 1em; }
+/* tp-ornate: large heritage ornament divides title from author */
+.book .title-page.tp-ornate { padding-top: 18%; }
+.book .title-page.tp-ornate .book-title { font-size: 2.8em; }
+.book .title-page.tp-ornate .tp-ornament { font-size: 2.2em; opacity: 0.6; margin: 0.7em 0; }
+.book .title-page.tp-ornate .book-author { margin-top: 0; font-size: 1.2em; }
+/* tp-split: title in upper zone, author/publisher anchored to lower area */
+.book .title-page.tp-split { display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 8%; }
+.book .title-page.tp-split .tp-author-block { margin-top: 2em; }
+.book .title-page.tp-split .book-author { margin-top: 0; }
+/* tp-box: hairline border wraps the title block */
+.book .title-page.tp-box { padding-top: 20%; }
+.book .title-page.tp-box .tp-title-block { display: inline-block; border: 1px solid currentColor; padding: 1.4em 2.4em; }
+.book .title-page.tp-box .book-author { margin-top: 2.2em; }
 .book .copyright-page { font-size: 0.8em; color: #222; line-height: 1.5; }
 .book .copyright-page.auto-fit { font-size: 0.72em; }
 .book .copyright-page p { text-indent: 0; margin: 0 0 0.7em; }
@@ -290,6 +310,17 @@ function dataStr(data: Record<string, unknown> | null | undefined, key: string):
   return typeof v === 'string' && v.trim() ? v : undefined;
 }
 
+/** Allowed title-page layout keys. */
+export const TITLE_PAGE_LAYOUTS = [
+  { key: 'classic',  name: 'Classic',  desc: 'Centered, title at top, author below' },
+  { key: 'modern',   name: 'Modern',   desc: 'Hairline rule separates title from author' },
+  { key: 'ruled',    name: 'Ruled',    desc: 'Top & bottom hairlines frame the title' },
+  { key: 'ornate',   name: 'Ornate',   desc: 'Decorative flourish between title and author' },
+  { key: 'split',    name: 'Split',    desc: 'Title in upper half, author anchored at bottom' },
+  { key: 'box',      name: 'Box',      desc: 'Hairline border wraps the title block' },
+] as const;
+export type TitlePageLayout = (typeof TITLE_PAGE_LAYOUTS)[number]['key'];
+
 function renderTitlePage(meta: BookMeta, el: BookElement): string {
   // el.title is the element's outline label ("Title Page") — never print it.
   // The real title comes from the title-page form data or the book metadata.
@@ -297,14 +328,21 @@ function renderTitlePage(meta: BookMeta, el: BookElement): string {
   const subtitle = dataStr(el.data, 'subtitle') || el.subtitle;
   const author = dataStr(el.data, 'author') || meta.author;
   const publisher = dataStr(el.data, 'publisher') || meta.publisherName;
+  const layout = (dataStr(el.data, 'layout') ?? 'classic') as TitlePageLayout;
   const logo = meta.logoUrl
     ? `<img class="publisher-logo" src="${esc(meta.logoUrl)}" alt="${esc(publisher ?? 'Publisher')}" />`
     : '';
-  return `<section class="frontmatter title-page">
-  <div class="book-title">${esc(title)}</div>
-  ${subtitle ? `<div class="book-subtitle">${esc(subtitle)}</div>` : ''}
-  ${author ? `<div class="book-author">${esc(author)}</div>` : ''}
-  ${publisher ? `<div class="book-publisher">${logo}${esc(publisher)}</div>` : ''}
+  const ornament = layout === 'ornate' ? `<div class="tp-ornament">❦</div>` : '';
+  return `<section class="frontmatter title-page tp-${esc(layout)}">
+  <div class="tp-title-block">
+    <div class="book-title">${esc(title)}</div>
+    ${subtitle ? `<div class="book-subtitle">${esc(subtitle)}</div>` : ''}
+  </div>
+  ${ornament}
+  <div class="tp-author-block">
+    ${author ? `<div class="book-author">${esc(author)}</div>` : ''}
+    ${publisher ? `<div class="book-publisher">${logo}${esc(publisher)}</div>` : ''}
+  </div>
 </section>`;
 }
 

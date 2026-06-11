@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, cn } from '@liberscript/ui';
@@ -31,8 +32,15 @@ export function ProjectSwitcher({ currentId, currentTitle }: { currentId: string
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
           <div className="absolute z-20 mt-1 w-72 rounded-md border bg-background p-1 shadow-md">
-            <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-              Your books
+            <div className="flex items-center justify-between px-2 py-1">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Your books</span>
+              <Link
+                href="/dashboard"
+                onClick={() => setOpen(false)}
+                className="text-[11px] text-primary hover:underline"
+              >
+                All books →
+              </Link>
             </div>
             <ul className="max-h-72 overflow-auto">
               {projects.isLoading ? (

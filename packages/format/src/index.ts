@@ -33,6 +33,8 @@ export {
   renderChapter,
   renderFrontMatter,
   renderBookDocument,
+  TITLE_PAGE_LAYOUTS,
+  type TitlePageLayout,
   type RenderBookInput,
   type ReadingMode,
 } from './render';
