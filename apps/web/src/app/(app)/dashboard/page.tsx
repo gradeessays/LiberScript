@@ -50,7 +50,7 @@ export default function DashboardPage() {
   const list = projects.data ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
+    <div className="space-y-6">
       {/* Header row */}
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Your books</h1>
@@ -90,7 +90,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {list.map((p) => {
               const words = p.manuscript?.wordCount ?? 0;
               const isDeleting = confirmDelete === p.id;
