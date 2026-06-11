@@ -627,12 +627,21 @@ export function renderBookDocument(input: RenderBookInput): string {
   // page break between sections — and let us blank headers/folios per section.
   // The `page:` assignment MUST live in the stylesheet: paged.js only parses
   // stylesheets (css-tree), it never reads inline style attributes.
+  //
+  // `psec--norc` = "no recto force": decorative front matter (copyright, epigraph,
+  // dedication) always starts on the NEXT page, never forced to odd (recto). This
+  // keeps copyright on the verso of the title page and prevents blank-page storms
+  // around short decorative elements when `sectionsRecto` is enabled.
+  const NO_RECTO_KINDS: ChapterKind[] = [
+    ChapterKind.COPYRIGHT, ChapterKind.EPIGRAPH, ChapterKind.DEDICATION,
+  ];
   let idx = 0;
   const body = elements
     .map((el, i) => {
       if (el.kind === ChapterKind.CHAPTER) idx += 1;
       const inner = renderElement(theme, el, { meta, watermark, toc, chapterIndex: idx, style });
-      return `<div class="psec" id="sec${i}">${inner}</div>`;
+      const noRecto = NO_RECTO_KINDS.includes(el.kind as ChapterKind);
+      return `<div class="psec${noRecto ? ' psec--norc' : ''}" id="sec${i}">${inner}</div>`;
     })
     .join('\n');
 
@@ -699,9 +708,15 @@ export function renderBookDocument(input: RenderBookInput): string {
   };
 
   const sectionCss = paginated
-    ? `.book .psec { break-before: ${bb}; page-break-before: ${legacyBb}; }
+    ? `/* Section page breaks */
+.book .psec { break-before: ${bb}; page-break-before: ${legacyBb}; }
+.book .psec--norc { break-before: page; page-break-before: always; }
 .book .psec:first-child { break-before: avoid; page-break-before: avoid; }
 .book .psec .chapter, .book .psec .part, .book .psec .frontmatter, .book .psec .prose-section { break-before: auto; page-break-before: auto; }
+/* Blank pages inserted by paged.js for recto starts: counted in the sequence but
+   printed as completely blank (no header, no folio) — standard book convention. */
+@page :blank { ${blankAll} }
+/* TOC page-number style: roman for front-matter entries, arabic for body/back */
 .book .toc li[data-front] a::after { content: target-counter(attr(href), page, lower-roman); font-variant-numeric: tabular-nums; }
 .book .toc li:not([data-front]) a::after { content: target-counter(attr(href), page); font-variant-numeric: tabular-nums; }
 ${elements.map((_, i) => `#sec${i} { page: s${i}; }`).join('\n')}
