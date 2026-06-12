@@ -1,10 +1,14 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
+const ENCRYPTION_KEY_HINT = 'Set ENCRYPTION_KEY to a base64-encoded 32-byte value, e.g. via: openssl rand -base64 32';
+
 function getKey(): Buffer {
   const raw = process.env.ENCRYPTION_KEY;
-  if (!raw) throw new Error('ENCRYPTION_KEY env var is not set.');
+  if (!raw) throw new Error(`ENCRYPTION_KEY env var is not set. ${ENCRYPTION_KEY_HINT}`);
   const buf = Buffer.from(raw, 'base64');
-  if (buf.byteLength !== 32) throw new Error('ENCRYPTION_KEY must decode to exactly 32 bytes.');
+  if (buf.byteLength !== 32) {
+    throw new Error(`ENCRYPTION_KEY must decode to exactly 32 bytes (got ${buf.byteLength}). ${ENCRYPTION_KEY_HINT}`);
+  }
   return buf;
 }
 
