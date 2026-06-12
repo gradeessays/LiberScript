@@ -37,6 +37,17 @@ export function AppHeader({ userName }: { userName: string }) {
             <Link href="/settings/ai" className="hover:text-foreground">
               AI Keys
             </Link>
+            <Link href="/settings/style-profiles" className="hover:text-foreground">
+              Style Profiles
+            </Link>
+            <Link href="/settings/billing" className="hover:text-foreground">
+              Billing
+            </Link>
+            {me.data?.isAdmin && (
+              <Link href="/admin" className="hover:text-foreground">
+                Admin
+              </Link>
+            )}
           </nav>
         </div>
 

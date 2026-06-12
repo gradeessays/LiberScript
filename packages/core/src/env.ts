@@ -59,9 +59,9 @@ const serverEnvSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
 
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  // Comma-separated list of email addresses that get unrestricted access
+  // (bypasses all plan limits) and can access the /admin portal.
+  ADMIN_EMAILS: z.string().optional(),
 
   SENTRY_DSN: z.string().optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),

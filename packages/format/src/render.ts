@@ -317,11 +317,21 @@ function defaultHeading(theme: BookTheme, chapter: RenderChapter): string {
   return `<header class="chapter-heading">${ornament}${number}<h1 class="chapter-title">${esc(chapter.title)}</h1>${subtitle}</header>`;
 }
 
+// Strip any dash/tilde the author may have typed before an attribution name —
+// renderers prepend "— " themselves, so the stored value should be a plain name.
+const ATTRIBUTION_PREFIX_RE = /^\s*[-‐-―~]+\s*/;
+export function cleanAttribution(attr?: string | null): string | undefined {
+  if (!attr) return undefined;
+  const cleaned = attr.replace(ATTRIBUTION_PREFIX_RE, '');
+  return cleaned || undefined;
+}
+
 /** Shared opening-quote block (epigraph that opens a chapter/section). */
 function openingQuoteHtml(quote?: string | null, attr?: string | null): string {
   if (!quote) return '';
+  const cleanAttr = cleanAttribution(attr);
   return `<div class="chapter-opening-quote">${esc(quote)}${
-    attr ? `<div class="attr">— ${esc(attr)}</div>` : ''
+    cleanAttr ? `<div class="attr">— ${esc(cleanAttr)}</div>` : ''
   }</div>`;
 }
 
@@ -428,7 +438,7 @@ function renderCopyright(meta: BookMeta, el: BookElement, watermark: boolean): s
 
 function renderEpigraph(el: BookElement): string {
   const style = dataStr(el.data, 'style') ?? 'centered';
-  const attribution = dataStr(el.data, 'attribution');
+  const attribution = cleanAttribution(dataStr(el.data, 'attribution'));
   return `<section class="frontmatter epigraph eg-${esc(style)}">
   <div class="epigraph-inner">
     <div class="epigraph-quote">${tiptapToHtml(el.content)}</div>

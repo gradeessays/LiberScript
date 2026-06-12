@@ -1,3 +1,4 @@
+import { isAdminEmail } from '@liberscript/core';
 import { protectedProcedure, router } from '../trpc';
 
 export const accountRouter = router({
@@ -19,6 +20,7 @@ export const accountRouter = router({
         email: ctx.user.email,
         image: ctx.user.image ?? null,
       },
+      isAdmin: isAdminEmail(ctx.user.email),
       activeOrganizationId: ctx.activeOrganizationId,
       activeRole,
       organizations: memberships.map((m) => ({

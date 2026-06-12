@@ -65,6 +65,12 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             >
               Design &amp; preview
             </Link>
+            <Link
+              href={`/projects/${id}/metadata`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              KDP Metadata
+            </Link>
             <Link href={`/projects/${id}/edit`} className={buttonVariants({ size: 'sm' })}>
               Open editor
             </Link>

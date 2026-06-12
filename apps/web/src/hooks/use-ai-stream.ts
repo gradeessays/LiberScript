@@ -5,12 +5,16 @@ import { useState, useCallback } from 'react';
 interface StreamParams {
   projectId: string;
   chapterId?: string;
-  mode: 'continue' | 'chapter' | 'outline' | 'rewrite' | 'ai-critique';
+  mode: 'continue' | 'chapter' | 'outline' | 'rewrite' | 'ai-critique' | 'kdp-metadata';
   prompt: string;
   context?: string;
   selection?: string;
   bookTitle?: string;
   bookGenre?: string;
+  /** Genre-filtered BISAC categories the model may choose from (kdp-metadata mode). */
+  categoryOptions?: { code: string; label: string }[];
+  /** Style profile to adopt. Falls back to the project's saved style profile. */
+  styleProfileId?: string;
 }
 
 interface StreamState {

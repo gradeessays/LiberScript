@@ -1,7 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
-import { AppError, ErrorCode, MemberRole } from '@liberscript/core';
+import { AppError, ErrorCode, MemberRole, isAdminEmail } from '@liberscript/core';
 import { asRole, hasAtLeast } from '@liberscript/auth/rbac';
 import type { Context } from './context';
 
@@ -92,6 +92,14 @@ export const orgProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   }
   const role = asRole(membership.role) ?? MemberRole.VIEWER;
   return next({ ctx: { ...ctx, organizationId: ctx.activeOrganizationId, role } });
+});
+
+/** Requires the caller's email to be in the `ADMIN_EMAILS` allowlist. */
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (!isAdminEmail(ctx.user.email)) {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required.' });
+  }
+  return next({ ctx });
 });
 
 /**

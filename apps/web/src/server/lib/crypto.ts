@@ -33,3 +33,13 @@ export function decryptApiKey(ciphertext: string, iv: string, authTag: string): 
     decipher.final(),
   ]).toString('utf8');
 }
+
+/** Encrypts an arbitrary JSON-serializable value (e.g. a payment provider's secrets blob). */
+export function encryptJson(value: unknown): { ciphertext: string; iv: string; authTag: string } {
+  return encryptApiKey(JSON.stringify(value));
+}
+
+/** Decrypts a value previously encrypted with {@link encryptJson}. */
+export function decryptJson<T>(ciphertext: string, iv: string, authTag: string): T {
+  return JSON.parse(decryptApiKey(ciphertext, iv, authTag)) as T;
+}

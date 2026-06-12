@@ -7,3 +7,6 @@ export * from './text';
 export * from './tiptap';
 export * from './book';
 export * from './copyright';
+export * from './admin';
+export * from './bisac';
+export * from './payment-providers';

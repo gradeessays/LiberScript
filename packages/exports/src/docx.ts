@@ -12,7 +12,7 @@ import {
 } from 'docx';
 import { ChapterKind, KIND_LABELS, generateCopyright, type BookGenre } from '@liberscript/core';
 import type { TiptapNode } from '@liberscript/core';
-import { applyTypography, getTheme } from '@liberscript/format';
+import { applyTypography, cleanAttribution, getTheme } from '@liberscript/format';
 import type { ExportBook, ExportElement } from './types';
 
 const HEADING = [
@@ -95,10 +95,19 @@ function dataStr(el: ExportElement, key: string): string | undefined {
   return typeof v === 'string' && v.trim() ? v : undefined;
 }
 
-function elementParagraphs(el: ExportElement, book: ExportBook): Paragraph[] {
+// Sections that always start on a fresh page, regardless of the
+// "chapters start on a new page" setting (mirrors the print PDF's
+// `psec--norc` rule for copyright/epigraph/dedication).
+const ALWAYS_NEW_PAGE_KINDS: ChapterKind[] = [ChapterKind.EPIGRAPH, ChapterKind.DEDICATION];
+
+function elementParagraphs(el: ExportElement, book: ExportBook, isFirst: boolean): Paragraph[] {
   const label = KIND_LABELS[el.kind as keyof typeof KIND_LABELS] ?? 'Section';
-  const heading = (text: string) =>
-    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(text)], pageBreakBefore: true });
+  const heading = (text: string) => new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(text)] });
+  // A dedicated leading paragraph is the most reliable way to force a page
+  // break across Word/LibreOffice/Google Docs — putting `pageBreakBefore` on
+  // the heading paragraph itself can leave a stray blank page when combined
+  // with another break-bearing paragraph immediately before it.
+  const pageBreak = () => new Paragraph({ pageBreakBefore: true, children: [new TextRun('')] });
 
   switch (el.kind) {
     case ChapterKind.TOC:
@@ -134,7 +143,7 @@ function elementParagraphs(el: ExportElement, book: ExportBook): Paragraph[] {
       if (book.watermark) lines.push('Made with Liberscript');
       const alignment = dataStr(el, 'align') === 'left' ? AlignmentType.LEFT : AlignmentType.CENTER;
       return [
-        new Paragraph({ pageBreakBefore: true, children: [new TextRun('')] }),
+        ...(isFirst ? [] : [pageBreak()]),
         ...lines.map((l) => new Paragraph({ alignment, children: [new TextRun({ text: l, size: 18 })] })),
       ];
     }
@@ -144,7 +153,7 @@ function elementParagraphs(el: ExportElement, book: ExportBook): Paragraph[] {
         ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: el.subtitle, italics: true })] })]
         : [];
       const oq = dataStr(el, 'openingQuote');
-      const oqAttr = dataStr(el, 'openingQuoteAttribution');
+      const oqAttr = cleanAttribution(dataStr(el, 'openingQuoteAttribution'));
       const quote = oq
         ? [
             new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 60 }, children: [new TextRun({ text: oq, italics: true })] }),
@@ -153,7 +162,15 @@ function elementParagraphs(el: ExportElement, book: ExportBook): Paragraph[] {
               : []),
           ]
         : [];
-      return [heading(title), ...subtitle, ...quote, ...contentParagraphs(el.content)];
+      const newPage =
+        book.typography?.chaptersNewPage !== false || ALWAYS_NEW_PAGE_KINDS.includes(el.kind as ChapterKind);
+      return [
+        ...(!isFirst && newPage ? [pageBreak()] : []),
+        heading(title),
+        ...subtitle,
+        ...quote,
+        ...contentParagraphs(el.content),
+      ];
     }
   }
 }
@@ -161,7 +178,7 @@ function elementParagraphs(el: ExportElement, book: ExportBook): Paragraph[] {
 /** Build a .docx file (returns the bytes), formatted to the chosen size & design. */
 export async function buildDocx(book: ExportBook): Promise<Uint8Array> {
   const theme = applyTypography(getTheme(book.themeKey), book.typography);
-  const children = book.elements.flatMap((el) => elementParagraphs(el, book));
+  const children = book.elements.flatMap((el, i) => elementParagraphs(el, book, i === 0));
   const t = book.typography;
   const pageNumbers = t?.pageNumbers !== false;
   const runningHeaders = t?.runningHeaders !== false;

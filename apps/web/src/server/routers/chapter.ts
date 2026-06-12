@@ -324,10 +324,30 @@ export const chapterRouter = router({
       z.object({
         projectId: z.string(),
         chapters: z.array(z.object({ title: z.string().min(1).max(300) })).min(1).max(40),
+        /** Adopt this style profile's voice for the project going forward. */
+        styleProfileId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await requireProjectAccess(ctx, input.projectId, MemberRole.EDITOR);
+      const project = await requireProjectAccess(ctx, input.projectId, MemberRole.EDITOR);
+
+      if (input.styleProfileId) {
+        const styleProfile = await ctx.prisma.styleProfile.findUnique({
+          where: { id: input.styleProfileId },
+        });
+        if (
+          !styleProfile ||
+          styleProfile.ownerType !== project.ownerType ||
+          styleProfile.ownerId !== project.ownerId
+        ) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Style profile not found.' });
+        }
+        await ctx.prisma.project.update({
+          where: { id: input.projectId },
+          data: { styleProfileId: input.styleProfileId },
+        });
+      }
+
       return withDbRetry(async () => {
         const manuscript = await ctx.prisma.manuscript.upsert({
           where: { projectId: input.projectId },

@@ -33,6 +33,7 @@ export {
   renderChapter,
   renderFrontMatter,
   renderBookDocument,
+  cleanAttribution,
   TITLE_PAGE_LAYOUTS,
   SUBTITLE_STYLES,
   type TitlePageLayout,

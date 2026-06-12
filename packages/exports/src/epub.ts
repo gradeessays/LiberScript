@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { tiptapToHtml, applyTypography, getTheme, type BookTheme } from '@liberscript/format';
+import { tiptapToHtml, applyTypography, cleanAttribution, getTheme, type BookTheme } from '@liberscript/format';
 import { ChapterKind, KIND_LABELS, generateCopyright, type BookGenre } from '@liberscript/core';
 import type { ExportBook, ExportElement } from './types';
 
@@ -116,7 +116,7 @@ function elementToPage(el: ExportElement, index: number, book: ExportBook): Page
       };
     }
     case ChapterKind.EPIGRAPH: {
-      const attribution = dataStr(el, 'attribution');
+      const attribution = cleanAttribution(dataStr(el, 'attribution'));
       return {
         id,
         fileName,
@@ -129,7 +129,7 @@ function elementToPage(el: ExportElement, index: number, book: ExportBook): Page
       return { id, fileName, title: 'Dedication', inToc: false, body: `<section class="dedication">${body}</section>` };
     default: {
       const oq = dataStr(el, 'openingQuote');
-      const oqAttr = dataStr(el, 'openingQuoteAttribution');
+      const oqAttr = cleanAttribution(dataStr(el, 'openingQuoteAttribution'));
       const quote = oq
         ? `<div class="opening-quote">${esc(oq)}${oqAttr ? `<p class="attribution">— ${esc(oqAttr)}</p>` : ''}</div>`
         : '';

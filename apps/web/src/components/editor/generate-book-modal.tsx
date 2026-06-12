@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button, cn } from '@liberscript/ui';
 import { BookGenre } from '@liberscript/core';
 import { trpc } from '@/lib/trpc/client';
@@ -37,6 +38,10 @@ const TONE_OPTIONS = ['Professional', 'Conversational', 'Literary', 'Suspenseful
 
 export function GenerateBookModal({ projectId, projectTitle, onCreated, onClose }: Props) {
   const utils = trpc.useUtils();
+  const status = trpc.ai.status.useQuery();
+  const styleProfiles = trpc.styleProfile.list.useQuery(undefined, {
+    enabled: status.data?.enabled ?? false,
+  });
   const createFromOutline = trpc.chapter.createFromOutline.useMutation({
     onSuccess: () => {
       void utils.project.get.invalidate({ id: projectId });
@@ -50,6 +55,7 @@ export function GenerateBookModal({ projectId, projectTitle, onCreated, onClose 
   const [genre, setGenre] = useState<string>(BookGenre.FICTION);
   const [tone, setTone] = useState('');
   const [chapterCount, setChapterCount] = useState(12);
+  const [styleProfileId, setStyleProfileId] = useState('');
   const [step, setStep] = useState<'form' | 'outline'>('form');
   const [outline, setOutline] = useState<Outline | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -67,7 +73,14 @@ export function GenerateBookModal({ projectId, projectTitle, onCreated, onClose 
     ]
       .filter(Boolean)
       .join('\n');
-    await run({ projectId, mode: 'outline', prompt, bookTitle: projectTitle, bookGenre: genre });
+    await run({
+      projectId,
+      mode: 'outline',
+      prompt,
+      bookTitle: projectTitle,
+      bookGenre: genre,
+      styleProfileId: styleProfileId || undefined,
+    });
   }
 
   // Parse the accumulated outline JSON once streaming finishes
@@ -96,6 +109,7 @@ export function GenerateBookModal({ projectId, projectTitle, onCreated, onClose 
     createFromOutline.mutate({
       projectId,
       chapters: outline.chapters.map((c) => ({ title: c.title })),
+      styleProfileId: styleProfileId || undefined,
     });
   }
 
@@ -171,6 +185,32 @@ export function GenerateBookModal({ projectId, projectTitle, onCreated, onClose 
                   ))}
                 </div>
               </div>
+
+              {(styleProfiles.data?.length ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Match the style of (optional)</label>
+                  <select
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={styleProfileId}
+                    onChange={(e) => setStyleProfileId(e.target.value)}
+                  >
+                    <option value="">None</option>
+                    {styleProfiles.data?.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Adopts the tone, voice, and pacing of this profile for the outline and all
+                    future writing in this project. Manage profiles in{' '}
+                    <Link href="/settings/style-profiles" className="underline" target="_blank">
+                      Settings → Style Profiles
+                    </Link>
+                    .
+                  </p>
+                </div>
+              )}
             </>
           )}
 

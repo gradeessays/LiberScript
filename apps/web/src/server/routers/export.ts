@@ -24,7 +24,7 @@ export const exportRouter = router({
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectAccess(ctx, input.projectId);
       const owner = { ownerType: project.ownerType, ownerId: project.ownerId };
-      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId);
+      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId, ctx.user.email);
 
       const coreFormat = FORMAT_TO_CORE[input.format] ?? null;
       if (coreFormat !== null && limits.exportFormats !== null) {

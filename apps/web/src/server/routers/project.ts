@@ -48,7 +48,7 @@ export const projectRouter = router({
     .input(z.object({ title: z.string().min(1).max(200) }))
     .mutation(async ({ ctx, input }) => {
       const owner = await requireCreateAccess(ctx);
-      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId);
+      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId, ctx.user.email);
       if (limits.projects !== null) {
         const count = await ctx.prisma.project.count({
           where: { ownerType: owner.ownerType, ownerId: owner.ownerId, archivedAt: null },

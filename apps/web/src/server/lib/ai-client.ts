@@ -20,6 +20,22 @@ const DEFAULT_MODELS: Record<AiProvider, string> = {
 };
 
 /**
+ * Drains `streamAiText` into a single string. For server-side, non-streaming
+ * use cases (e.g. style-profile extraction, KDP metadata generation as JSON).
+ */
+export async function generateAiText(params: AiStreamParams): Promise<string> {
+  const stream = streamAiText(params);
+  const reader = stream.getReader();
+  let out = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    out += value;
+  }
+  return out;
+}
+
+/**
  * Returns a ReadableStream that emits text chunks from the chosen AI provider.
  * All providers are normalized to the same streaming interface so callers don't
  * need to know which SDK is in use.

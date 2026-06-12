@@ -56,6 +56,14 @@ export const AiProvider = {
 } as const;
 export type AiProvider = (typeof AiProvider)[keyof typeof AiProvider];
 
+/** Payment providers available for subscription billing, admin-configured. */
+export const PaymentProvider = {
+  STRIPE: 'STRIPE',
+  PAYPAL: 'PAYPAL',
+  PAYSTACK: 'PAYSTACK',
+} as const;
+export type PaymentProvider = (typeof PaymentProvider)[keyof typeof PaymentProvider];
+
 /** Output formats the export engine can produce. */
 export const ExportFormat = {
   EPUB: 'EPUB',

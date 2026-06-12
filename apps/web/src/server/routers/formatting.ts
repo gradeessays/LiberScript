@@ -44,7 +44,7 @@ export const formattingRouter = router({
       ]);
 
       const fmt = (full.formatting ?? {}) as Formatting;
-      const limits = await resolvePlanLimits(ctx.prisma, project.ownerType, project.ownerId);
+      const limits = await resolvePlanLimits(ctx.prisma, project.ownerType, project.ownerId, ctx.user.email);
       const logoUrl = fmt.logoStorageKey
         ? await presignDownload({ key: fmt.logoStorageKey, fileName: 'logo' })
         : undefined;

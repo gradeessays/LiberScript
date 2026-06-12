@@ -9,6 +9,10 @@ import { coverRouter } from './cover';
 import { exportRouter } from './export';
 import { analysisRouter } from './analysis';
 import { aiRouter } from './ai';
+import { adminRouter } from './admin';
+import { styleProfileRouter } from './style-profile';
+import { metadataRouter } from './metadata';
+import { billingRouter } from './billing';
 
 export const appRouter = router({
   health: healthRouter,
@@ -21,6 +25,10 @@ export const appRouter = router({
   export: exportRouter,
   analysis: analysisRouter,
   ai: aiRouter,
+  admin: adminRouter,
+  styleProfile: styleProfileRouter,
+  metadata: metadataRouter,
+  billing: billingRouter,
 });
 
 export type AppRouter = typeof appRouter;

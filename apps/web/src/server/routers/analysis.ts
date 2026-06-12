@@ -56,7 +56,7 @@ export const analysisRouter = router({
     .input(z.object({ projectId: z.string(), focusAreas: z.string().max(500).optional() }))
     .mutation(async ({ ctx, input }) => {
       const owner = currentOwner(ctx);
-      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId);
+      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId, ctx.user.email);
       if (!limits.aiEnabled) {
         throw planLimitExceeded('AI critique requires a Pro or Team plan.');
       }

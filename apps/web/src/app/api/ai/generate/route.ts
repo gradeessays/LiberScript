@@ -6,6 +6,7 @@ import { AiProvider, OwnerType } from '@liberscript/core';
 import { resolvePlanLimits } from '@/server/lib/plan';
 import { decryptApiKey } from '@/server/lib/crypto';
 import { streamAiText } from '@/server/lib/ai-client';
+import { buildKdpMetadataPrompt, buildStyleGuideBlock } from '@/server/lib/ai-prompts';
 
 const bodySchema = z.object({
   projectId: z.string(),
@@ -21,8 +22,9 @@ const bodySchema = z.object({
    * outline   — produce a JSON book outline (title, chapters[])
    * rewrite   — rewrite the provided `selection` text
    * ai-critique — editorial analysis of the full manuscript
+   * kdp-metadata — back-cover description, keywords, and BISAC categories
    */
-  mode: z.enum(['continue', 'chapter', 'outline', 'rewrite', 'ai-critique']),
+  mode: z.enum(['continue', 'chapter', 'outline', 'rewrite', 'ai-critique', 'kdp-metadata']),
   /** User's instruction / topic description. */
   prompt: z.string().max(4000),
   /** Existing chapter text — provided in continue/rewrite/ai-critique modes. */
@@ -32,6 +34,10 @@ const bodySchema = z.object({
   /** Book-level metadata for better context. */
   bookTitle: z.string().optional(),
   bookGenre: z.string().optional(),
+  /** Genre-filtered BISAC categories the model may choose from (kdp-metadata mode). */
+  categoryOptions: z.array(z.object({ code: z.string(), label: z.string() })).optional(),
+  /** Style profile to adopt. Falls back to the project's saved style profile. */
+  styleProfileId: z.string().optional(),
 });
 
 function buildSystemPrompt(
@@ -81,7 +87,7 @@ export async function POST(req: NextRequest) {
   const ownerId = activeOrgId ?? userId;
 
   // Plan gate
-  const limits = await resolvePlanLimits(prisma, ownerType, ownerId);
+  const limits = await resolvePlanLimits(prisma, ownerType, ownerId, session.user.email);
   if (!limits.aiEnabled) {
     return new Response('AI features require a Pro or Team plan.', { status: 403 });
   }
@@ -89,10 +95,23 @@ export async function POST(req: NextRequest) {
   // Verify project access
   const project = await prisma.project.findUnique({
     where: { id: body.projectId },
-    select: { id: true, ownerType: true, ownerId: true, title: true },
+    select: { id: true, ownerType: true, ownerId: true, title: true, styleProfileId: true },
   });
   if (!project || project.ownerType !== ownerType || project.ownerId !== ownerId) {
     return new Response('Project not found.', { status: 404 });
+  }
+
+  // Resolve the style guide to adopt (request override, falling back to the
+  // project's saved style profile), scoped to the caller's owner.
+  let styleGuideBlock: string | null = null;
+  const effectiveStyleProfileId = body.styleProfileId ?? project.styleProfileId ?? null;
+  if (effectiveStyleProfileId) {
+    const styleProfile = await prisma.styleProfile.findUnique({
+      where: { id: effectiveStyleProfileId },
+    });
+    if (styleProfile && styleProfile.ownerType === ownerType && styleProfile.ownerId === ownerId) {
+      styleGuideBlock = buildStyleGuideBlock(styleProfile.summary);
+    }
   }
 
   // Resolve API key
@@ -116,47 +135,61 @@ export async function POST(req: NextRequest) {
   }
 
   // Build prompts
-  const systemPrompt = buildSystemPrompt(
-    body.mode,
-    body.bookTitle ?? project.title,
-    body.bookGenre,
-  );
-
+  let systemPrompt: string;
   let userPrompt: string;
-  switch (body.mode) {
-    case 'continue':
-      userPrompt = [
-        body.context ? `Current chapter so far:\n\n${body.context}` : null,
-        body.prompt ? `Author's note: ${body.prompt}` : null,
-        'Continue writing from here.',
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      break;
-    case 'chapter':
-      userPrompt = body.prompt;
-      break;
-    case 'outline':
-      userPrompt = body.prompt;
-      break;
-    case 'rewrite':
-      userPrompt = [
-        body.selection ? `Text to rewrite:\n\n${body.selection}` : null,
-        `Instructions: ${body.prompt}`,
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      break;
-    case 'ai-critique':
-      userPrompt = [
-        body.context ? `Manuscript:\n\n${body.context}` : null,
-        body.prompt ? `Focus areas: ${body.prompt}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      break;
-    default:
-      userPrompt = body.prompt;
+
+  if (body.mode === 'kdp-metadata') {
+    const built = buildKdpMetadataPrompt({
+      bookTitle: body.bookTitle ?? project.title,
+      bookGenre: body.bookGenre,
+      context: body.context,
+      prompt: body.prompt,
+      categoryOptions: body.categoryOptions,
+    });
+    systemPrompt = built.systemPrompt;
+    userPrompt = built.userPrompt;
+  } else {
+    systemPrompt = buildSystemPrompt(body.mode, body.bookTitle ?? project.title, body.bookGenre);
+
+    switch (body.mode) {
+      case 'continue':
+        userPrompt = [
+          body.context ? `Current chapter so far:\n\n${body.context}` : null,
+          body.prompt ? `Author's note: ${body.prompt}` : null,
+          'Continue writing from here.',
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        break;
+      case 'chapter':
+        userPrompt = body.prompt;
+        break;
+      case 'outline':
+        userPrompt = body.prompt;
+        break;
+      case 'rewrite':
+        userPrompt = [
+          body.selection ? `Text to rewrite:\n\n${body.selection}` : null,
+          `Instructions: ${body.prompt}`,
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        break;
+      case 'ai-critique':
+        userPrompt = [
+          body.context ? `Manuscript:\n\n${body.context}` : null,
+          body.prompt ? `Focus areas: ${body.prompt}` : null,
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        break;
+      default:
+        userPrompt = body.prompt;
+    }
+  }
+
+  if (styleGuideBlock) {
+    systemPrompt = `${styleGuideBlock}\n\n${systemPrompt}`;
   }
 
   // Stream response

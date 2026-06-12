@@ -69,6 +69,19 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
   // Tracks whether the user has manually edited author/publisher in this session.
   const userEditedRef = useRef(false);
   const listId = useId();
+  // Discrete switches (style pickers, theme, checkboxes, view toggles) should
+  // reflect in the preview immediately; sliders/typing stay debounced below to
+  // avoid thrashing the preview iframe on every drag tick / keystroke.
+  const previewImmediateRef = useRef(false);
+  function markImmediate() {
+    previewImmediateRef.current = true;
+  }
+  function withImmediate<A extends unknown[]>(fn: (...args: A) => void) {
+    return (...args: A) => {
+      previewImmediateRef.current = true;
+      fn(...args);
+    };
+  }
 
   const suggestions = trpc.project.authorSuggestions.useQuery();
 
@@ -125,7 +138,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
       })),
     });
   }, [preview.data, themeKey, target, printMode, readingMode, publisher, author, typo]);
-  const debouncedHtml = useDebouncedValue(html, 350);
+  const debouncedHtml = useDebouncedValue(html, 350, previewImmediateRef);
 
   async function onLogoFile(file: File) {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png';
@@ -215,11 +228,11 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
         {embedded && (
           <PreviewPane
             target={target}
-            setTarget={setTarget}
+            setTarget={withImmediate(setTarget)}
             printMode={printMode}
-            setPrintMode={setPrintMode}
+            setPrintMode={withImmediate(setPrintMode)}
             readingMode={readingMode}
-            setReadingMode={setReadingMode}
+            setReadingMode={withImmediate(setReadingMode)}
             device={device}
             setDevice={setDevice}
             html={debouncedHtml}
@@ -285,7 +298,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
                 return (
                   <button
                     key={t.key}
-                    onClick={() => setThemeKey(t.key)}
+                    onClick={() => { markImmediate(); setThemeKey(t.key); }}
                     className={cn(
                       'rounded-md border p-2 text-left text-xs',
                       themeKey === t.key ? 'border-primary ring-1 ring-primary' : 'hover:bg-accent',
@@ -310,7 +323,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
             <select
               className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
               value={typo.trimKey ?? ''}
-              onChange={(e) => setT({ trimKey: e.target.value || undefined })}
+              onChange={(e) => { markImmediate(); setT({ trimKey: e.target.value || undefined }); }}
             >
               <option value="">Theme default</option>
               {KDP_TRIM_SIZES.map((t) => (
@@ -360,7 +373,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
             <select
               className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
               value={typo.chapterStyleKey ?? ''}
-              onChange={(e) => setT({ chapterStyleKey: e.target.value || undefined })}
+              onChange={(e) => { markImmediate(); setT({ chapterStyleKey: e.target.value || undefined }); }}
             >
               <option value="">Theme default</option>
               {CHAPTER_STYLES.map((s) => (
@@ -383,7 +396,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               <select
                 className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
                 value={typo.openingQuoteStyleKey ?? 'centered'}
-                onChange={(e) => setT({ openingQuoteStyleKey: e.target.value })}
+                onChange={(e) => { markImmediate(); setT({ openingQuoteStyleKey: e.target.value }); }}
               >
                 {OPENING_QUOTE_STYLES.map((s) => (
                   <option key={s.key} value={s.key}>
@@ -397,7 +410,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               <select
                 className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
                 value={typo.blockQuoteStyleKey ?? 'left-rule'}
-                onChange={(e) => setT({ blockQuoteStyleKey: e.target.value })}
+                onChange={(e) => { markImmediate(); setT({ blockQuoteStyleKey: e.target.value }); }}
               >
                 {BLOCKQUOTE_STYLES.map((s) => (
                   <option key={s.key} value={s.key}>
@@ -415,7 +428,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               <input
                 type="checkbox"
                 checked={typo.chaptersNewPage ?? true}
-                onChange={(e) => setT({ chaptersNewPage: e.target.checked })}
+                onChange={(e) => { markImmediate(); setT({ chaptersNewPage: e.target.checked }); }}
               />
               Each chapter / section starts on a new page
             </label>
@@ -424,7 +437,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
                 type="checkbox"
                 disabled={typo.chaptersNewPage === false}
                 checked={typo.sectionsRecto ?? false}
-                onChange={(e) => setT({ sectionsRecto: e.target.checked })}
+                onChange={(e) => { markImmediate(); setT({ sectionsRecto: e.target.checked }); }}
               />
               Start on a right-hand (odd) page
             </label>
@@ -466,7 +479,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               <input
                 type="checkbox"
                 checked={typo.pageNumbers ?? true}
-                onChange={(e) => setT({ pageNumbers: e.target.checked })}
+                onChange={(e) => { markImmediate(); setT({ pageNumbers: e.target.checked }); }}
               />
               Show page numbers
             </label>
@@ -474,7 +487,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               <select
                 className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
                 value={typo.pageNumberPlacement ?? 'bottom-center'}
-                onChange={(e) => setT({ pageNumberPlacement: e.target.value as typeof typo.pageNumberPlacement })}
+                onChange={(e) => { markImmediate(); setT({ pageNumberPlacement: e.target.value as typeof typo.pageNumberPlacement }); }}
               >
                 <option value="bottom-center">Bottom — centered</option>
                 <option value="bottom-outer">Bottom — outer corner</option>
@@ -485,7 +498,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               <input
                 type="checkbox"
                 checked={typo.runningHeaders ?? true}
-                onChange={(e) => setT({ runningHeaders: e.target.checked })}
+                onChange={(e) => { markImmediate(); setT({ runningHeaders: e.target.checked }); }}
               />
               Running headers
             </label>
@@ -495,14 +508,14 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
                   <Label className="text-[11px]">Left (even) pages</Label>
                   <HeaderSelect
                     value={typo.headerVersoContent ?? 'bookTitle'}
-                    onChange={(v) => setT({ headerVersoContent: v })}
+                    onChange={(v) => { markImmediate(); setT({ headerVersoContent: v }); }}
                   />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px]">Right (odd) pages</Label>
                   <HeaderSelect
                     value={typo.headerRectoContent ?? 'chapterTitle'}
-                    onChange={(v) => setT({ headerRectoContent: v })}
+                    onChange={(v) => { markImmediate(); setT({ headerRectoContent: v }); }}
                   />
                 </div>
               </div>
@@ -522,7 +535,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
                 <select
                   className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
                   value={typo.bodyFontKey ?? ''}
-                  onChange={(e) => setT({ bodyFontKey: e.target.value || undefined })}
+                  onChange={(e) => { markImmediate(); setT({ bodyFontKey: e.target.value || undefined }); }}
                 >
                   <option value="">Theme</option>
                   {FONT_OPTIONS.map((f) => (
@@ -537,7 +550,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
                 <select
                   className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
                   value={typo.headingFontKey ?? ''}
-                  onChange={(e) => setT({ headingFontKey: e.target.value || undefined })}
+                  onChange={(e) => { markImmediate(); setT({ headingFontKey: e.target.value || undefined }); }}
                 >
                   <option value="">Theme</option>
                   {FONT_OPTIONS.map((f) => (
@@ -585,7 +598,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               <input
                 type="checkbox"
                 checked={typo.blockParagraphs ?? false}
-                onChange={(e) => setT({ blockParagraphs: e.target.checked })}
+                onChange={(e) => { markImmediate(); setT({ blockParagraphs: e.target.checked }); }}
               />
               Block paragraphs (no indent)
             </label>
@@ -596,7 +609,7 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               <select
                 className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
                 value={typo.subtitleStyleKey ?? 'italic'}
-                onChange={(e) => setT({ subtitleStyleKey: e.target.value })}
+                onChange={(e) => { markImmediate(); setT({ subtitleStyleKey: e.target.value }); }}
               >
                 {SUBTITLE_STYLES.map((s) => (
                   <option key={s.key} value={s.key}>{s.name}</option>
@@ -682,11 +695,11 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
         {!embedded && (
           <PreviewPane
             target={target}
-            setTarget={setTarget}
+            setTarget={withImmediate(setTarget)}
             printMode={printMode}
-            setPrintMode={setPrintMode}
+            setPrintMode={withImmediate(setPrintMode)}
             readingMode={readingMode}
-            setReadingMode={setReadingMode}
+            setReadingMode={withImmediate(setReadingMode)}
             device={device}
             setDevice={setDevice}
             html={debouncedHtml}

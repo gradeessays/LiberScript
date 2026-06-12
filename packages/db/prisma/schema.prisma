@@ -66,6 +66,12 @@ enum AiProvider {
   OPENROUTER
 }
 
+enum PaymentProvider {
+  STRIPE
+  PAYPAL
+  PAYSTACK
+}
+
 enum ExportFormat {
   EPUB
   PDF
@@ -133,6 +139,7 @@ model User {
   apiKeys      ApiKey[]
   auditLogs    AuditLog[]
   projects     Project[]    @relation("ProjectCreatedBy")
+  styleProfiles StyleProfile[] @relation("StyleProfileCreatedBy")
 
   @@map("user")
 }
@@ -235,19 +242,42 @@ model Invitation {
 // ───────────────────────────── Billing ─────────────────────────────
 
 model Subscription {
-  id                   String             @id @default(cuid())
-  ownerType            OwnerType
-  ownerId              String
-  tier                 PlanTier           @default(FREE)
-  status               SubscriptionStatus @default(ACTIVE)
-  stripeCustomerId     String?            @unique
-  stripeSubscriptionId String?            @unique
-  currentPeriodEnd     DateTime?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                     String             @id @default(cuid())
+  ownerType              OwnerType
+  ownerId                String
+  tier                   PlanTier           @default(FREE)
+  status                 SubscriptionStatus @default(ACTIVE)
+  provider               PaymentProvider?
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  providerPlanId         String?
+  // Provider-specific extras (e.g. Paystack's emailToken, needed for /subscription/disable).
+  providerData           Json?
+  currentPeriodEnd       DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
   @@unique([ownerType, ownerId])
+  @@unique([provider, providerCustomerId])
+  @@unique([provider, providerSubscriptionId])
   @@map("subscription")
+}
+
+// Admin-managed payment provider credentials/config. Platform-level (not
+// owner-scoped) — one row per provider. Secrets are AES-256-GCM encrypted as
+// a single JSON blob (e.g. {secretKey, webhookSecret}); `config` holds
+// non-secret fields (publishable keys, mode, plan/price ID maps).
+model PaymentProviderConfig {
+  id         String          @id @default(cuid())
+  provider   PaymentProvider @unique
+  enabled    Boolean         @default(false)
+  ciphertext String?
+  iv         String?
+  authTag    String?
+  config     Json?
+  updatedAt  DateTime        @updatedAt
+
+  @@map("payment_provider_config")
 }
 
 model UsageRecord {
@@ -282,6 +312,9 @@ model Project {
   ownerId     String
   createdById String
   createdBy   User      @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  // The "voice" this project's AI generation should match (series/brand style).
+  styleProfileId String?
+  styleProfile    StyleProfile? @relation(fields: [styleProfileId], references: [id], onDelete: SetNull)
   archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -294,6 +327,7 @@ model Project {
 
   @@unique([ownerType, ownerId, slug])
   @@index([ownerType, ownerId])
+  @@index([styleProfileId])
   @@map("project")
 }
 
@@ -497,6 +531,27 @@ model ApiKey {
 
   @@index([ownerType, ownerId])
   @@map("api_key")
+}
+
+// A reusable "voice" library entry: AI-extracted tone/style summary from a
+// previously-written book, adoptable by any project owned by the same
+// user/team (e.g. for series consistency).
+model StyleProfile {
+  id          String    @id @default(cuid())
+  ownerType   OwnerType
+  ownerId     String
+  createdById String
+  createdBy   User      @relation("StyleProfileCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  name        String
+  // AI-extracted: { tone, voice, pacing, vocabulary, themes: string[], styleNotes }
+  summary     Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projects Project[]
+
+  @@index([ownerType, ownerId])
+  @@map("style_profile")
 }
 
 // ─────────────────────────── Files & audit ───────────────────────────

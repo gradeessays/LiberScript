@@ -75,6 +75,13 @@ const SUBTITLE_KINDS: ChapterKind[] = [...OPENING_QUOTE_KINDS, ChapterKind.PART]
 // Kinds where the big title line doesn't apply (their heading is fixed/none).
 const NO_TITLE_KINDS: ChapterKind[] = [ChapterKind.EPIGRAPH, ChapterKind.DEDICATION];
 
+// The renderer/exporter automatically prefix attributions with "— ", so strip
+// any dash/tilde the author types so the stored value stays a plain name.
+const ATTRIBUTION_PREFIX_RE = /^\s*[-‐-―~]+\s*/;
+function normalizeAttribution(raw: string): string {
+  return raw.replace(ATTRIBUTION_PREFIX_RE, '');
+}
+
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const utils = trpc.useUtils();
@@ -226,9 +233,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
   function saveOpening(quote: string, attr: string) {
     if (!selectedId) return;
+    const cleanAttr = normalizeAttribution(attr);
+    if (cleanAttr !== attr) setOpeningAttr(cleanAttr);
     updateData.mutate({
       id: selectedId,
-      data: { ...data, openingQuote: quote || undefined, openingQuoteAttribution: attr || undefined },
+      data: { ...data, openingQuote: quote || undefined, openingQuoteAttribution: cleanAttr || undefined },
     });
   }
 
@@ -570,7 +579,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                           onChange={(e) => setOpeningAttr(e.target.value)}
                           onBlur={() => saveOpening(openingQuote, openingAttr)}
                           className="w-full bg-transparent text-center text-xs uppercase tracking-wide text-muted-foreground outline-none placeholder:text-muted-foreground/40"
-                          placeholder="— Attribution (optional)"
+                          placeholder="Attribution (optional)"
                         />
                       </>
                     )}
@@ -587,9 +596,12 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                           <Label>Attribution</Label>
                           <Input
                             defaultValue={(data.attribution as string) ?? ''}
-                            onBlur={(e) =>
-                              updateData.mutate({ id: selectedId, data: { ...data, attribution: e.target.value } })
-                            }
+                            placeholder="Attribution (optional)"
+                            onBlur={(e) => {
+                              const cleanAttr = normalizeAttribution(e.target.value);
+                              e.target.value = cleanAttr;
+                              updateData.mutate({ id: selectedId, data: { ...data, attribution: cleanAttr || undefined } });
+                            }}
                           />
                         </div>
                         <div className="space-y-1">

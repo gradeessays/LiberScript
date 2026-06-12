@@ -27,7 +27,7 @@ export const aiRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const owner = currentOwner(ctx);
-      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId);
+      const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId, ctx.user.email);
       if (!limits.aiEnabled) {
         throw planLimitExceeded('AI features require a Pro or Team plan.');
       }
@@ -78,7 +78,7 @@ export const aiRouter = router({
    */
   status: protectedProcedure.query(async ({ ctx }) => {
     const owner = currentOwner(ctx);
-    const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId);
+    const limits = await resolvePlanLimits(ctx.prisma, owner.ownerType, owner.ownerId, ctx.user.email);
     if (!limits.aiEnabled) return { enabled: false as const, hasKey: false, keys: [] as { provider: string }[] };
     const keys = await ctx.prisma.apiKey.findMany({
       where: { ownerType: owner.ownerType, ownerId: owner.ownerId },
