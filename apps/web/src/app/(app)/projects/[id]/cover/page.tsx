@@ -74,8 +74,17 @@ export default function CoverPage({ params }: { params: Promise<{ id: string }> 
   const bgInput = useRef<HTMLInputElement>(null);
 
   const [cover, setCover] = useState<CoverState>({ paper: 'white', pageCount: 200, trimKey: '6x9' });
+  // Seed local cover state from the server exactly once (first load of this
+  // mount). Image uploads and "Use color" each call `update.mutateAsync` and
+  // invalidate this query — re-running this on every refetch would overwrite
+  // any in-progress, unsaved tweaks (colors, spine/back text, trim, paper…)
+  // with the last-saved server values, making the preview appear to revert.
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (query.data) setCover((c) => ({ ...c, ...(query.data.cover as CoverState) }));
+    if (query.data && !initializedRef.current) {
+      initializedRef.current = true;
+      setCover((c) => ({ ...c, ...(query.data.cover as CoverState) }));
+    }
   }, [query.data]);
 
   const update = trpc.cover.update.useMutation({

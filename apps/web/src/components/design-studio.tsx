@@ -85,8 +85,16 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
 
   const suggestions = trpc.project.authorSuggestions.useQuery();
 
+  // Seed local design state from the server exactly once (first load of this
+  // mount). `previewData` refetches after every autosave (author/publisher,
+  // logo upload, "Save design") — re-running this on each refetch would
+  // overwrite any in-progress, unsaved tweaks (theme, chapter style, layout,
+  // typography, etc.) with the last-saved server values, making the preview
+  // appear to silently revert.
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (preview.data) {
+    if (preview.data && !initializedRef.current) {
+      initializedRef.current = true;
       userEditedRef.current = false;
       setThemeKey(preview.data.themeKey);
       setPublisher(preview.data.meta.publisherName ?? '');

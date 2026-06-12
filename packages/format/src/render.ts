@@ -453,7 +453,7 @@ function renderToc(entries: TocEntry[]): string {
   const items = entries
     .map(
       (e) =>
-        `<li${e.front ? ' data-front="1"' : ''}><a${e.href ? ` href="${e.href}"` : ''}><span class="toc-t">${esc(e.title)}</span></a></li>`,
+        `<li data-front="${e.front ? '1' : '0'}"><a${e.href ? ` href="${e.href}"` : ''}><span class="toc-t">${esc(e.title)}</span></a></li>`,
     )
     .join('');
   return `<section class="frontmatter toc"><h1>Contents</h1><ol>${items}</ol></section>`;
@@ -738,9 +738,13 @@ export function renderBookDocument(input: RenderBookInput): string {
 /* Blank pages inserted by paged.js for recto starts: counted in the sequence but
    printed as completely blank (no header, no folio) — standard book convention. */
 @page :blank { ${blankAll} }
-/* TOC page-number style: roman for front-matter entries, arabic for body/back */
-.book .toc li[data-front] a::after { content: target-counter(attr(href), page, lower-roman); font-variant-numeric: tabular-nums; }
-.book .toc li:not([data-front]) a::after { content: target-counter(attr(href), page); font-variant-numeric: tabular-nums; }
+/* TOC page-number style: roman for front-matter entries, arabic for body/back.
+   Selectors avoid :not() — paged.js's target-counter selector splitter (split on
+   /::?/g) misparses ":not([data-front])" as an extra pseudo segment, which makes
+   it query <li> elements (no href) instead of <a>, so the counter never resolves
+   and the page number renders as "0". */
+.book .toc li[data-front="1"] a::after { content: target-counter(attr(href), page, lower-roman); font-variant-numeric: tabular-nums; }
+.book .toc li[data-front="0"] a::after { content: target-counter(attr(href), page); font-variant-numeric: tabular-nums; }
 ${elements.map((_, i) => `#sec${i} { page: s${i}; }`).join('\n')}
 ${elements.map((el, i) => {
   const kind = el.kind as ChapterKind;

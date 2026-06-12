@@ -104,8 +104,16 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     { enabled: Boolean(selectedId) && !isTempId(selectedId) },
   );
 
+  // Also invalidate the Preview tab's data so title/subtitle/opening-quote/
+  // attribution/section-type/order changes made here show up immediately
+  // when switching to Preview, instead of waiting out previewData's 30s
+  // staleTime.
   const refresh = () =>
-    Promise.all([utils.project.get.invalidate({ id }), utils.chapter.get.invalidate()]);
+    Promise.all([
+      utils.project.get.invalidate({ id }),
+      utils.chapter.get.invalidate(),
+      utils.formatting.previewData.invalidate({ projectId: id }),
+    ]);
   // Worker parsing is async; refresh on a widening schedule so new sections
   // appear live even when the worker is cold or the file is large.
   const refreshSoon = () => {
