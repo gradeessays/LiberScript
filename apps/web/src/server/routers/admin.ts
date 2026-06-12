@@ -1,8 +1,16 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { OwnerType, PAYMENT_PROVIDERS, PaymentProvider } from '@liberscript/core';
 import { type Prisma, SubscriptionStatus } from '@liberscript/db';
 import { adminProcedure, router } from '../trpc';
 import { decryptJson, encryptJson } from '../lib/crypto';
+
+function cryptoError(err: unknown): never {
+  throw new TRPCError({
+    code: 'INTERNAL_SERVER_ERROR',
+    message: err instanceof Error ? err.message : 'Encryption error — check server logs.',
+  });
+}
 
 export const adminRouter = router({
   /** Headline counts for the admin dashboard. */
@@ -133,7 +141,11 @@ export const adminRouter = router({
       const def = PAYMENT_PROVIDERS[provider];
       let secrets: Record<string, string> = {};
       if (row?.ciphertext && row.iv && row.authTag) {
-        secrets = decryptJson<Record<string, string>>(row.ciphertext, row.iv, row.authTag);
+        try {
+          secrets = decryptJson<Record<string, string>>(row.ciphertext, row.iv, row.authTag);
+        } catch (err) {
+          cryptoError(err);
+        }
       }
       const secretFieldsSet: Record<string, boolean> = {};
       for (const field of def.secretFields) secretFieldsSet[field.key] = Boolean(secrets[field.key]);
@@ -161,12 +173,21 @@ export const adminRouter = router({
       const existing = await ctx.prisma.paymentProviderConfig.findUnique({ where: { provider: input.provider } });
       let mergedSecrets: Record<string, string> = {};
       if (existing?.ciphertext && existing.iv && existing.authTag) {
-        mergedSecrets = decryptJson<Record<string, string>>(existing.ciphertext, existing.iv, existing.authTag);
+        try {
+          mergedSecrets = decryptJson<Record<string, string>>(existing.ciphertext, existing.iv, existing.authTag);
+        } catch (err) {
+          cryptoError(err);
+        }
       }
       for (const [key, value] of Object.entries(input.secrets)) {
         if (value) mergedSecrets[key] = value;
       }
-      const { ciphertext, iv, authTag } = encryptJson(mergedSecrets);
+      let ciphertext: string, iv: string, authTag: string;
+      try {
+        ({ ciphertext, iv, authTag } = encryptJson(mergedSecrets));
+      } catch (err) {
+        cryptoError(err);
+      }
 
       await ctx.prisma.paymentProviderConfig.upsert({
         where: { provider: input.provider },
