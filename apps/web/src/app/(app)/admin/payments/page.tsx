@@ -12,14 +12,23 @@ import {
   Input,
   Label,
 } from '@liberscript/ui';
-import { PAYMENT_PROVIDERS, PLAN_FIELD_KEYS, type PaymentProvider, type PlanFieldKey } from '@liberscript/core';
+import {
+  PAYMENT_PROVIDERS,
+  PLAN_FIELD_KEYS,
+  PLAN_PRICING,
+  PlanInterval,
+  type PaymentProvider,
+  type PlanFieldKey,
+} from '@liberscript/core';
 import { trpc } from '@/lib/trpc/client';
 
+function formatPrice(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
 const PLAN_FIELD_LABELS: Record<PlanFieldKey, string> = {
-  proMonthly: 'Pro — Monthly',
-  proAnnual: 'Pro — Annual',
-  teamMonthly: 'Team — Monthly',
-  teamAnnual: 'Team — Annual',
+  month: `Monthly (${formatPrice(PLAN_PRICING[PlanInterval.MONTH].amountCents)}/mo)`,
+  year: `Annual (${formatPrice(PLAN_PRICING[PlanInterval.YEAR].amountCents)}/yr)`,
 };
 
 interface ProviderData {
@@ -159,19 +168,25 @@ function ProviderCard({ data, onSaved }: { data: ProviderData; onSaved: () => vo
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium">Plans ({def.planLabel})</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {PLAN_FIELD_KEYS.map((key) => (
-              <Input
-                key={key}
-                placeholder={PLAN_FIELD_LABELS[key]}
-                value={plans[key] ?? ''}
-                onChange={(e) => setPlans((p) => ({ ...p, [key]: e.target.value }))}
-              />
-            ))}
+        {def.planLabel && (
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Plans ({def.planLabel})</p>
+            <p className="text-xs text-muted-foreground">
+              Day and Week passes are charged automatically — no plan ID needed. Monthly and Annual require a{' '}
+              {def.planLabel.toLowerCase()} from your {def.label} dashboard.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {PLAN_FIELD_KEYS.map((key) => (
+                <Input
+                  key={key}
+                  placeholder={PLAN_FIELD_LABELS[key]}
+                  value={plans[key] ?? ''}
+                  onChange={(e) => setPlans((p) => ({ ...p, [key]: e.target.value }))}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
       <CardFooter className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={save.isPending}>

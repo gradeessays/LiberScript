@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@liberscript/ui';
+import { Button, buttonVariants, Card, CardContent, CardHeader, CardTitle, Input } from '@liberscript/ui';
 import { trpc } from '@/lib/trpc/client';
 import { DashboardUpload } from '@/components/dashboard-upload';
 
@@ -17,11 +18,32 @@ function relativeDate(d: Date | string): string {
   return new Date(d).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 }
 
+/** Shown whenever the workspace has no active plan and can't create books yet. */
+function ChoosePlanCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Choose a plan to start your first book</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Every plan unlocks unlimited books, all export formats, and the full toolkit — pick whatever fits how you
+          write.
+        </p>
+        <Link href="/settings/billing" className={buttonVariants({ size: 'sm' })}>
+          View plans
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
 /** All-books library. Replaces the old redirect-to-latest behaviour. */
 export default function DashboardPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
   const projects = trpc.project.list.useQuery();
+  const sub = trpc.billing.getSubscription.useQuery();
   const [title, setTitle] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -48,46 +70,58 @@ export default function DashboardPage() {
   }
 
   const list = projects.data ?? [];
+  const hasAccess = sub.data ? sub.data.limits.projects === null : true;
+  const planLimitHit = create.error?.data?.appCode === 'PLAN_LIMIT_EXCEEDED';
 
   return (
     <div className="space-y-6">
       {/* Header row */}
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Your books</h1>
-        <form
-          className="flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            create.mutate({ title: title.trim() || 'Untitled book' });
-          }}
-        >
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="New book title…"
-            maxLength={200}
-            className="w-52"
-          />
-          <Button type="submit" size="sm" disabled={create.isPending}>
-            {create.isPending ? 'Creating…' : '+ New book'}
-          </Button>
-        </form>
+        {hasAccess ? (
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              create.mutate({ title: title.trim() || 'Untitled book' });
+            }}
+          >
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="New book title…"
+              maxLength={200}
+              className="w-52"
+            />
+            <Button type="submit" size="sm" disabled={create.isPending}>
+              {create.isPending ? 'Creating…' : '+ New book'}
+            </Button>
+          </form>
+        ) : (
+          <Link href="/settings/billing" className={buttonVariants({ size: 'sm' })}>
+            Choose a plan
+          </Link>
+        )}
       </div>
 
-      {create.error && (
+      {create.error && !planLimitHit && (
         <p className="text-sm text-destructive">{create.error.message}</p>
       )}
 
+      {(!hasAccess || planLimitHit) && <ChoosePlanCard />}
+
       {/* Book grid */}
       {list.length === 0 ? (
-        <div className="space-y-6 py-8 text-center">
-          <p className="text-muted-foreground">
-            You haven&apos;t created any books yet. Start from scratch or import a manuscript below.
-          </p>
-          <div className="mx-auto max-w-sm">
-            <DashboardUpload />
+        hasAccess && (
+          <div className="space-y-6 py-8 text-center">
+            <p className="text-muted-foreground">
+              You haven&apos;t created any books yet. Start from scratch or import a manuscript below.
+            </p>
+            <div className="mx-auto max-w-sm">
+              <DashboardUpload />
+            </div>
           </div>
-        </div>
+        )
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -190,10 +224,12 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick upload at the bottom */}
-          <div className="border-t pt-6">
-            <p className="mb-3 text-sm font-medium text-muted-foreground">Import a manuscript</p>
-            <DashboardUpload />
-          </div>
+          {hasAccess && (
+            <div className="border-t pt-6">
+              <p className="mb-3 text-sm font-medium text-muted-foreground">Import a manuscript</p>
+              <DashboardUpload />
+            </div>
+          )}
         </>
       )}
     </div>

@@ -2,9 +2,10 @@ import { generateExportPayload } from '@liberscript/jobs';
 import { prisma, type ExportFormat } from '@liberscript/db';
 import { getObjectBuffer, putObjectBuffer } from '@liberscript/storage';
 import {
+  ACTIVE_PLAN_LIMITS,
+  hasActivePlanAccess,
   KDP_TRIM_SIZES,
-  PLAN_LIMITS,
-  PlanTier,
+  NO_ACCESS_LIMITS,
   slugify,
   type TypographyOverrides,
 } from '@liberscript/core';
@@ -77,7 +78,7 @@ export async function handleGenerateExport(data: unknown): Promise<{ storageKey:
     const sub = await prisma.subscription.findUnique({
       where: { ownerType_ownerId: { ownerType: project.ownerType, ownerId: project.ownerId } },
     });
-    const watermark = !PLAN_LIMITS[(sub?.tier as PlanTier) ?? PlanTier.FREE].removeWatermark;
+    const watermark = !(hasActivePlanAccess(sub) ? ACTIVE_PLAN_LIMITS : NO_ACCESS_LIMITS).removeWatermark;
     const formatting = (project.formatting ?? {}) as {
       author?: string;
       publisherName?: string;

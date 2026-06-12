@@ -1,13 +1,13 @@
 import crypto from 'node:crypto';
 import { type NextRequest, NextResponse } from 'next/server';
-import { OwnerType, PaymentProvider, PlanTier } from '@liberscript/core';
+import { OwnerType, PaymentProvider, PLAN_PRICING, PlanInterval } from '@liberscript/core';
 import { prisma, SubscriptionStatus, type Subscription } from '@liberscript/db';
-import { getPaymentProviderConfig, tierForPlanId, type PaymentConfigRow } from '@/server/lib/payments';
+import { getPaymentProviderConfig } from '@/server/lib/payments';
 
 interface PaystackWebhookEvent {
   event: string;
   data: {
-    metadata?: { ownerType?: string; ownerId?: string; tier?: string; interval?: string };
+    metadata?: { ownerType?: string; ownerId?: string; interval?: string };
     customer?: { customer_code?: string };
     subscription_code?: string;
     email_token?: string;
@@ -16,6 +16,10 @@ interface PaystackWebhookEvent {
     period_end?: string;
     subscription?: { subscription_code?: string };
   };
+}
+
+function isPlanInterval(value: string | undefined): value is PlanInterval {
+  return Boolean(value) && Object.values(PlanInterval).includes(value as PlanInterval);
 }
 
 /** Verifies the `x-paystack-signature` header (HMAC-SHA512 of the raw body). */
@@ -55,29 +59,58 @@ async function findSubscription(input: {
   return null;
 }
 
-/** First successful charge for a checkout: links our owner to the Paystack customer. */
+/** First successful charge for a checkout: links our owner to the Paystack customer + activates their plan. */
 async function handleChargeSuccess(data: PaystackWebhookEvent['data']) {
   const { metadata } = data;
-  if (!metadata?.ownerType || !metadata.ownerId || !metadata.tier) return;
+  if (!metadata?.ownerType || !metadata.ownerId || !isPlanInterval(metadata.interval)) return;
   if (metadata.ownerType !== OwnerType.USER && metadata.ownerType !== OwnerType.ORGANIZATION) return;
 
   const ownerType = metadata.ownerType;
   const ownerId = metadata.ownerId;
-  const tier = metadata.tier as PlanTier;
+  const interval = metadata.interval;
   const customerCode = data.customer?.customer_code;
+  const pricing = PLAN_PRICING[interval];
 
+  if (!pricing.recurring) {
+    // One-time Day/Week pass: activate immediately for its fixed duration.
+    const currentPeriodEnd = new Date(Date.now() + (pricing.durationDays ?? 0) * 24 * 60 * 60 * 1000);
+    await prisma.subscription.upsert({
+      where: { ownerType_ownerId: { ownerType, ownerId } },
+      create: {
+        ownerType,
+        ownerId,
+        interval,
+        status: SubscriptionStatus.ACTIVE,
+        provider: PaymentProvider.PAYSTACK,
+        providerCustomerId: customerCode ?? null,
+        providerSubscriptionId: null,
+        currentPeriodEnd,
+      },
+      update: {
+        interval,
+        status: SubscriptionStatus.ACTIVE,
+        provider: PaymentProvider.PAYSTACK,
+        providerSubscriptionId: null,
+        currentPeriodEnd,
+        ...(customerCode ? { providerCustomerId: customerCode } : {}),
+      },
+    });
+    return;
+  }
+
+  // Recurring Month/Year: currentPeriodEnd is filled in by the subscription.create event.
   await prisma.subscription.upsert({
     where: { ownerType_ownerId: { ownerType, ownerId } },
     create: {
       ownerType,
       ownerId,
-      tier,
+      interval,
       status: SubscriptionStatus.ACTIVE,
       provider: PaymentProvider.PAYSTACK,
       providerCustomerId: customerCode ?? null,
     },
     update: {
-      tier,
+      interval,
       status: SubscriptionStatus.ACTIVE,
       provider: PaymentProvider.PAYSTACK,
       ...(customerCode ? { providerCustomerId: customerCode } : {}),
@@ -86,7 +119,7 @@ async function handleChargeSuccess(data: PaystackWebhookEvent['data']) {
 }
 
 /** Subscription provisioned: store the subscription code + email token for cancellation. */
-async function handleSubscriptionCreate(data: PaystackWebhookEvent['data'], cfg: PaymentConfigRow) {
+async function handleSubscriptionCreate(data: PaystackWebhookEvent['data']) {
   const customerCode = data.customer?.customer_code;
   if (!customerCode) return;
 
@@ -98,7 +131,6 @@ async function handleSubscriptionCreate(data: PaystackWebhookEvent['data'], cfg:
   if (!sub) return;
 
   const planCode = data.plan?.plan_code;
-  const tierInfo = tierForPlanId(cfg, planCode);
 
   await prisma.subscription.update({
     where: { id: sub.id },
@@ -107,7 +139,6 @@ async function handleSubscriptionCreate(data: PaystackWebhookEvent['data'], cfg:
       ...(data.subscription_code ? { providerSubscriptionId: data.subscription_code } : {}),
       ...(data.email_token ? { providerData: { emailToken: data.email_token } } : {}),
       ...(planCode ? { providerPlanId: planCode } : {}),
-      ...(tierInfo ? { tier: tierInfo.tier } : {}),
       ...(data.next_payment_date ? { currentPeriodEnd: new Date(data.next_payment_date) } : {}),
     },
   });
@@ -133,7 +164,7 @@ async function handleInvoiceUpdate(data: PaystackWebhookEvent['data'], status: S
 }
 
 /** Subscription cancelled (immediately) or set to not renew (at period end). */
-async function handleSubscriptionDisable(data: PaystackWebhookEvent['data'], downgradeNow: boolean) {
+async function handleSubscriptionDisable(data: PaystackWebhookEvent['data']) {
   const sub = await findSubscription({
     subscriptionCode: data.subscription_code,
     customerCode: data.customer?.customer_code,
@@ -142,10 +173,7 @@ async function handleSubscriptionDisable(data: PaystackWebhookEvent['data'], dow
 
   await prisma.subscription.update({
     where: { id: sub.id },
-    data: {
-      status: SubscriptionStatus.CANCELED,
-      ...(downgradeNow ? { tier: PlanTier.FREE } : {}),
-    },
+    data: { status: SubscriptionStatus.CANCELED },
   });
 }
 
@@ -174,7 +202,7 @@ export async function POST(req: NextRequest) {
         await handleChargeSuccess(event.data);
         break;
       case 'subscription.create':
-        await handleSubscriptionCreate(event.data, cfg);
+        await handleSubscriptionCreate(event.data);
         break;
       case 'invoice.update':
         await handleInvoiceUpdate(event.data, SubscriptionStatus.ACTIVE);
@@ -183,10 +211,8 @@ export async function POST(req: NextRequest) {
         await handleInvoiceUpdate(event.data, SubscriptionStatus.PAST_DUE);
         break;
       case 'subscription.disable':
-        await handleSubscriptionDisable(event.data, true);
-        break;
       case 'subscription.not_renew':
-        await handleSubscriptionDisable(event.data, false);
+        await handleSubscriptionDisable(event.data);
         break;
       default:
         break;

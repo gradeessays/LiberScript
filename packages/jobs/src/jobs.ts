@@ -10,6 +10,7 @@ export const JobName = {
   RUN_ANALYSIS: 'run-analysis',
   GENERATE_EXPORT: 'generate-export',
   GENERATE_AI_METADATA: 'generate-ai-metadata',
+  CLEANUP_EXPIRED: 'cleanup-expired',
 } as const;
 export type JobName = (typeof JobName)[keyof typeof JobName];
 
@@ -42,6 +43,8 @@ export const generateAiMetadataPayload = z.object({
   kind: z.enum(['blurb', 'keywords', 'categories', 'title']),
 });
 
+export const cleanupExpiredPayload = z.object({}).default({});
+
 /** Map each job name to its payload schema. */
 export const jobPayloadSchemas = {
   [JobName.PING]: pingPayload,
@@ -49,6 +52,7 @@ export const jobPayloadSchemas = {
   [JobName.RUN_ANALYSIS]: runAnalysisPayload,
   [JobName.GENERATE_EXPORT]: generateExportPayload,
   [JobName.GENERATE_AI_METADATA]: generateAiMetadataPayload,
+  [JobName.CLEANUP_EXPIRED]: cleanupExpiredPayload,
 } as const;
 
 export type JobPayloadMap = {

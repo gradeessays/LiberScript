@@ -1,6 +1,6 @@
 import { parseManuscriptPayload } from '@liberscript/jobs';
 import { applyChapterOrder, prisma, type ChapterKind, type Prisma } from '@liberscript/db';
-import { getObjectBuffer } from '@liberscript/storage';
+import { deleteObject, getObjectBuffer } from '@liberscript/storage';
 import { chapterText, chapterToDoc, countWords, parseManuscript } from '@liberscript/analysis';
 import { groupOfKind } from '@liberscript/core';
 import { logger } from '../logger';
@@ -111,6 +111,14 @@ export async function handleParseManuscript(data: unknown): Promise<{ chapters: 
     },
     { timeout: 30000, maxWait: 15000 },
   );
+
+  // We only keep extracted chapter content — drop the source upload to save storage.
+  try {
+    await deleteObject(asset.storageKey);
+    await prisma.asset.delete({ where: { id: assetId } });
+  } catch (err) {
+    logger.warn({ err, assetId }, 'failed to clean up manuscript upload');
+  }
 
   return { chapters: parsed.chapters.length };
 }

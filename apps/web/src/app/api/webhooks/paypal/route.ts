@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { OwnerType, PaymentProvider, PlanTier } from '@liberscript/core';
+import { OwnerType, PaymentProvider, PLAN_PRICING, PlanInterval } from '@liberscript/core';
 import { prisma, SubscriptionStatus } from '@liberscript/db';
 import { getPaymentProviderConfig, verifyPayPalWebhookSignature } from '@/server/lib/payments';
 
@@ -14,21 +14,25 @@ interface PayPalWebhookEvent {
   };
 }
 
+function isPlanInterval(value: string | undefined): value is PlanInterval {
+  return Boolean(value) && Object.values(PlanInterval).includes(value as PlanInterval);
+}
+
 /** Subscription approved + activated: links our owner to the PayPal subscription. */
 async function handleSubscriptionActivated(resource: PayPalWebhookEvent['resource']) {
   if (!resource.custom_id || !resource.id) return;
-  let custom: { ownerType?: string; ownerId?: string; tier?: string };
+  let custom: { ownerType?: string; ownerId?: string; interval?: string };
   try {
-    custom = JSON.parse(resource.custom_id) as { ownerType?: string; ownerId?: string; tier?: string };
+    custom = JSON.parse(resource.custom_id) as { ownerType?: string; ownerId?: string; interval?: string };
   } catch {
     return;
   }
-  if (!custom.ownerType || !custom.ownerId || !custom.tier) return;
+  if (!custom.ownerType || !custom.ownerId || !isPlanInterval(custom.interval)) return;
   if (custom.ownerType !== OwnerType.USER && custom.ownerType !== OwnerType.ORGANIZATION) return;
 
   const ownerType = custom.ownerType;
   const ownerId = custom.ownerId;
-  const tier = custom.tier as PlanTier;
+  const interval = custom.interval;
   const subscriptionId = resource.id;
 
   await prisma.subscription.upsert({
@@ -36,7 +40,7 @@ async function handleSubscriptionActivated(resource: PayPalWebhookEvent['resourc
     create: {
       ownerType,
       ownerId,
-      tier,
+      interval,
       status: SubscriptionStatus.ACTIVE,
       provider: PaymentProvider.PAYPAL,
       providerCustomerId: resource.subscriber?.payer_id ?? null,
@@ -44,7 +48,7 @@ async function handleSubscriptionActivated(resource: PayPalWebhookEvent['resourc
       providerPlanId: resource.plan_id ?? null,
     },
     update: {
-      tier,
+      interval,
       status: SubscriptionStatus.ACTIVE,
       provider: PaymentProvider.PAYPAL,
       providerSubscriptionId: subscriptionId,
@@ -71,7 +75,7 @@ async function handleSubscriptionUpdated(resource: PayPalWebhookEvent['resource'
   });
 }
 
-/** Subscription cancelled (downgrade now) or suspended (mark past due, keep tier). */
+/** Subscription cancelled (revoke now) or suspended (mark past due, keep access until expiry). */
 async function handleSubscriptionEnded(resource: PayPalWebhookEvent['resource'], downgradeNow: boolean) {
   if (!resource.id) return;
   const sub = await prisma.subscription.findUnique({
@@ -83,9 +87,49 @@ async function handleSubscriptionEnded(resource: PayPalWebhookEvent['resource'],
 
   await prisma.subscription.update({
     where: { id: sub.id },
-    data: {
-      status: downgradeNow ? SubscriptionStatus.CANCELED : SubscriptionStatus.PAST_DUE,
-      ...(downgradeNow ? { tier: PlanTier.FREE } : {}),
+    data: { status: downgradeNow ? SubscriptionStatus.CANCELED : SubscriptionStatus.PAST_DUE },
+  });
+}
+
+/**
+ * One-time Day/Week pass captured via the Orders v2 flow. This is an
+ * idempotent backup to the client-driven `billing.capturePaypalOrder`
+ * mutation — both upsert the same row from the same `custom_id`.
+ */
+async function handlePaymentCaptureCompleted(resource: PayPalWebhookEvent['resource']) {
+  if (!resource.custom_id) return;
+  let custom: { ownerType?: string; ownerId?: string; interval?: string };
+  try {
+    custom = JSON.parse(resource.custom_id) as { ownerType?: string; ownerId?: string; interval?: string };
+  } catch {
+    return;
+  }
+  if (!custom.ownerType || !custom.ownerId || !isPlanInterval(custom.interval)) return;
+  if (custom.ownerType !== OwnerType.USER && custom.ownerType !== OwnerType.ORGANIZATION) return;
+
+  const ownerType = custom.ownerType;
+  const ownerId = custom.ownerId;
+  const interval = custom.interval;
+  const pricing = PLAN_PRICING[interval];
+  const currentPeriodEnd = new Date(Date.now() + (pricing.durationDays ?? 0) * 24 * 60 * 60 * 1000);
+
+  await prisma.subscription.upsert({
+    where: { ownerType_ownerId: { ownerType, ownerId } },
+    create: {
+      ownerType,
+      ownerId,
+      interval,
+      status: SubscriptionStatus.ACTIVE,
+      provider: PaymentProvider.PAYPAL,
+      providerSubscriptionId: null,
+      currentPeriodEnd,
+    },
+    update: {
+      interval,
+      status: SubscriptionStatus.ACTIVE,
+      provider: PaymentProvider.PAYPAL,
+      providerSubscriptionId: null,
+      currentPeriodEnd,
     },
   });
 }
@@ -132,6 +176,9 @@ export async function POST(req: NextRequest) {
         break;
       case 'BILLING.SUBSCRIPTION.SUSPENDED':
         await handleSubscriptionEnded(event.resource, false);
+        break;
+      case 'PAYMENT.CAPTURE.COMPLETED':
+        await handlePaymentCaptureCompleted(event.resource);
         break;
       default:
         break;

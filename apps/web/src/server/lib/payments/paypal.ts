@@ -1,5 +1,6 @@
+import { PLAN_PRICING, type OwnerType, type PlanInterval } from '@liberscript/core';
 import { planKeyFor, requireSecret } from './config';
-import type { PaymentConfigRow, PaymentProviderClient } from './types';
+import type { CheckoutParams, PaymentConfigRow, PaymentProviderClient } from './types';
 
 const PAYPAL_BASE_URLS: Record<'sandbox' | 'live', string> = {
   sandbox: 'https://api-m.sandbox.paypal.com',
@@ -51,33 +52,69 @@ interface PayPalSubscription {
   links: { rel: string; href: string }[];
 }
 
+interface PayPalOrder {
+  id: string;
+  status: string;
+  links: { rel: string; href: string }[];
+}
+
+async function checkoutRecurring(cfg: PaymentConfigRow, params: CheckoutParams): Promise<{ url: string }> {
+  const plans = (cfg.config.plans as Record<string, string> | undefined) ?? {};
+  const planId = plans[planKeyFor(params.interval)];
+  if (!planId) {
+    throw new Error(`PayPal is not configured for ${params.interval}.`);
+  }
+  const sub = await paypalFetch<PayPalSubscription>(cfg, '/v1/billing/subscriptions', {
+    method: 'POST',
+    body: JSON.stringify({
+      plan_id: planId,
+      subscriber: { email_address: params.email },
+      custom_id: JSON.stringify({
+        ownerType: params.ownerType,
+        ownerId: params.ownerId,
+        interval: params.interval,
+      }),
+      application_context: {
+        return_url: params.successUrl,
+        cancel_url: params.cancelUrl,
+      },
+    }),
+  });
+  const approve = sub.links.find((l) => l.rel === 'approve');
+  if (!approve) throw new Error('PayPal did not return an approval link.');
+  return { url: approve.href };
+}
+
+async function checkoutOneTime(cfg: PaymentConfigRow, params: CheckoutParams): Promise<{ url: string }> {
+  const pricing = PLAN_PRICING[params.interval];
+  const order = await paypalFetch<PayPalOrder>(cfg, '/v2/checkout/orders', {
+    method: 'POST',
+    body: JSON.stringify({
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          amount: { currency_code: 'USD', value: (pricing.amountCents / 100).toFixed(2) },
+          custom_id: JSON.stringify({
+            ownerType: params.ownerType,
+            ownerId: params.ownerId,
+            interval: params.interval,
+          }),
+        },
+      ],
+      application_context: {
+        return_url: params.successUrl,
+        cancel_url: params.cancelUrl,
+      },
+    }),
+  });
+  const approve = order.links.find((l) => l.rel === 'approve');
+  if (!approve) throw new Error('PayPal did not return an approval link.');
+  return { url: approve.href };
+}
+
 export const paypalClient: PaymentProviderClient = {
   async checkout(cfg, params) {
-    const plans = (cfg.config.plans as Record<string, string> | undefined) ?? {};
-    const planId = plans[planKeyFor(params.tier, params.interval)];
-    if (!planId) {
-      throw new Error(`PayPal is not configured for ${params.tier} (${params.interval}).`);
-    }
-    const sub = await paypalFetch<PayPalSubscription>(cfg, '/v1/billing/subscriptions', {
-      method: 'POST',
-      body: JSON.stringify({
-        plan_id: planId,
-        subscriber: { email_address: params.email },
-        custom_id: JSON.stringify({
-          ownerType: params.ownerType,
-          ownerId: params.ownerId,
-          tier: params.tier,
-          interval: params.interval,
-        }),
-        application_context: {
-          return_url: params.successUrl,
-          cancel_url: params.cancelUrl,
-        },
-      }),
-    });
-    const approve = sub.links.find((l) => l.rel === 'approve');
-    if (!approve) throw new Error('PayPal did not return an approval link.');
-    return { url: approve.href };
+    return PLAN_PRICING[params.interval].recurring ? checkoutRecurring(cfg, params) : checkoutOneTime(cfg, params);
   },
 
   // PayPal has no merchant-agnostic "manage subscription" portal link.
@@ -95,6 +132,31 @@ export const paypalClient: PaymentProviderClient = {
     });
   },
 };
+
+interface PayPalCaptureResult {
+  ownerType: OwnerType;
+  ownerId: string;
+  interval: PlanInterval;
+  payerId: string | null;
+}
+
+/** Captures a previously-created one-time Orders v2 order and parses its `custom_id`. */
+export async function capturePaypalOrder(cfg: PaymentConfigRow, orderId: string): Promise<PayPalCaptureResult> {
+  const result = await paypalFetch<{
+    status: string;
+    payer?: { payer_id?: string };
+    purchase_units: { custom_id?: string }[];
+  }>(cfg, `/v2/checkout/orders/${orderId}/capture`, { method: 'POST' });
+  if (result.status !== 'COMPLETED') {
+    throw new Error('PayPal order not completed.');
+  }
+  const customId = result.purchase_units[0]?.custom_id;
+  if (!customId) {
+    throw new Error('PayPal order is missing custom_id.');
+  }
+  const parsed = JSON.parse(customId) as { ownerType: OwnerType; ownerId: string; interval: PlanInterval };
+  return { ...parsed, payerId: result.payer?.payer_id ?? null };
+}
 
 interface PayPalWebhookHeaders {
   authAlgo: string | null;

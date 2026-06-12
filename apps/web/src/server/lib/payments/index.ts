@@ -12,4 +12,4 @@ export const PAYMENT_CLIENTS: Record<PaymentProvider, PaymentProviderClient> = {
 
 export * from './config';
 export * from './types';
-export { verifyPayPalWebhookSignature } from './paypal';
+export { capturePaypalOrder, verifyPayPalWebhookSignature } from './paypal';

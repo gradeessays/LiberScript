@@ -39,13 +39,14 @@ export const InvitationStatus = {
 } as const;
 export type InvitationStatus = (typeof InvitationStatus)[keyof typeof InvitationStatus];
 
-/** Usage-based plan tiers. */
-export const PlanTier = {
-  FREE: 'FREE',
-  PRO: 'PRO',
-  TEAM: 'TEAM',
+/** Billing intervals for the single paid plan. */
+export const PlanInterval = {
+  DAY: 'DAY',
+  WEEK: 'WEEK',
+  MONTH: 'MONTH',
+  YEAR: 'YEAR',
 } as const;
-export type PlanTier = (typeof PlanTier)[keyof typeof PlanTier];
+export type PlanInterval = (typeof PlanInterval)[keyof typeof PlanInterval];
 
 /** Bring-your-own-key AI providers. */
 export const AiProvider = {
@@ -143,41 +144,63 @@ export interface PlanLimits {
   premiumThemes: boolean;
 }
 
-export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
-  FREE: {
-    projects: 3,
-    collaboratorsPerProject: 1,
-    analysisRunsPerMonth: 10,
-    exportsPerMonth: 5,
-    exportFormats: [ExportFormat.PDF],
-    aiEnabled: false,
-    customFonts: false,
-    removeWatermark: false,
-    premiumThemes: false,
-  },
-  PRO: {
-    projects: null,
-    collaboratorsPerProject: 3,
-    analysisRunsPerMonth: 200,
-    exportsPerMonth: null,
-    exportFormats: null,
-    aiEnabled: true,
-    customFonts: true,
-    removeWatermark: true,
-    premiumThemes: true,
-  },
-  TEAM: {
-    projects: null,
-    collaboratorsPerProject: null,
-    analysisRunsPerMonth: null,
-    exportsPerMonth: null,
-    exportFormats: null,
-    aiEnabled: true,
-    customFonts: true,
-    removeWatermark: true,
-    premiumThemes: true,
-  },
+/** Granted to any owner with an active (non-expired) subscription, regardless of interval. */
+export const ACTIVE_PLAN_LIMITS: PlanLimits = {
+  projects: null,
+  collaboratorsPerProject: null,
+  analysisRunsPerMonth: null,
+  exportsPerMonth: null,
+  exportFormats: null,
+  aiEnabled: true,
+  customFonts: true,
+  removeWatermark: true,
+  premiumThemes: true,
 };
+
+/** Applied the instant a subscription lapses or has never existed — no free tier. */
+export const NO_ACCESS_LIMITS: PlanLimits = {
+  projects: 0,
+  collaboratorsPerProject: 0,
+  analysisRunsPerMonth: 0,
+  exportsPerMonth: 0,
+  exportFormats: [],
+  aiEnabled: false,
+  customFonts: false,
+  removeWatermark: false,
+  premiumThemes: false,
+};
+
+/** Pricing for the single paid plan, by billing interval (USD cents). */
+export interface PlanPricing {
+  amountCents: number;
+  /** Recurring (Stripe subscription / PayPal billing plan / Paystack plan) vs one-time pass. */
+  recurring: boolean;
+  /** One-time passes only: how long access lasts after purchase/capture. */
+  durationDays?: number;
+  label: string;
+}
+export const PLAN_PRICING: Record<PlanInterval, PlanPricing> = {
+  DAY: { amountCents: 199, recurring: false, durationDays: 1, label: 'Day pass' },
+  WEEK: { amountCents: 499, recurring: false, durationDays: 7, label: 'Week pass' },
+  MONTH: { amountCents: 999, recurring: true, label: 'Monthly' },
+  YEAR: { amountCents: 9599, recurring: true, label: 'Annual' },
+};
+
+/** Flat daily export cap — fair-use guard now that exportsPerMonth is unlimited. */
+export const FAIR_USE_EXPORTS_PER_DAY = 20;
+
+/**
+ * Whether a subscription currently grants access. Shared by the web app's
+ * `resolvePlanLimits` and the worker's export-watermark check — depends only
+ * on plain fields so it has no Prisma dependency.
+ */
+export function hasActivePlanAccess(
+  sub: { status: string; currentPeriodEnd: Date | null } | null | undefined,
+): boolean {
+  if (!sub) return false;
+  if (sub.status !== 'ACTIVE' && sub.status !== 'TRIALING') return false;
+  return sub.currentPeriodEnd === null || sub.currentPeriodEnd.getTime() > Date.now();
+}
 
 /** Reading-speed constant used by stats (words per minute, adult prose). */
 export const WORDS_PER_MINUTE = 250;

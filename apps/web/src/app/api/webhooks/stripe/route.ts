@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { OwnerType, PaymentProvider, PlanTier } from '@liberscript/core';
+import { OwnerType, PaymentProvider, PLAN_PRICING, PlanInterval } from '@liberscript/core';
 import { prisma, SubscriptionStatus } from '@liberscript/db';
-import { getPaymentProviderConfig, tierForPlanId, type PaymentConfigRow } from '@/server/lib/payments';
+import { getPaymentProviderConfig } from '@/server/lib/payments';
 
 const STRIPE_STATUS_MAP: Record<string, SubscriptionStatus> = {
   active: SubscriptionStatus.ACTIVE,
@@ -14,32 +14,65 @@ const STRIPE_STATUS_MAP: Record<string, SubscriptionStatus> = {
   unpaid: SubscriptionStatus.PAST_DUE,
 };
 
-/** Checkout completed: links our owner to the Stripe customer + subscription. */
+function isPlanInterval(value: string | undefined): value is PlanInterval {
+  return Boolean(value) && Object.values(PlanInterval).includes(value as PlanInterval);
+}
+
+/** Checkout completed: links our owner to the Stripe customer + activates their plan. */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const { metadata } = session;
-  if (!metadata?.ownerType || !metadata.ownerId || !metadata.tier) return;
+  if (!metadata?.ownerType || !metadata.ownerId || !isPlanInterval(metadata.interval)) return;
   if (metadata.ownerType !== OwnerType.USER && metadata.ownerType !== OwnerType.ORGANIZATION) return;
 
   const ownerType = metadata.ownerType;
   const ownerId = metadata.ownerId;
-  const tier = metadata.tier as PlanTier;
+  const interval = metadata.interval;
   const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
   const subscriptionId =
     typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
 
+  if (session.mode === 'payment') {
+    // One-time Day/Week pass: activate immediately for its fixed duration.
+    const pricing = PLAN_PRICING[interval];
+    const currentPeriodEnd = new Date(Date.now() + (pricing.durationDays ?? 0) * 24 * 60 * 60 * 1000);
+    await prisma.subscription.upsert({
+      where: { ownerType_ownerId: { ownerType, ownerId } },
+      create: {
+        ownerType,
+        ownerId,
+        interval,
+        status: SubscriptionStatus.ACTIVE,
+        provider: PaymentProvider.STRIPE,
+        providerCustomerId: customerId ?? null,
+        providerSubscriptionId: null,
+        currentPeriodEnd,
+      },
+      update: {
+        interval,
+        status: SubscriptionStatus.ACTIVE,
+        provider: PaymentProvider.STRIPE,
+        providerSubscriptionId: null,
+        currentPeriodEnd,
+        ...(customerId ? { providerCustomerId: customerId } : {}),
+      },
+    });
+    return;
+  }
+
+  // Recurring Month/Year: currentPeriodEnd is filled in by the subscription.created/updated event.
   await prisma.subscription.upsert({
     where: { ownerType_ownerId: { ownerType, ownerId } },
     create: {
       ownerType,
       ownerId,
-      tier,
+      interval,
       status: SubscriptionStatus.ACTIVE,
       provider: PaymentProvider.STRIPE,
       providerCustomerId: customerId ?? null,
       providerSubscriptionId: subscriptionId ?? null,
     },
     update: {
-      tier,
+      interval,
       status: SubscriptionStatus.ACTIVE,
       provider: PaymentProvider.STRIPE,
       ...(customerId ? { providerCustomerId: customerId } : {}),
@@ -48,8 +81,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   });
 }
 
-/** Subscription changed: keep status, plan/tier, and renewal date in sync. */
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription, cfg: PaymentConfigRow) {
+/** Subscription created/updated: keep status, interval, and renewal date in sync. */
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const sub = await prisma.subscription.findUnique({
     where: {
       provider_providerSubscriptionId: { provider: PaymentProvider.STRIPE, providerSubscriptionId: subscription.id },
@@ -58,22 +91,20 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, cfg:
   if (!sub) return;
 
   const status = STRIPE_STATUS_MAP[subscription.status] ?? SubscriptionStatus.ACTIVE;
-  const priceId = subscription.items.data[0]?.price.id;
-  const tierInfo = tierForPlanId(cfg, priceId);
+  const interval = subscription.metadata?.interval;
   const periodEnd = subscription.current_period_end;
 
   await prisma.subscription.update({
     where: { id: sub.id },
     data: {
       status,
-      ...(priceId ? { providerPlanId: priceId } : {}),
-      ...(tierInfo ? { tier: tierInfo.tier } : {}),
+      ...(isPlanInterval(interval) ? { interval } : {}),
       ...(periodEnd ? { currentPeriodEnd: new Date(periodEnd * 1000) } : {}),
     },
   });
 }
 
-/** Subscription cancelled: downgrade to Free immediately. */
+/** Subscription cancelled: revoke access immediately (starts the deletion grace period). */
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const sub = await prisma.subscription.findUnique({
     where: {
@@ -84,7 +115,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   await prisma.subscription.update({
     where: { id: sub.id },
-    data: { status: SubscriptionStatus.CANCELED, tier: PlanTier.FREE },
+    data: { status: SubscriptionStatus.CANCELED },
   });
 }
 
@@ -132,8 +163,9 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
+      case 'customer.subscription.created':
       case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, cfg);
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
         break;
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);

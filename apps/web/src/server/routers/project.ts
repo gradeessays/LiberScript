@@ -54,10 +54,10 @@ export const projectRouter = router({
           where: { ownerType: owner.ownerType, ownerId: owner.ownerId, archivedAt: null },
         });
         if (count >= limits.projects) {
-          throw planLimitExceeded(
-            `Free plan is limited to ${limits.projects} projects. Upgrade to Pro for unlimited projects.`,
-            { limit: limits.projects, current: count },
-          );
+          throw planLimitExceeded('Choose a plan to start creating your books.', {
+            limit: limits.projects,
+            current: count,
+          });
         }
       }
       const slug = `${slugify(input.title) || 'book'}-${createId('x').slice(2, 8)}`;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OwnerType, PAYMENT_PROVIDERS, PaymentProvider, PlanTier } from '@liberscript/core';
+import { OwnerType, PAYMENT_PROVIDERS, PaymentProvider } from '@liberscript/core';
 import { type Prisma, SubscriptionStatus } from '@liberscript/db';
 import { adminProcedure, router } from '../trpc';
 import { decryptJson, encryptJson } from '../lib/crypto';
@@ -7,15 +7,18 @@ import { decryptJson, encryptJson } from '../lib/crypto';
 export const adminRouter = router({
   /** Headline counts for the admin dashboard. */
   stats: adminProcedure.query(async ({ ctx }) => {
-    const [users, organizations, projects, subscriptions] = await Promise.all([
+    const [users, organizations, projects, activeSubscriptions] = await Promise.all([
       ctx.prisma.user.count(),
       ctx.prisma.organization.count(),
       ctx.prisma.project.count({ where: { archivedAt: null } }),
-      ctx.prisma.subscription.groupBy({ by: ['tier'], _count: { _all: true } }),
+      ctx.prisma.subscription.count({
+        where: {
+          status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+          OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: new Date() } }],
+        },
+      }),
     ]);
-    const tierCounts: Record<PlanTier, number> = { FREE: 0, PRO: 0, TEAM: 0 };
-    for (const row of subscriptions) tierCounts[row.tier as PlanTier] = row._count._all;
-    return { users, organizations, projects, subscriptions: tierCounts };
+    return { users, organizations, projects, activeSubscriptions };
   }),
 
   /** Every personal (User) and team (Organization) owner with its subscription, if any. */
@@ -55,28 +58,67 @@ export const adminRouter = router({
     return [...userOwners, ...orgOwners].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }),
 
-  /** Manually grant/change an owner's plan tier — the safety net alongside Paystack. */
-  setTier: adminProcedure
+  /** Grants (or extends) access for an owner — stacks on top of any remaining time. */
+  grantAccess: adminProcedure
     .input(
       z.object({
         ownerType: z.nativeEnum(OwnerType),
         ownerId: z.string(),
-        tier: z.nativeEnum(PlanTier),
-        status: z.nativeEnum(SubscriptionStatus).optional(),
+        days: z.number().int().positive(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.subscription.findUnique({
+        where: { ownerType_ownerId: { ownerType: input.ownerType, ownerId: input.ownerId } },
+      });
+      const base = Math.max(existing?.currentPeriodEnd?.getTime() ?? 0, Date.now());
+      const currentPeriodEnd = new Date(base + input.days * 24 * 60 * 60 * 1000);
+
       await ctx.prisma.subscription.upsert({
         where: { ownerType_ownerId: { ownerType: input.ownerType, ownerId: input.ownerId } },
         create: {
           ownerType: input.ownerType,
           ownerId: input.ownerId,
-          tier: input.tier,
-          status: input.status ?? SubscriptionStatus.ACTIVE,
+          status: SubscriptionStatus.ACTIVE,
+          currentPeriodEnd,
         },
         update: {
-          tier: input.tier,
-          ...(input.status ? { status: input.status } : {}),
+          status: SubscriptionStatus.ACTIVE,
+          currentPeriodEnd,
+        },
+      });
+
+      await ctx.prisma.auditLog.create({
+        data: {
+          userId: ctx.user.id,
+          action: 'subscription.grant',
+          target: input.ownerId,
+          metadata: { ownerType: input.ownerType, days: input.days },
+        },
+      });
+      return { ok: true };
+    }),
+
+  /** Revokes access immediately — starts the 7-day deletion countdown. */
+  revokeAccess: adminProcedure
+    .input(z.object({ ownerType: z.nativeEnum(OwnerType), ownerId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const sub = await ctx.prisma.subscription.findUnique({
+        where: { ownerType_ownerId: { ownerType: input.ownerType, ownerId: input.ownerId } },
+      });
+      if (!sub) return { ok: true };
+
+      await ctx.prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: SubscriptionStatus.CANCELED, currentPeriodEnd: new Date() },
+      });
+
+      await ctx.prisma.auditLog.create({
+        data: {
+          userId: ctx.user.id,
+          action: 'subscription.revoke',
+          target: input.ownerId,
+          metadata: { ownerType: input.ownerType },
         },
       });
       return { ok: true };

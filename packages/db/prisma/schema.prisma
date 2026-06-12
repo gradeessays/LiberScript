@@ -45,10 +45,11 @@ enum ChapterKind {
   APPENDIX
 }
 
-enum PlanTier {
-  FREE
-  PRO
-  TEAM
+enum PlanInterval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
 }
 
 enum SubscriptionStatus {
@@ -245,7 +246,7 @@ model Subscription {
   id                     String             @id @default(cuid())
   ownerType              OwnerType
   ownerId                String
-  tier                   PlanTier           @default(FREE)
+  interval               PlanInterval?
   status                 SubscriptionStatus @default(ACTIVE)
   provider               PaymentProvider?
   providerCustomerId     String?

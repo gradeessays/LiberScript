@@ -1,9 +1,10 @@
 import { Worker, type Job } from 'bullmq';
-import { getRedisConnection, JobName, QUEUE_NAME } from '@liberscript/jobs';
+import { getQueue, getRedisConnection, JobName, QUEUE_NAME } from '@liberscript/jobs';
 import { logger } from './logger';
 import { handlePing } from './handlers/ping';
 import { handleParseManuscript } from './handlers/parse-manuscript';
 import { handleGenerateExport } from './handlers/generate-export';
+import { handleCleanupExpired } from './handlers/cleanup-expired';
 
 /**
  * The single Liberscript background worker. Routes each job by name to its
@@ -17,6 +18,8 @@ async function processor(job: Job): Promise<unknown> {
       return handleParseManuscript(job.data);
     case JobName.GENERATE_EXPORT:
       return handleGenerateExport(job.data);
+    case JobName.CLEANUP_EXPIRED:
+      return handleCleanupExpired();
     default:
       throw new Error(`No handler registered for job "${job.name}"`);
   }
@@ -33,6 +36,12 @@ worker.on('failed', (job, err) =>
 );
 
 logger.info(`Liberscript worker listening on queue "${QUEUE_NAME}"`);
+
+/** Register recurring jobs (idempotent — BullMQ dedupes by jobId). */
+async function scheduleRecurringJobs() {
+  await getQueue().add(JobName.CLEANUP_EXPIRED, {}, { repeat: { pattern: '0 3 * * *' }, jobId: 'cleanup-expired-daily' });
+}
+void scheduleRecurringJobs().catch((err) => logger.error({ err }, 'failed to schedule recurring jobs'));
 
 async function shutdown(signal: string) {
   logger.info({ signal }, 'shutting down worker');

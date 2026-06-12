@@ -1,8 +1,5 @@
-import type { OwnerType, PlanTier } from '@liberscript/core';
+import type { OwnerType, PlanInterval } from '@liberscript/core';
 import type { Subscription } from '@liberscript/db';
-
-export type BillingInterval = 'monthly' | 'annual';
-export type PaidTier = typeof PlanTier.PRO | typeof PlanTier.TEAM;
 
 /** Decrypted, ready-to-use config for one payment provider. */
 export interface PaymentConfigRow {
@@ -15,8 +12,7 @@ export interface PaymentConfigRow {
 
 export interface CheckoutParams {
   email: string;
-  tier: PaidTier;
-  interval: BillingInterval;
+  interval: PlanInterval;
   ownerType: OwnerType;
   ownerId: string;
   successUrl: string;

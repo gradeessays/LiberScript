@@ -9,8 +9,11 @@ export interface PaymentProviderField {
   options?: { value: string; label: string }[];
 }
 
-/** Plan/price IDs configured per (tier, interval) — same four slots for every provider. */
-export const PLAN_FIELD_KEYS = ['proMonthly', 'proAnnual', 'teamMonthly', 'teamAnnual'] as const;
+/**
+ * Plan/price IDs configured for the two recurring intervals — Day/Week passes
+ * are one-time and never need an admin-configured plan code.
+ */
+export const PLAN_FIELD_KEYS = ['month', 'year'] as const;
 export type PlanFieldKey = (typeof PLAN_FIELD_KEYS)[number];
 
 export interface PaymentProviderDefinition {
@@ -20,8 +23,12 @@ export interface PaymentProviderDefinition {
   secretFields: PaymentProviderField[];
   /** Stored as plaintext JSON (PaymentProviderConfig.config). */
   configFields: PaymentProviderField[];
-  /** Label for the per-(tier,interval) plan/price ID inputs, e.g. "Price ID". */
-  planLabel: string;
+  /**
+   * Label for the per-interval plan/price ID inputs, e.g. "Price ID". `null`
+   * means this provider needs no admin-configured plan codes at all (Stripe —
+   * checkout uses inline price_data for every interval).
+   */
+  planLabel: string | null;
 }
 
 export const PAYMENT_PROVIDERS: Record<PaymentProvider, PaymentProviderDefinition> = {
@@ -33,7 +40,7 @@ export const PAYMENT_PROVIDERS: Record<PaymentProvider, PaymentProviderDefinitio
       { key: 'webhookSecret', label: 'Webhook signing secret', placeholder: 'whsec_...' },
     ],
     configFields: [{ key: 'publishableKey', label: 'Publishable key', placeholder: 'pk_live_...' }],
-    planLabel: 'Price ID',
+    planLabel: null,
   },
   PAYPAL: {
     provider: PaymentProvider.PAYPAL,

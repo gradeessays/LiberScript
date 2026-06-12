@@ -38,11 +38,9 @@ export default function AdminPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pro / Team subs</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active plans</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {s ? s.subscriptions.PRO + s.subscriptions.TEAM : '—'}
-          </CardContent>
+          <CardContent className="text-2xl font-semibold">{s?.activeSubscriptions ?? '—'}</CardContent>
         </Card>
       </div>
 

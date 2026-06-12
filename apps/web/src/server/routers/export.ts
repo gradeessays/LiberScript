@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { enqueue, JobName } from '@liberscript/jobs';
 import { presignDownload } from '@liberscript/storage';
 import type { ExportFormat } from '@liberscript/db';
-import { ExportFormat as EF, planLimitExceeded } from '@liberscript/core';
+import { ExportFormat as EF, FAIR_USE_EXPORTS_PER_DAY, planLimitExceeded } from '@liberscript/core';
 import { protectedProcedure, router } from '../trpc';
 import { requireProjectAccess } from '../lib/ownership';
 import { resolvePlanLimits } from '../lib/plan';
@@ -35,6 +35,14 @@ export const exportRouter = router({
             { format: input.format, allowedFormats: allowed },
           );
         }
+      }
+
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recent = await ctx.prisma.exportJob.count({
+        where: { project: { ownerType: owner.ownerType, ownerId: owner.ownerId }, createdAt: { gte: since } },
+      });
+      if (recent >= FAIR_USE_EXPORTS_PER_DAY) {
+        throw planLimitExceeded(`You've reached today's export limit (${FAIR_USE_EXPORTS_PER_DAY}). Try again tomorrow.`);
       }
 
       const job = await ctx.prisma.exportJob.create({

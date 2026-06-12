@@ -1,3 +1,4 @@
+import { PLAN_PRICING } from '@liberscript/core';
 import { planKeyFor, requireSecret } from './config';
 import type { PaymentProviderClient } from './types';
 
@@ -34,24 +35,31 @@ interface InitializeTransactionResult {
 export const paystackClient: PaymentProviderClient = {
   async checkout(cfg, params) {
     const secretKey = requireSecret(cfg, 'secretKey');
-    const plans = (cfg.config.plans as Record<string, string> | undefined) ?? {};
-    const planCode = plans[planKeyFor(params.tier, params.interval)];
-    if (!planCode) {
-      throw new Error(`Paystack is not configured for ${params.tier} (${params.interval}).`);
+    const pricing = PLAN_PRICING[params.interval];
+    const metadata = {
+      ownerType: params.ownerType,
+      ownerId: params.ownerId,
+      interval: params.interval,
+    };
+    let body: Record<string, unknown>;
+    if (pricing.recurring) {
+      const plans = (cfg.config.plans as Record<string, string> | undefined) ?? {};
+      const planCode = plans[planKeyFor(params.interval)];
+      if (!planCode) {
+        throw new Error(`Paystack is not configured for ${params.interval}.`);
+      }
+      body = { email: params.email, plan: planCode, callback_url: params.successUrl, metadata };
+    } else {
+      body = {
+        email: params.email,
+        amount: pricing.amountCents,
+        callback_url: params.successUrl,
+        metadata,
+      };
     }
     const result = await paystackFetch<InitializeTransactionResult>(secretKey, '/transaction/initialize', {
       method: 'POST',
-      body: JSON.stringify({
-        email: params.email,
-        plan: planCode,
-        callback_url: params.successUrl,
-        metadata: {
-          ownerType: params.ownerType,
-          ownerId: params.ownerId,
-          tier: params.tier,
-          interval: params.interval,
-        },
-      }),
+      body: JSON.stringify(body),
     });
     return { url: result.data.authorization_url };
   },
