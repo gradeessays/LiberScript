@@ -47,11 +47,12 @@ const nextConfig = {
     return {
       beforeFiles: [
         // Next's static file server 404s any /public path containing a
-        // dotfile segment (e.g. .well-known), so route Apple Pay's domain
-        // verification file through a handler instead.
+        // dotfile segment (e.g. .well-known), so route all well-known
+        // verification files (Apple Pay domain association, etc.) through a
+        // handler instead.
         {
-          source: '/.well-known/apple-developer-merchantid-domain-association',
-          destination: '/api/well-known/apple-pay-domain-association',
+          source: '/.well-known/:path*',
+          destination: '/api/well-known/:path*',
         },
       ],
     };
