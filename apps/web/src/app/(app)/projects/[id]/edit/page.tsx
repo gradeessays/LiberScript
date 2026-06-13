@@ -343,14 +343,15 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      {/* Preview replaces the editor entirely: the whole book, rendered from the
-          sections you've added, with the design controls beside it. Critique runs
-          the manuscript-analysis engine over the narrative sections. */}
-      {view === 'preview' ? (
+      {/* All three panels are always mounted — only visibility toggles via `hidden`.
+          This keeps DesignStudio and CritiquePanel state alive across view switches. */}
+      <div className={view !== 'preview' ? 'hidden' : ''}>
         <DesignStudio projectId={id} embedded />
-      ) : view === 'critique' ? (
+      </div>
+      <div className={view !== 'critique' ? 'hidden' : ''}>
         <CritiquePanel projectId={id} />
-      ) : (
+      </div>
+      <div className={view !== 'write' ? 'hidden' : ''}>
       <div className="grid gap-4 items-start md:grid-cols-[280px_1fr]">
         {/* Sectioned outline — sticky so it stays visible while scrolling the editor */}
         <aside className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-3 overflow-y-auto rounded-lg border p-2 [scrollbar-width:thin]">
@@ -622,9 +623,14 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                             }
                           >
                             <option value="centered">Centered italic</option>
-                            <option value="bordered">Rule-bordered</option>
-                            <option value="large">Large quote</option>
-                            <option value="plain">Plain</option>
+                            <option value="plain">Plain (no rules)</option>
+                            <option value="bordered">Left rule · left aligned</option>
+                            <option value="large">Large text</option>
+                            <option value="pull">Display / pull quote</option>
+                            <option value="shaded">Shaded panel</option>
+                            <option value="box">Boxed</option>
+                            <option value="double">Double-rule top & bottom</option>
+                            <option value="left">Plain · left aligned</option>
                           </select>
                         </div>
                       </div>
@@ -679,7 +685,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           )}
         </section>
       </div>
-      )}
+      </div>
 
       {generateModalOpen && (
         <GenerateBookModal

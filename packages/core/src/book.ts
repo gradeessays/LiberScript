@@ -135,6 +135,20 @@ export interface TypographyOverrides {
   subtitleSpacingEm?: number;
   /** Gap (em) between the heading block and the body / opening quote. Default 1.6. */
   headingSpacingEm?: number;
+  /** Chapter/section title font size in pt (theme default ~18pt). */
+  titleFontSizePt?: number;
+  /** Chapter/section title color (CSS color, e.g. '#333'). */
+  titleColor?: string;
+  /** Subtitle font size in pt (theme default ~12pt). */
+  subtitleFontSizePt?: number;
+  /** Subtitle color (CSS color). */
+  subtitleColor?: string;
+  /** Opening-quote font size in pt. */
+  openingQuoteFontSizePt?: number;
+  /** Opening-quote color. */
+  openingQuoteColor?: string;
+  /** Default epigraph (standalone Epigraph section) style key. */
+  defaultEpigraphStyleKey?: string;
 }
 
 /** Content a running header can display. `chapterTitle` updates per chapter. */

@@ -23,7 +23,8 @@
     "db:migrate:prod": "pnpm --filter @liberscript/db migrate:prod",
     "db:seed": "pnpm --filter @liberscript/db seed",
     "db:studio": "pnpm --filter @liberscript/db studio",
-    "clean": "turbo run clean && rimraf node_modules"
+    "clean": "turbo run clean && rimraf node_modules",
+    "ensure-keys": "node scripts/ensure-keys.js"
   },
   "devDependencies": {
     "@liberscript/config": "workspace:*",

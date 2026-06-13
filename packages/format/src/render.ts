@@ -132,6 +132,19 @@ function chapterStartCss(theme: BookTheme): string {
   return css;
 }
 
+/** Extra CSS overrides for the per-element manual size/color controls. */
+function typographyElementOverrideCss(o?: TypographyOverrides): string {
+  if (!o) return '';
+  const rules: string[] = [];
+  if (o.titleFontSizePt) rules.push(`.book .chapter-title { font-size: ${o.titleFontSizePt}pt; }`);
+  if (o.titleColor) rules.push(`.book .chapter-title { color: ${o.titleColor}; }`);
+  if (o.subtitleFontSizePt) rules.push(`.book .chapter-subtitle { font-size: ${o.subtitleFontSizePt}pt; }`);
+  if (o.subtitleColor) rules.push(`.book .chapter-subtitle { color: ${o.subtitleColor}; }`);
+  if (o.openingQuoteFontSizePt) rules.push(`.book .chapter-opening-quote { font-size: ${o.openingQuoteFontSizePt}pt; }`);
+  if (o.openingQuoteColor) rules.push(`.book .chapter-opening-quote { color: ${o.openingQuoteColor}; }`);
+  return rules.join('\n');
+}
+
 function frontMatterCss(theme: BookTheme): string {
   return `.book .title-page { text-align: center; padding-top: 26%; }
 .book .title-page .book-title { font-family: ${theme.headingFont.stack}; font-size: 2.4em; font-weight: 800; line-height: 1.1; }
@@ -172,11 +185,28 @@ function frontMatterCss(theme: BookTheme): string {
 .book .epigraph { padding-top: 28%; }
 .book .epigraph .epigraph-inner { display: block; width: 72%; margin: 0 auto; text-align: center; }
 .book .epigraph .epigraph-quote { font-style: italic; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; padding: 0.9em 0.2em; }
+.book .epigraph .attribution { margin-top: 0.75em; font-style: normal; font-variant: small-caps; color: #555; text-align: right; }
+/* eg-plain: no rules, just centered italic */
+.book .epigraph.eg-plain .epigraph-quote { border: none; padding: 0; }
+/* eg-bordered: left-rule, left-aligned */
 .book .epigraph.eg-bordered .epigraph-inner { text-align: left; }
 .book .epigraph.eg-bordered .epigraph-quote { border-top: none; border-bottom: none; border-left: 3px solid #ccc; padding: 0.3em 0 0.3em 1.2em; }
-.book .epigraph.eg-large .epigraph-inner { font-size: 1.3em; }
-.book .epigraph .attribution { margin-top: 0.75em; font-style: normal; font-variant: small-caps; color: #555; text-align: right; }
 .book .epigraph.eg-bordered .attribution { text-align: left; }
+/* eg-large: bigger text */
+.book .epigraph.eg-large .epigraph-inner { font-size: 1.3em; }
+/* eg-shaded: subtle background panel */
+.book .epigraph.eg-shaded .epigraph-quote { border: none; background: rgba(0,0,0,0.05); padding: 1em 1.2em; }
+/* eg-box: full border around the quote */
+.book .epigraph.eg-box .epigraph-quote { border: 1px solid currentColor; padding: 1em 1.2em; }
+/* eg-double: double-rule top/bottom */
+.book .epigraph.eg-double .epigraph-quote { border-top: 3px double currentColor; border-bottom: 3px double currentColor; padding: 0.9em 0; }
+/* eg-pull: large display text, heading font */
+.book .epigraph.eg-pull .epigraph-inner { font-family: ${theme.headingFont.stack}; font-size: 1.4em; line-height: 1.35; }
+.book .epigraph.eg-pull .epigraph-quote { border: none; padding: 0; }
+/* eg-left: left-aligned plain */
+.book .epigraph.eg-left .epigraph-inner { text-align: left; }
+.book .epigraph.eg-left .epigraph-quote { border: none; padding: 0; }
+.book .epigraph.eg-left .attribution { text-align: left; }
 /* Dedication: narrow centered column via margin:auto on the body block. */
 .book .dedication { font-style: italic; padding-top: 30%; }
 .book .dedication .chapter-body { width: 70%; margin: 0 auto; text-align: center; }
@@ -436,8 +466,8 @@ function renderCopyright(meta: BookMeta, el: BookElement, watermark: boolean): s
 </section>`;
 }
 
-function renderEpigraph(el: BookElement): string {
-  const style = dataStr(el.data, 'style') ?? 'centered';
+function renderEpigraph(el: BookElement, defaultStyle?: string): string {
+  const style = dataStr(el.data, 'style') ?? defaultStyle ?? 'centered';
   const attribution = cleanAttribution(dataStr(el.data, 'attribution'));
   return `<section class="frontmatter epigraph eg-${esc(style)}">
   <div class="epigraph-inner">
@@ -486,6 +516,7 @@ interface ElementCtx {
   toc: TocEntry[];
   chapterIndex: number;
   style?: ChapterStartStyle;
+  defaultEpigraphStyle?: string;
 }
 
 function renderElement(theme: BookTheme, el: BookElement, ctx: ElementCtx): string {
@@ -495,7 +526,7 @@ function renderElement(theme: BookTheme, el: BookElement, ctx: ElementCtx): stri
     case ChapterKind.COPYRIGHT:
       return renderCopyright(ctx.meta, el, ctx.watermark);
     case ChapterKind.EPIGRAPH:
-      return renderEpigraph(el);
+      return renderEpigraph(el, ctx.defaultEpigraphStyle);
     case ChapterKind.DEDICATION:
       return renderProseSection(el, 'dedication', 'Dedication');
     case ChapterKind.TOC:
@@ -661,7 +692,7 @@ export function renderBookDocument(input: RenderBookInput): string {
   const body = elements
     .map((el, i) => {
       if (el.kind === ChapterKind.CHAPTER) idx += 1;
-      const inner = renderElement(theme, el, { meta, watermark, toc, chapterIndex: idx, style });
+      const inner = renderElement(theme, el, { meta, watermark, toc, chapterIndex: idx, style, defaultEpigraphStyle: input.typography?.defaultEpigraphStyleKey });
       const noRecto = NO_RECTO_KINDS.includes(el.kind as ChapterKind);
       return `<div class="psec${noRecto ? ' psec--norc' : ''}" id="sec${i}">${inner}</div>`;
     })
@@ -772,7 +803,8 @@ ${elements.map((el, i) => {
   const fontLink = fontsHref ? `<link rel="stylesheet" href="${fontsHref}">` : '';
   const pagedCss = target === 'print' ? pagedMediaCss(meta, theme, input.typography, watermark) : '';
   const proseCss = `${openingQuoteCss(input.typography?.openingQuoteStyleKey, theme)}
-${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}`;
+${blockQuoteCss(input.typography?.blockQuoteStyleKey, theme)}
+${typographyElementOverrideCss(input.typography)}`;
 
   // Ebook reading mode recolors the page; print always shows a paper surface.
   const rm = target === 'ebook' && input.readingMode ? READING_MODE[input.readingMode] : null;

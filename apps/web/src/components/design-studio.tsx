@@ -31,6 +31,18 @@ const EXPORT_OPTIONS: { format: ExportFmt; label: string; hint: string }[] = [
 
 const FONT_OPTIONS = Object.entries(FONTS).map(([key, f]) => ({ key, name: f.name }));
 
+const EPIGRAPH_STYLE_OPTIONS = [
+  { key: 'centered', name: 'Centered italic (default)' },
+  { key: 'plain',    name: 'Plain (no rules)' },
+  { key: 'bordered', name: 'Left rule · left aligned' },
+  { key: 'large',    name: 'Large text' },
+  { key: 'pull',     name: 'Display / pull quote' },
+  { key: 'shaded',   name: 'Shaded panel' },
+  { key: 'box',      name: 'Boxed' },
+  { key: 'double',   name: 'Double-rule top & bottom' },
+  { key: 'left',     name: 'Plain · left aligned' },
+];
+
 function HeaderSelect({ value, onChange }: { value: HeaderContent; onChange: (v: HeaderContent) => void }) {
   return (
     <select
@@ -414,6 +426,23 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
               </select>
             </div>
             <div className="space-y-1">
+              <Label className="text-[11px]">Epigraph section (default style)</Label>
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
+                value={typo.defaultEpigraphStyleKey ?? 'centered'}
+                onChange={(e) => { markImmediate(); setT({ defaultEpigraphStyleKey: e.target.value }); }}
+              >
+                {EPIGRAPH_STYLE_OPTIONS.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground">
+                Per-chapter style (set in the editor) takes priority.
+              </p>
+            </div>
+            <div className="space-y-1">
               <Label className="text-[11px]">Block quotes (in the text)</Label>
               <select
                 className="h-9 w-full rounded-md border border-input bg-background px-1 text-xs"
@@ -646,6 +675,52 @@ export function DesignStudio({ projectId, embedded = false }: { projectId: strin
                 className="w-full"
               />
             </label>
+
+            {/* Per-element manual size + color */}
+            <div className="space-y-3 border-t pt-3">
+              <p className="text-[11px] text-muted-foreground">
+                Manual sizes override the theme scale. Colors range from grey to black.
+              </p>
+              {(
+                [
+                  { label: 'Chapter title', sizeKey: 'titleFontSizePt', colorKey: 'titleColor', defaultPt: 18 },
+                  { label: 'Subtitle', sizeKey: 'subtitleFontSizePt', colorKey: 'subtitleColor', defaultPt: 12 },
+                  { label: 'Opening quote', sizeKey: 'openingQuoteFontSizePt', colorKey: 'openingQuoteColor', defaultPt: 11 },
+                ] as const
+              ).map(({ label, sizeKey, colorKey, defaultPt }) => (
+                <div key={label} className="space-y-1">
+                  <Label className="text-[11px]">{label}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={6}
+                      max={72}
+                      step={0.5}
+                      placeholder={`${defaultPt}pt`}
+                      value={typo[sizeKey] ?? ''}
+                      className="h-8 w-20 px-1 text-xs"
+                      onChange={(e) => setT({ [sizeKey]: e.target.value ? Number(e.target.value) : undefined })}
+                    />
+                    <span className="text-[10px] text-muted-foreground">pt</span>
+                    <input
+                      type="color"
+                      title={`${label} color`}
+                      value={typo[colorKey] ?? '#111111'}
+                      className="h-8 w-10 cursor-pointer rounded border border-input p-0.5"
+                      onChange={(e) => { markImmediate(); setT({ [colorKey]: e.target.value }); }}
+                    />
+                    {(typo[sizeKey] || typo[colorKey]) && (
+                      <button
+                        className="text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => { markImmediate(); setT({ [sizeKey]: undefined, [colorKey]: undefined }); }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
 
           {/* Front matter quick fields */}
