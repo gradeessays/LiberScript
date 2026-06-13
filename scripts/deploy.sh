@@ -18,6 +18,9 @@ git pull --ff-only origin main
 echo "==> Building images (web + worker)"
 $COMPOSE build
 
+echo "==> Validating ENCRYPTION_KEY"
+$COMPOSE run --rm worker node scripts/ensure-keys.js
+
 echo "==> Applying database migrations (Neon)"
 $COMPOSE run --rm worker pnpm db:migrate:prod
 
