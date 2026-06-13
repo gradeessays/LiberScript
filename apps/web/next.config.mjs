@@ -14,6 +14,11 @@ const nextConfig = {
   // the production build doesn't OOM on the 1 GB deploy server.
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  // Trim webpack's peak memory during compilation — needed to fit the build
+  // (73 routes incl. 50 guide pages) in the deploy server's 1 GB of RAM.
+  experimental: {
+    webpackMemoryOptimizations: true,
+  },
   // Internal workspace packages ship TypeScript source; let Next transpile them.
   transpilePackages: [
     '@liberscript/analysis',

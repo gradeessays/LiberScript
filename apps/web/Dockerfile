@@ -22,8 +22,11 @@ COPY . .
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 RUN pnpm --filter @liberscript/db generate
+# V8 auto-caps the heap around ~490MB on a 1GB host, which OOMs partway through
+# the build (73 routes incl. 50 guide pages). Raise the ceiling so it can use
+# the swap configured on the deploy server instead of crashing.
 RUN --mount=type=cache,target=/app/apps/web/.next/cache \
-    pnpm --filter @liberscript/web build
+    NODE_OPTIONS="--max-old-space-size=1536" pnpm --filter @liberscript/web build
 
 FROM base AS runner
 ENV NODE_ENV=production
