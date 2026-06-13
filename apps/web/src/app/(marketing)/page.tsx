@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { buttonVariants, cn } from '@liberscript/ui';
 import { PLAN_PRICING, PlanInterval } from '@liberscript/core';
 import { formatPrice } from '@/components/plan-grid';
+import { ManuscriptEditorMockup, CritiqueReportMockup, PrintPreviewMockup } from '@/components/feature-mockups';
 
 export const metadata: Metadata = {
   title: 'LiberScript: Write, critique, design, and publish your book',
@@ -24,6 +25,7 @@ const PILLARS = [
       'Drag-to-reorder chapters and scenes with instant autosave',
     ],
     shot: 'Manuscript editor with detected chapter structure',
+    Mockup: ManuscriptEditorMockup,
   },
   {
     title: 'Critique like an editor',
@@ -38,6 +40,7 @@ const PILLARS = [
       'A readiness score you can track across revisions',
     ],
     shot: 'Critique report with chapter-by-chapter findings',
+    Mockup: CritiqueReportMockup,
   },
   {
     title: 'Design and export beautifully',
@@ -52,6 +55,7 @@ const PILLARS = [
       'EPUB, print PDF, DOCX, and cover PDF export',
     ],
     shot: 'Paginated print preview with running headers',
+    Mockup: PrintPreviewMockup,
   },
 ];
 
@@ -155,14 +159,6 @@ const FAQS = [
   },
 ];
 
-function ScreenshotPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="flex aspect-[4/3] w-full items-center justify-center rounded-lg border bg-muted/40 p-6 text-center text-sm text-muted-foreground">
-      {label}
-    </div>
-  );
-}
-
 export default function HomePage() {
   const dayPricing = PLAN_PRICING[PlanInterval.DAY];
 
@@ -257,7 +253,7 @@ export default function HomePage() {
                   ))}
                 </ul>
               </div>
-              <ScreenshotPlaceholder label={pillar.shot} />
+              <pillar.Mockup label={pillar.shot} />
             </div>
           ))}
         </div>
