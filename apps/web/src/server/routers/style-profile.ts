@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { AiProvider, createId, detectFormat, MAX_UPLOAD_BYTES, planLimitExceeded } from '@liberscript/core';
+import { type AiProvider, createId, detectFormat, MAX_UPLOAD_BYTES, planLimitExceeded } from '@liberscript/core';
 import { chapterText, parseManuscript } from '@liberscript/analysis';
 import { buildAssetKey, getObjectBuffer, presignUpload } from '@liberscript/storage';
 import type { Prisma } from '@liberscript/db';

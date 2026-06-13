@@ -142,8 +142,8 @@ export default function SignInPage() {
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
           New to Liberscript?{' '}
-          <Link href="/sign-up" className="font-medium text-primary hover:underline">
-            Create an account
+          <Link href="/get-started" className="font-medium text-primary hover:underline">
+            Choose a plan to get started
           </Link>
         </p>
       </CardContent>

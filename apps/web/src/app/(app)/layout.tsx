@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth-server';
 import { AppHeader } from '@/components/app-header';
+import { PlanStatusBanner } from '@/components/plan-status-banner';
 
 // Authenticated pages read the session cookie (headers) — always server-rendered
 // per request, never statically prerendered at build time.
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <AppHeader userName={session.user.name} />
+      <PlanStatusBanner />
       <main className="px-4 py-6 sm:px-6 lg:px-10 xl:px-16 sm:py-8">{children}</main>
     </div>
   );

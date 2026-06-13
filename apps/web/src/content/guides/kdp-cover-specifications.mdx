@@ -1,0 +1,286 @@
+---
+title: "KDP Cover Specifications: Print and Ebook Cover Sizing Guide"
+description: "The complete Amazon KDP cover specifications for ebook and print covers, including dimensions, file formats, resolution, spine width calculation, bleed requirements, and color mode."
+category: kdp
+keywords:
+  - kdp cover specifications
+  - amazon kdp cover dimensions
+  - kdp print cover specs
+  - kindle ebook cover size
+  - self publishing book cover requirements
+publishedAt: "2026-06-13"
+updatedAt: "2026-06-13"
+---
+
+Your book's cover is the first thing readers see in search results, category lists, and recommendations. Getting
+the technical specifications right, file format, dimensions, resolution, and color mode, is the minimum
+requirement; creating a cover that competes visually in your genre is what actually drives clicks.
+
+This guide covers every technical specification Amazon KDP requires for both ebook covers and print covers, along
+with the spine width calculation for paperbacks and hardcovers, and what to keep in mind when designing or
+commissioning a cover.
+
+## Ebook (Kindle) cover specifications
+
+The ebook cover is a flat image file: front cover only, no spine, no back cover. It appears in Amazon search
+results, on your book's product page, and on readers' Kindle devices and apps.
+
+### Dimensions
+
+| Specification | Requirement |
+| --- | --- |
+| Recommended dimensions | 2,560 pixels (height) × 1,600 pixels (width) |
+| Aspect ratio | 1.6:1 (height to width) |
+| Minimum height | 1,000 pixels |
+| Minimum width | 625 pixels (to maintain 1.6:1 ratio) |
+| Maximum dimension on either side | 10,000 pixels |
+
+The 2,560 × 1,600 pixel recommendation ensures your cover looks sharp on high-resolution displays (retina phones,
+tablets, Kindle e-ink displays with high pixel density) without being unnecessarily large. Covers below the
+minimum dimensions are rejected; covers at significantly lower resolution than the recommendation may appear soft
+on newer devices.
+
+### File format and size
+
+| Specification | Requirement |
+| --- | --- |
+| Accepted formats | JPEG (.jpg) or TIFF (.tif) |
+| Color mode | RGB (not CMYK; CMYK will be rejected or converted incorrectly) |
+| Maximum file size | 50 MB |
+| Compression | JPEG quality setting of 80% or higher recommended |
+
+Ebook covers must be RGB. This is the opposite of print covers, which require CMYK (see below). If your designer
+provides a CMYK cover, ask for an RGB version for the ebook cover upload.
+
+### What readers see
+
+Your ebook cover thumbnail is typically displayed at roughly 100 pixels wide in search results on most devices. At
+this size, text smaller than the title becomes illegible, and fine details may not read clearly. This is why
+professional book covers prioritize a bold image or visual concept, large title text, and author name, with
+everything else secondary.
+
+Zoomed-in product page views show the cover larger, at roughly 250 to 500 pixels wide depending on device. At
+this size, subtitle text and secondary design elements become visible.
+
+## Print cover specifications
+
+Print covers are fundamentally different from ebook covers: they must include the front cover, spine, and back
+cover as a single flat file, sized exactly for your book's physical dimensions. Because the spine width depends on
+your final page count, print covers can only be finalized after your interior is complete.
+
+### Spine width calculation
+
+Spine width is calculated by KDP and depends on:
+
+1. **Page count**: the total number of printed pages in your interior file (including blank pages)
+2. **Paper type**: white paper and cream paper have slightly different thicknesses per page
+
+KDP provides an official spine width calculator, available in the cover upload section of your book setup. The
+approximate values per 100 pages:
+
+| Paper type | Approximate spine per 100 pages |
+| --- | --- |
+| White paper (standard) | Approximately 0.225 inches per 100 pages |
+| Cream paper | Approximately 0.222 inches per 100 pages |
+
+For a 300-page book on white paper: 3 × 0.225 = approximately 0.675 inches of spine width.
+
+For a 400-page book on cream paper: 4 × 0.222 = approximately 0.888 inches of spine width.
+
+Always use KDP's official calculator for the exact value; the approximations above are for estimation purposes.
+
+### Full cover dimensions
+
+The total width of the cover file is:
+
+**Total width = front cover width + spine width + back cover width**
+
+Where front and back cover widths are both equal to your chosen trim size's width dimension.
+
+For a 6 × 9 book (6 inches wide), with a 0.675-inch spine and standard bleed:
+- Front cover: 6.125 inches wide (6 inches + 0.125 inch bleed on the outer edge)
+- Spine: 0.675 inches
+- Back cover: 6.125 inches wide (6 inches + 0.125 inch bleed on the outer edge)
+- Total width: 12.925 inches
+
+The height of the cover is the book's trim height plus bleed on top and bottom:
+- For a 9-inch height: 9 + 0.125 + 0.125 = 9.25 inches (total height including bleed)
+
+### Bleed requirements
+
+Bleed extends the cover image beyond the trim line so that when the book is cut to its final size, there's no
+white edge from slight misalignment. KDP requires:
+
+- **0.125 inches of bleed** on all outer edges of the full cover (left edge of back cover, right edge of front
+  cover, top, and bottom)
+- Do not add bleed between the back cover and spine, or between the spine and front cover; these are internal
+  divisions, not cut edges
+
+### Safe zone
+
+The safe zone is the area where important content (title, spine text, back cover text, logos) must be kept, to
+avoid being obscured if the cover is trimmed slightly off-center during production:
+
+- Keep all text and important graphic elements at least **0.125 inches** inside the trim line on all edges
+- KDP's cover creator and template tools show the safe zone; if designing in external software, add guidelines at
+  the safe zone boundary
+
+### Print cover file specifications
+
+| Specification | Requirement |
+| --- | --- |
+| File format | PDF |
+| Color mode | CMYK (not RGB; RGB covers may print with shifted colors) |
+| Resolution | 300 DPI minimum; 400 DPI recommended |
+| Fonts | All fonts embedded in the PDF |
+| Transparency | Flatten all transparency before export |
+| Bleed | 0.125 inches on all outer edges |
+| Barcode area | Leave a white area on the back cover for KDP's barcode; KDP will place it automatically |
+
+### Barcode placement
+
+For print books, KDP adds a barcode to the back cover during the printing process. You do not need to add the
+barcode yourself. However, you must leave a clear white area on the lower right of the back cover. The barcode
+area KDP needs is approximately 2 × 1.2 inches.
+
+If your back cover design has a dark or image background, either add a white box in the barcode area or check
+KDP's latest guidelines for exact barcode placement requirements, which can be found in the KDP Cover Template
+Generator.
+
+## Hardcover cover specifications
+
+KDP's hardcover printing uses a case-laminate binding, which has somewhat different cover specifications from
+paperback. Key differences:
+
+| Element | Paperback | Hardcover |
+| --- | --- | --- |
+| Spine width calculation | Based on page count × paper thickness | Similar formula, but slightly different; use KDP's hardcover calculator |
+| Wrap-around for binding | Not applicable | Hardcovers include a flap area wrapped around the cover board; dimensions account for this |
+| Barcode placement | Lower right, back cover | Placed by KDP; leave white area |
+
+For hardcovers specifically, downloading KDP's hardcover cover template, which auto-calculates dimensions for your
+page count, is the most reliable approach.
+
+## Using KDP's cover template generator
+
+KDP provides a free cover template generator at the book setup stage that automates the dimension calculation. To
+use it:
+
+1. In your book's print details setup, enter your trim size, page count, and interior type (black and white or
+   color; paper type affects spine width slightly)
+2. KDP calculates the spine width and generates a downloadable template in PDF or PNG format
+3. The template includes guides for the front cover, spine, back cover, and bleed areas
+4. Use the template as a reference layer in your design software (Affinity Publisher, Photoshop, Canva, etc.) or
+   provide it to your cover designer
+
+The template is the most reliable way to ensure your cover dimensions are correct before spending time on the
+actual design. Generating it before starting the design process saves significant rework later.
+
+## File handoff checklist when working with a cover designer
+
+If you're commissioning a cover from a freelance designer, provide them with:
+
+- Your chosen trim size (e.g., 6 × 9 inches)
+- Your exact interior page count (from your finalized interior PDF)
+- Your paper type (white or cream)
+- KDP's spine width from the template generator (or ask them to generate it)
+- Whether you need ebook-only, print-only, or both
+- Any genre-specific reference covers you want to inform the design direction
+
+Request the following file deliverables:
+- **Ebook cover**: JPEG or TIFF at 2,560 × 1,600 pixels, in RGB color mode, at 300 DPI or higher
+- **Print cover**: full-wrap PDF at 300 DPI minimum, in CMYK color mode, with 0.125-inch bleed on all outer
+  edges, and all fonts embedded
+
+Ask the designer to confirm CMYK mode and embedded fonts before delivering, since these two requirements are
+the most common sources of print upload failures.
+
+## Common cover issues and how to fix them
+
+| Issue | Likely cause | Fix |
+| --- | --- | --- |
+| Cover rejected: dimensions don't match | Total width or height doesn't match trim + bleed calculation | Recalculate using KDP's cover template generator |
+| Spine text not centered | Spine was estimated before final page count was known | Recalculate spine width after interior is finalized and re-export |
+| Cover looks washed out in print | File was in RGB, not CMYK | Convert to CMYK before exporting the print cover PDF |
+| Pixelated or blurry print result | Resolution below 300 DPI | Re-export at 300 DPI or higher |
+| White edge visible in print | Bleed not included or too narrow | Ensure 0.125-inch bleed on all outer edges |
+| Barcode printed over design element | Design too close to lower-right corner | Clear a 2 × 1.2 inch white area in the lower right back cover |
+
+## What makes a cover work at thumbnail size
+
+Most readers discover your book first at thumbnail size, roughly 100 to 200 pixels wide in Amazon search results
+and category lists. At that size, many design decisions that look impressive at full size, intricate patterns,
+small supporting text, detailed background imagery, disappear or become visual noise.
+
+Covers that perform well in thumbnail share a few characteristics:
+
+- **High contrast**: the title and central visual element read clearly against the background even at small sizes
+- **Bold, legible title typography**: title text large enough to read at 100 pixels wide; at 200 pixels, readers
+  should also be able to read your author name
+- **A single clear focal point**: one main image or visual concept, not several competing elements
+- **Genre-signal colors and style**: readers scan cover thumbnails for genre cues before reading the title;
+  dark, moody palettes signal thriller or horror; bright pastels signal cozy romance; high-saturation, dramatic
+  compositions signal action fantasy
+
+Zoom your cover out to thumbnail size before finalizing; this simple test reveals design issues that are invisible
+at full size. A cover that looks polished at full resolution but loses clarity at 100 pixels wide will underperform
+in Amazon search.
+
+## Designing vs. hiring for cover design
+
+Book cover design is a specialized skill; effective covers for a given genre require familiarity with that
+genre's visual conventions, which are more specific than they appear. A romance cover that looks like a thriller
+cover loses readers before they've read a word.
+
+Options for cover creation:
+
+- **Hire a cover designer**: freelance book cover designers (available through Reedsy, 99designs, Fiverr, and
+  independent designer websites) will produce a print-ready cover file to KDP's specifications. Rates vary widely
+  by designer experience and project complexity.
+- **Use KDP's cover creator**: KDP includes a free, template-based cover creator for paperbacks and hardcovers.
+  It produces compliant files but is limited in design flexibility compared to a custom design.
+- **Design your own**: using tools like Canva, Affinity Publisher, or Adobe InDesign, you can build a custom
+  cover. This is most feasible if you have design experience or your genre has simpler visual conventions.
+- **Use a pre-made cover**: pre-made cover marketplaces sell covers designed by professionals; you purchase,
+  add your title and name, and receive print-ready files.
+
+## Frequently asked questions
+
+**Does the ebook cover need to match the print cover exactly?**
+
+Not technically, though keeping them consistent helps readers recognize your book across formats. The key practical
+difference is file format and color mode: the ebook cover is a JPEG or TIFF in RGB, while the print cover is a
+PDF in CMYK.
+
+**When should I design the print cover?**
+
+After your interior is finalized. The spine width depends on your final page count; designing the cover before the
+interior is done risks a spine width mismatch that requires the cover to be resized. See our
+[KDP formatting checklist](/guides/kdp-formatting-checklist) for the full sequence of steps.
+
+**Can I update my cover after publishing?**
+
+Yes. You can upload a revised cover file from your KDP dashboard at any time. Changes go live within a few hours.
+
+**How do I know if my cover will look good in thumbnail?**
+
+Save your cover at 100 pixels wide and view it; this approximates how it appears in search results. If the title
+isn't legible and the central visual isn't clear at that size, the design may not perform well in search.
+
+## The bottom line
+
+KDP's cover specifications are specific but learnable. Ebook covers are JPEG or TIFF in RGB, at or near 2,560
+× 1,600 pixels. Print covers are full-wrap PDF in CMYK, with dimensions calculated from your trim size, page
+count, and 0.125-inch bleed. Getting both right before upload avoids rejection and reprinting delays.
+
+If your manuscript is still being formatted, finalize the interior first, then design the cover using the final
+page count. Our [KDP formatting checklist](/guides/kdp-formatting-checklist) walks through the interior
+requirements that determine your print cover dimensions.
+
+Cover and interior files go together; the cover's spine width depends on the interior's final page count. Finalize
+your interior formatting first, then build your cover. Our [KDP formatting checklist](/guides/kdp-formatting-checklist)
+walks through the interior requirements, and our [KDP publishing guide](/guides/how-to-self-publish-on-kdp) covers
+the full upload process once both files are ready.
+
+Ready to format your interior? [Get started](/get-started?plan=DAY) in LiberScript or
+[see pricing](/pricing) for all plans.

@@ -1,0 +1,271 @@
+---
+title: "KDP Print vs Ebook: Formatting Differences Every Author Should Know"
+description: "How print and ebook formatting differ for Amazon KDP: file types, layout, typography, images, tables, table of contents, and how to handle both from one manuscript."
+category: kdp
+keywords:
+  - kdp print vs ebook formatting
+  - print vs ebook formatting differences
+  - kindle formatting vs print formatting
+  - format book for kindle and print
+  - kdp ebook and paperback formatting
+publishedAt: "2026-06-13"
+updatedAt: "2026-06-13"
+---
+
+A book published on Amazon KDP can exist in two fundamentally different formats: a Kindle ebook and a print
+paperback (or hardcover). Despite starting from the same manuscript, the formatting requirements for the two
+versions are different enough that they're essentially separate products in terms of how they're prepared.
+
+Understanding what's different, and why, helps you prepare both versions correctly without guessing, and helps you
+choose formatting tools and workflows that handle both efficiently.
+
+## The core difference: reflowable vs. fixed layout
+
+This is the single most important conceptual difference between ebook and print formatting.
+
+**Ebooks are reflowable**: the text in a Kindle ebook can be resized by the reader, and the content flows to fill
+whatever screen size and font size the reader has chosen. A reader on a phone who increases the font size to large
+will see fewer words per line and more pages than a reader on a tablet at the default font size. The ebook file
+doesn't define where line breaks or page breaks occur; those are determined at reading time.
+
+**Print books are fixed layout**: a print book is physically set at one trim size and one font size. Page
+2 of the print book is always page 2, with specific words on specific lines. Every detail of the layout is frozen
+when the PDF is created.
+
+This fundamental difference explains almost every specific formatting difference between the two formats.
+
+## File format requirements
+
+| Element | Kindle ebook | Print paperback |
+| --- | --- | --- |
+| Primary file type | EPUB (recommended) | PDF |
+| KDP also accepts | DOCX, HTML, MOBI | Not applicable (PDF only for interior) |
+| File size limits | 650 MB after conversion | 400 MB |
+| Why that type | Reflowable format; structure defined by headings and HTML | Fixed layout; every page position must be specified |
+
+For ebooks, EPUB is the current standard. It's a structured format based on HTML and CSS, where headings define
+chapters and fonts, margins, and paragraph spacing can be set as defaults that readers can adjust. For print,
+the PDF encodes every page exactly as it will be printed.
+
+## Margins and whitespace
+
+**Ebooks**: margins in an ebook don't exist in the way they do for print. Ebook readers have their own margin
+settings that users can adjust. You can specify default margins in the CSS of your EPUB, but readers with
+accessibility needs may override them. Most formatting tools set sensible defaults.
+
+**Print**: margins are fixed and critical. The inner margin (gutter) must be larger than the outer margins to
+account for the binding, and the size depends on your page count. Too small a gutter, and text disappears into
+the spine; too large, and your effective text area shrinks. See our [KDP formatting checklist](/guides/kdp-formatting-checklist)
+for gutter minimums by page count.
+
+Outer margins, top margins, and bottom margins all need to be large enough that text isn't at risk of being cut
+during the printing and trimming process.
+
+## Typography: fonts, sizes, and spacing
+
+**Ebooks**: font choice in ebooks is advisory rather than fixed. You can specify a default font in your EPUB's
+CSS, but most Kindle readers allow readers to switch to their preferred font. Many readers use the Kindle app's
+"Publisher Font" option to see your specified font if it's embedded, but reader preferences vary. Kindle apps
+support several default font options regardless of what you specify.
+
+Font size in ebooks is set by the reader, not the file. This is a feature (accessibility) but it means you
+can't control exactly how the text looks across all reading contexts.
+
+**Print**: font choice, size, and spacing are all yours to control and are fixed in the PDF. For print, these
+decisions matter because the font's x-height, weight, and spacing affect readability at the printed size and
+influence the final page count (which affects cover spine width and printing cost).
+
+Common choices:
+- Fiction body text: 10 to 11 pt for most trim sizes
+- Nonfiction body text: 11 to 12 pt for readability
+- Line spacing: 1.1 to 1.3× the font size is typical for books
+
+## Images and visual elements
+
+**Ebooks**: images in Kindle ebooks appear inline in the reflowing text. Because the text reflows, images can
+change their position relative to nearby text depending on the reader's font size. For text-heavy books, this
+usually isn't an issue (images go where you place them and stay there relative to surrounding text). For books
+with many figures or tightly integrated image-text layouts, ebook formatting is more challenging.
+
+Image resolution for ebooks: Kindle readers display at varying resolutions. A minimum of 300 DPI for images
+embedded in the EPUB is recommended for quality on retina displays.
+
+**Print**: image placement in print is fixed. An image that "bleeds" to the edge of the page needs a 0.125-inch
+bleed. Images must be at 300 DPI minimum (400 DPI recommended for sharper results). Grayscale images (for black-
+and-white interiors) should be converted to grayscale explicitly rather than left in RGB or CMYK color mode,
+since black-and-white printing handles grayscale images more predictably.
+
+## Tables
+
+**Ebooks**: tables in reflowable ebooks are one of the most challenging formatting elements. On a small phone
+screen at a large font size, a table with several columns may not fit without horizontal scrolling, or may be
+rendered in a way the reader can't navigate easily. If your book contains essential tables, consider whether they
+can be reformatted as prose or simple lists for the ebook version, or whether a fixed-layout ebook (which
+preserves the table as an image) might be appropriate.
+
+**Print**: tables in print work as expected. Ensure your column widths fit within your text area with adequate
+spacing, and that table rules (lines) are visible at the print size. Multi-page tables need continued-header rows
+to tell readers on later pages what each column contains.
+
+## Table of contents behavior
+
+**Ebooks**: the TOC in a Kindle ebook is navigable. Readers tap a chapter title in the TOC to jump to that
+chapter. Amazon requires a valid, navigable TOC in the EPUB's structure (an NCX or NAV file). Most formatting
+tools generate this automatically. Amazon also displays a separate "Table of Contents" entry in Kindle's
+navigation menu, which typically links to your HTML TOC page.
+
+**Print**: the TOC in a print book is a static list with page numbers. These page numbers are only accurate if
+generated after the final layout is complete and the page count is finalized. If you make significant edits to the
+print interior after generating the TOC, page numbers may shift and the TOC may need to be regenerated.
+
+## Front matter and header/footer behavior
+
+**Ebooks**: headers and footers (like "Chapter 1" running headers and page numbers) don't exist in reflowable
+ebooks, because pages don't exist as fixed entities. Kindle devices have their own location indicators (percentage
+read, reading time remaining). Avoid including running headers and page numbers in your ebook file.
+
+**Print**: running headers (typically the book title on even pages and the chapter title on odd pages) and page
+numbers are standard in print books. They should be absent from the title page, copyright page, blank pages, and
+often the first page of each chapter (where a chapter opener design may take precedence). Most formatting tools
+handle this automatically based on your design settings.
+
+## How to prepare both versions from one manuscript
+
+The most efficient approach is to work from a single, well-structured manuscript and generate both formats from it:
+
+1. **Structure your manuscript with headings**: use heading styles (Heading 1 for chapter titles, Heading 2 for
+   sections) consistently. These drive both the ebook's TOC generation and the print PDF's chapter break
+   detection.
+2. **Use a formatting tool that handles both**: tools like LiberScript generate EPUB and print PDF from the same
+   project, applying ebook-appropriate styles to the EPUB and print-appropriate margins, headers, and page numbers
+   to the PDF, without requiring separate manuscripts or manual reformatting.
+3. **Handle ebook-problematic elements separately if needed**: if your book contains tables that won't render
+   well in reflowable format, consider creating an ebook-specific version of those elements (simplified lists,
+   images of the tables, or a different presentation).
+4. **Final page count from the print PDF drives cover design**: once both files are generated and your print
+   interior is approved, use the final print page count to design your cover with the correct spine width.
+
+## Color vs. black and white interiors
+
+For print books specifically, there's an additional format dimension: whether the interior is printed in black
+and white or full color.
+
+**Black-and-white interiors**: the standard for most fiction and text-heavy nonfiction. B&W printing is less
+expensive per page, which affects both your printing cost and your royalty calculation. Images in a B&W interior
+are rendered in grayscale; colorful photographs or charts may look muddy or lose important visual distinction
+when converted.
+
+**Full-color interiors**: required for children's books, cookbooks with photography, illustrated nonfiction, and
+any book where accurate color rendering is important. Color interiors cost significantly more to print and
+increase the minimum list price needed to remain eligible for KDP's 60% royalty rate on print.
+
+For ebooks, this distinction doesn't apply; Kindle apps display images in color on color screens, and readers
+on e-ink displays with grayscale screens will see the color images rendered in grayscale.
+
+**If your book is text-only**: choose B&W interior for print. Your printing costs will be lower and your royalty
+per copy will be higher.
+
+**If your book has important color elements**: consider whether a workaround exists (captions describing color
+relationships, simplified black-and-white versions of diagrams) before committing to a full-color print interior.
+The price increase required to maintain royalty eligibility with a color interior can make your print book
+less competitive on price.
+
+## Device testing for ebooks
+
+The ebook formatting advice in this guide describes what standards and tools support. But formatting decisions
+have real consequences on real devices, and those consequences are best confirmed by testing on actual hardware.
+
+The major Kindle reading contexts to test on:
+
+**Kindle e-ink devices**: Kindle Paperwhite, Kindle Scribe, and standard Kindle display e-ink screens in
+grayscale. These render fonts at fixed, device-set sizes, have no backlight that shifts color temperature, and
+show images in grayscale. An ebook that looks clean and balanced on a tablet app may have visible spacing issues
+or poor image quality on an e-ink screen.
+
+**Kindle app on a phone**: the smallest common reading context. Readers on phones often increase font size
+significantly. A long paragraph that fits comfortably at the default font size may span many more lines at
+a large size, making chapter transitions feel further apart. Tables are particularly problematic here.
+
+**Kindle app on a tablet (iPad or Android)**: larger screen, often used at lower font sizes. The higher
+resolution makes image quality issues visible that might be masked at lower resolutions.
+
+**Kindle Cloud Reader**: browser-based reading. Useful for seeing the ebook in a controlled environment you
+can access on any computer.
+
+Amazon's Kindle Previewer desktop application simulates multiple device types in one interface. Download and run
+your EPUB through Kindle Previewer before uploading to catch layout issues across device contexts without needing
+the physical hardware.
+
+## Syncing revisions across print and ebook
+
+Updating your book after publication requires updating both format files. If you fix a typo in the manuscript,
+you need to export a new EPUB (for ebook), a new print PDF (for print), and upload both to KDP. Forgetting to
+update both means one version has the fix and the other doesn't.
+
+Some formatting tools make this less error-prone by keeping the print and ebook exports linked to the same source
+project. When you update the manuscript in LiberScript and re-export, both the EPUB and print PDF files are
+regenerated from the same updated source. This is one of the main workflow advantages of using a book-specific
+formatting tool rather than managing separate files in a general-purpose document editor.
+
+Keep a note of which version of your files is currently live on which platform. A simple naming convention for
+your exported files (e.g., `book-title-epub-v1.2.epub`, `book-title-print-v1.2.pdf`) makes it clear which file
+matches which upload without having to open them.
+
+## Frequently asked questions
+
+**Do I need to create two completely separate manuscripts for print and ebook?**
+
+No, and you shouldn't. A single well-structured manuscript handled by a good formatting tool should produce both
+versions. The formatting tool applies the appropriate styling for each format during export. Maintaining two
+separate manuscripts creates duplication and doubles the work when you update the book.
+
+**Should the font in my ebook match the print book?**
+
+You can embed a font in your EPUB and specify it as the default, but most Kindle readers will see their preferred
+reading font regardless, unless they've enabled "Publisher Font" in the Kindle app. For print, your font choice
+is fixed and should be chosen for readability at your chosen body text size.
+
+**Can my ebook and print book have different content?**
+
+Technically yes, but it's generally not a good idea for the main content. Different versions of the same book
+can confuse readers and makes updating the book more complex. The most common legitimate difference is ebook-
+specific back matter (links to other books, email signup CTA) versus print back matter (QR codes, plainer contact
+info), and slight adjustments to tables or complex layouts that don't work identically in both formats.
+
+**What's the easiest way to check whether my ebook looks right before uploading?**
+
+Download the Kindle Previewer application from Amazon, or use KDP's online previewer after uploading (before
+approving for publication). Check the ebook on multiple device types: phone, tablet, and the standard Kindle e-ink
+reader, since reflowable content renders differently across screen sizes.
+
+## Choosing a trim size for print
+
+Trim size is the physical dimensions of your printed book (width × height). The choice affects page count, gutter
+requirements, and, if you're also selling the ebook, how closely the print and ebook reading experiences feel
+comparable in terms of page length (though this matters less than many authors think).
+
+Common trim sizes on KDP Print:
+
+| Trim size | Common use |
+| --- | --- |
+| 5 × 8 inches | Literary fiction, some romance, smaller nonfiction |
+| 5.25 × 8 inches | Trade fiction, common general-purpose size |
+| 5.5 × 8.5 inches | Popular nonfiction, self-help, common trade size |
+| 6 × 9 inches | Most common nonfiction size; also used for fantasy/sci-fi paperback |
+| 8.5 × 11 inches | Workbooks, textbooks, large-format guides |
+
+For a standard novel or narrative nonfiction book, 5.5 × 8.5 or 6 × 9 are the most practical choices; they match
+what most readers expect to hold, match distributor expectations for genre fiction and nonfiction, and result in
+page counts that don't produce unusually thin or thick spines for most manuscript lengths.
+
+The trim size decision has no effect on your ebook.
+
+## The bottom line
+
+Print and ebook formatting serve the same manuscript but achieve the result through fundamentally different
+technical approaches: ebooks are reflowable and reader-adjustable, while print PDFs are fixed and precise. Working
+from a single manuscript with a tool that handles both formats is the most efficient approach.
+
+Our [KDP formatting checklist](/guides/kdp-formatting-checklist) covers the specific technical requirements for
+both file types. If you're ready to format your manuscript, [get started](/get-started?plan=DAY) in LiberScript,
+which generates both EPUB and print PDF from the same project.

@@ -1,0 +1,292 @@
+---
+title: "Common KDP Rejection Reasons and How to Avoid Them"
+description: "A complete guide to the most common Amazon KDP rejection reasons for interior files, cover files, and content policy, with specific fixes for each issue before you resubmit."
+category: kdp
+keywords:
+  - kdp rejection reasons
+  - amazon kdp file rejection
+  - kdp submission errors
+  - kindle direct publishing rejection
+  - how to fix kdp rejection
+publishedAt: "2026-06-13"
+updatedAt: "2026-06-13"
+---
+
+Amazon KDP reviews every file uploaded to its platform before making a book available for purchase. Most rejections
+fall into two categories: technical formatting issues with the interior or cover files, and content or policy
+violations in the metadata or manuscript. Both are preventable with the right preparation.
+
+This guide covers the most common rejection reasons with specific causes and fixes for each, organized by file
+type and issue category.
+
+## Interior file rejections
+
+Interior file rejections are the most common type and are almost entirely preventable with proper formatting tools
+and a pre-upload check.
+
+### Incorrect page dimensions
+
+**What KDP reports**: your interior PDF doesn't match your selected trim size.
+
+**How it happens**: the most common cause is exporting the PDF at a different page size than your chosen trim
+dimension. For example, exporting at US Letter size (8.5 × 11 inches) when your chosen trim size is 6 × 9 inches.
+This also happens when margins are calculated incorrectly, resulting in a page that technically matches the trim
+dimensions but has content bleeding outside the printable area.
+
+**How to fix it**: confirm your export settings specify the exact trim size in inches before generating the PDF.
+If you're using a dedicated formatting tool like LiberScript, the export is automatically set to your chosen trim
+size and should not produce this error. If exporting from Word or another general-purpose tool, double-check that
+the page setup (not just the margins) is set to the correct dimensions.
+
+### Fonts not embedded
+
+**What KDP reports**: one or more fonts are not embedded in the PDF.
+
+**How it happens**: the PDF was exported without the "embed fonts" option enabled, or the fonts used are system
+fonts that the export tool wasn't able to embed (common with some versions of Word on certain operating systems).
+
+**How to fix it**: re-export the PDF with font embedding enabled. In most design software, this is a standard PDF
+export option; in Word, choose "Save as PDF" and confirm that the options include "embed all fonts." Verify
+embedding by opening the PDF in Adobe Acrobat (if available) or a free PDF viewer that shows font properties.
+
+### Text or images outside the safe zone
+
+**What KDP reports**: content is too close to the trim edge and may be cut off during printing.
+
+**How it happens**: text or images within 0.25 inches of the outer edges of the page, or not accounting for the
+correct gutter (inside margin) based on page count.
+
+**How to fix it**: increase your outer margin and verify your gutter meets KDP's minimum for your page count.
+See our [KDP formatting checklist](/guides/kdp-formatting-checklist) for the exact gutter minimums by page range.
+
+### Page count below minimum or above maximum
+
+**What KDP reports**: your interior has fewer than 24 pages or more than 828 pages (for most trim sizes).
+
+**How it happens**: very short manuscripts, or very long ones, can exceed KDP's page count limits for print. Ebook
+files don't have this restriction.
+
+**How to fix it**: for short books (under 24 pages), increase font size, add a dedication, or add padding to reach
+the minimum. For very long books, consider splitting into multiple volumes. For trim sizes with stricter limits,
+check KDP's current limit for your specific size.
+
+### PDF transparency not flattened
+
+**What KDP reports**: the PDF contains transparency that may not print correctly.
+
+**How it happens**: design elements with transparency (drop shadows, opacity settings, certain image effects) can
+cause issues when printed unless the PDF's transparency is flattened during export.
+
+**How to fix it**: export with "flatten transparency" enabled, or convert the file to PDF/X-1a format, which
+flattens transparency as part of the standard. Most professional PDF export options include a transparency
+flattening setting.
+
+## Cover file rejections
+
+Cover rejections are often related to dimension mismatches, which happen when the cover was designed before the
+interior was finalized.
+
+### Cover dimensions don't match interior
+
+**What KDP reports**: the cover dimensions don't match the submitted interior's trim size and page count.
+
+**How it happens**: the most common cause is designing the cover before knowing the final page count, then
+uploading a cover with a spine width based on an estimated page count that doesn't match the actual uploaded
+interior.
+
+**How to fix it**: always finalize the interior before designing the print cover. Use KDP's cover template
+generator (available in the cover upload section of your book setup) with your actual, final page count to get
+the exact required cover dimensions. See our [KDP cover specifications guide](/guides/kdp-cover-specifications)
+for the spine width calculation.
+
+### Incorrect color mode (RGB instead of CMYK)
+
+**What KDP reports**: the cover file is in RGB color mode and may not print correctly.
+
+**How it happens**: the cover was designed in RGB (the color mode for screens) rather than CMYK (the color mode
+for print). Many design tools default to RGB; the conversion must be done explicitly before exporting the print
+cover PDF.
+
+**How to fix it**: convert your cover file to CMYK color mode in your design software before exporting. Note that
+CMYK colors look slightly different from their RGB equivalents, and some vibrant RGB colors can't be reproduced
+exactly in CMYK. If you hire a cover designer, specify that you need a CMYK-mode PDF for the print cover.
+
+### Cover resolution too low
+
+**What KDP reports**: the cover file is below 300 DPI and may appear pixelated or blurry in print.
+
+**How it happens**: the cover was designed at a low resolution, or images placed in the cover were low-resolution
+stock photos or screen-captured images.
+
+**How to fix it**: redesign or export at 300 DPI minimum. For print covers, 400 DPI is recommended. If the cover
+uses raster images (photos), ensure those source images are themselves at sufficient resolution for print (a 72 DPI
+web image can't be upscaled to print quality; you need the original high-resolution file).
+
+### Barcode area blocked
+
+**What KDP reports**: the cover has design content over the barcode placement area.
+
+**How it happens**: the design extends into the lower-right area of the back cover where KDP places its barcode.
+
+**How to fix it**: leave an approximately 2 × 1.2 inch white area in the lower-right corner of the back cover.
+KDP's cover templates mark the barcode area; if you're not using a template, add a white box as a placeholder.
+
+## Metadata and content policy rejections
+
+These rejections are about your book's title, description, and content rather than the file itself.
+
+### Title inconsistency
+
+**What KDP reports**: the title on the cover or interior title page doesn't match the title entered in the
+book's setup metadata.
+
+**How it happens**: the title was edited during setup without updating the interior file, or the subtitle is in
+the wrong field.
+
+**How to fix it**: ensure the title on your cover and interior title page matches exactly what you entered in
+KDP's setup fields. Subtitle, if any, goes in the subtitle field, not added to the title field.
+
+### Description policy violations
+
+**What KDP reports**: the book description contains content that violates KDP's guidelines.
+
+**Common causes**: including other authors' names or book titles in the description in a way that implies
+endorsement or comparison (for example, "If you liked [Famous Author], you'll love this book" is typically
+prohibited), excessive capitalization, claims about bestseller status that can't be verified, or promotional
+language that violates KDP's content guidelines.
+
+**How to fix it**: remove or rephrase the offending content and resubmit.
+
+### Copyright concerns
+
+**What KDP reports**: the book appears to contain content that may not be original or may infringe on third-party
+copyrights.
+
+**How it happens**: publishing very short works (a few pages), books that closely match other published books in
+title and content, or books that appear to be reformatted public domain content without sufficient original
+contribution can trigger copyright review flags.
+
+**How to fix it**: ensure your book contains substantial original content. For public domain works, add a
+meaningful original introduction, scholarly notes, or other original material to justify the new edition.
+
+### Prohibited content
+
+**What KDP reports**: the book contains content that violates KDP's content guidelines.
+
+**Common causes**: KDP's content guidelines prohibit several categories of content, including certain types of
+explicit content, content involving minors, real people in certain contexts, and content that incites illegal
+activity. Full details are in KDP's Content Guidelines, which are worth reading before submission.
+
+## Pre-submission checklist to avoid rejections
+
+| Check | What to verify |
+| --- | --- |
+| Page dimensions | Interior PDF page size exactly matches chosen trim size |
+| Fonts embedded | PDF export was done with "embed all fonts" enabled |
+| Margins | Gutter meets minimum for page count; outer edges have 0.25-inch minimum |
+| Page count | Interior is between 24 and 828 pages for most trim sizes |
+| Cover dimensions | Full-wrap cover file dimensions were calculated from final page count via KDP's template |
+| Cover color mode | Print cover PDF is in CMYK (not RGB) |
+| Cover resolution | Cover file is 300 DPI minimum |
+| Barcode area | Back cover has a clear white area in the lower-right corner |
+| Title match | Title and subtitle on cover and title page exactly match metadata fields |
+| Content review | Description doesn't include prohibited comparative references or violate content guidelines |
+
+## When your book goes live but something is still wrong
+
+Rejection is better than the alternative: a book that passes review but has undetected issues. Some issues
+escape KDP's automated checks and only surface after publication, either through reader complaints, your own
+order of an author copy, or your own review of the live Kindle product.
+
+**Common post-publication issues and how to address them**:
+
+**Formatting looks different in the live book than in preview**: KDP's online previewer renders an approximation
+of the final output. The actual Kindle rendering, particularly for complex files, can differ slightly. If the
+live ebook has unexpected formatting problems, download your own book from your Kindle account to see exactly
+what readers see, then fix and re-upload the interior file.
+
+**Print author copy reveals a problem**: if you're ordering an author copy before approving for broader sale
+(which is strongly recommended), the author copy reflects the actual print output. Cover colors, interior
+margins, and font rendering may look different in print than they did in a PDF viewer. Note any issues, update
+the files, and order a second proof before approving.
+
+**A chapter or section is missing**: usually a heading style issue where the formatting tool didn't detect a
+chapter boundary. Open the source file in your formatting tool, verify heading assignments, and re-export.
+
+**Images appear too dark or too light in print**: black-and-white printing affects images based on their
+grayscale values. Images that look fine in color may appear muddy or washed out in B&W print. Convert images
+to grayscale at the editing stage and adjust levels before embedding.
+
+## What happens when KDP flags content (not just files)
+
+KDP's content review isn't just about file quality. Submissions can be held for manual review of the content
+itself, which is different from an automated file rejection.
+
+**Content hold vs. rejection**: a content hold means KDP is reviewing whether the book meets its content
+guidelines but hasn't rejected it yet. These holds can sometimes last several days. You typically receive an
+email notification.
+
+**Title and content mismatch**: if your title suggests a professional or self-help category but the content
+doesn't match (a common scenario with keyword-stuffed titles), KDP may flag the book for review or rejection.
+
+**Third-party content and permissions**: if your book contains song lyrics, long quotations from other published
+works, or other third-party content, you may be asked to provide permission documentation. This applies
+to published-under-copyright content; public domain material doesn't require permission, though it may require
+a note indicating the public domain source.
+
+**KDP's content guidelines document**: the policies are specific and updated periodically. Before writing a book
+in any category that touches adult content, real people, AI-generated content, or politically sensitive topics,
+reviewing KDP's content guidelines directly on the KDP Help Center is worthwhile to ensure compliance.
+
+## What KDP's automated review catches vs. misses
+
+KDP's automated review system catches file-level issues reliably: dimension mismatches, unembedded fonts,
+resolution failures, color mode errors, and barcode placement violations are all detected automatically.
+
+The system is less reliable at catching:
+
+- **Subtle margin violations**: if text gets close to but doesn't technically cross the minimum margin, it may
+  pass review but look bad in print
+- **Font rendering issues**: an embedded font that's technically compliant but renders poorly on e-ink displays
+  won't be caught by file review
+- **Table formatting in ebooks**: tables that look acceptable in KDP's previewer may be unusable on small-screen
+  Kindle devices
+- **Low-quality image upscaling**: if a low-resolution image was upscaled to meet the DPI requirement, it may
+  pass review but print with visible pixelation
+
+The pre-submission checklist in this guide catches what automated review catches. Testing on actual devices
+catches what automated review misses.
+
+## Frequently asked questions
+
+**How long does KDP take to review files after upload?**
+
+Technical review of interior and cover files typically takes a few hours. Content review, particularly for new
+books or accounts with no publishing history, can take up to 72 hours or occasionally longer.
+
+**Will KDP email me when my submission is rejected?**
+
+Yes. KDP sends an email notification when a submission is rejected, with a description of the issue. The email
+usually provides enough information to identify the problem; the rejection notice in your KDP dashboard may
+include more specific details.
+
+**Can I resubmit immediately after fixing a rejection?**
+
+Yes. Once you've fixed the identified issue, you can upload a corrected file immediately. If there were multiple
+issues, KDP's automated review may catch them sequentially; in some cases a second submission reveals a different
+issue from the first rejection.
+
+**Is there a limit on how many times I can resubmit?**
+
+KDP doesn't impose a hard limit on resubmissions, but an account that repeatedly submits content that violates
+policy may be flagged for closer review.
+
+## The bottom line
+
+Most KDP rejections are technical formatting issues that a pre-upload checklist prevents. The common ones:
+incorrect page dimensions, unembedded fonts, cover spine width mismatch, and RGB instead of CMYK cover mode, all
+have straightforward fixes. Working through our [KDP formatting checklist](/guides/kdp-formatting-checklist)
+before uploading catches the majority of technical issues before they become rejection notices.
+
+For the full publishing process from manuscript to live book, see our guide on
+[how to self-publish on Amazon KDP](/guides/how-to-self-publish-on-kdp).

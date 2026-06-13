@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { critiqueBook } from '@liberscript/analysis';
-import { AiProvider, ChapterKind, planLimitExceeded, tiptapText, type TiptapDoc } from '@liberscript/core';
+import { type AiProvider, ChapterKind, planLimitExceeded, tiptapText, type TiptapDoc } from '@liberscript/core';
 import { protectedProcedure, router } from '../trpc';
 import { requireProjectAccess } from '../lib/ownership';
 import { currentOwner } from '../lib/ownership';

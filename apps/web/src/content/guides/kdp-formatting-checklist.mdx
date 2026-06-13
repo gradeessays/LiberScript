@@ -1,0 +1,293 @@
+---
+title: "KDP Formatting Requirements: A Complete Checklist for Print and Ebook"
+description: "The complete technical requirements for formatting a book for Amazon KDP, covering ebook file specs, print trim sizes, margins, bleeds, cover dimensions, and common rejection reasons."
+category: kdp
+keywords:
+  - kdp formatting requirements
+  - kdp formatting checklist
+  - amazon kdp print specs
+  - kdp ebook formatting
+  - format book for amazon kdp
+publishedAt: "2026-06-13"
+updatedAt: "2026-06-13"
+---
+
+Amazon KDP's formatting requirements are well documented, but scattered across multiple help pages. This checklist
+pulls the key technical requirements for both ebook and print formats into one place, so you can verify your files
+before uploading rather than after a rejection.
+
+Formatting issues are one of the most common reasons a book upload fails review or looks wrong in KDP's previewer.
+Working through this checklist before uploading saves time and avoids re-uploads that can delay your publish date.
+
+## Ebook (Kindle) formatting requirements
+
+### Accepted file types
+
+KDP accepts the following file types for Kindle ebooks:
+
+| File type | Notes |
+| --- | --- |
+| EPUB | Recommended; accepted by KDP for most books and every other retailer |
+| DOCX | Acceptable for simple manuscripts; KDP converts to Kindle format during upload |
+| PDF | Accepted but not recommended for ebooks; reflowability is lost |
+| HTML (zipped) | Accepted but rarely used |
+| MOBI | Still accepted but largely superseded by EPUB for most purposes |
+
+For best results across Kindle devices and the Kindle app on phones, tablets, and browsers, a properly structured
+EPUB is the preferred format. A standard EPUB from a formatting tool also lets you use the same file on other
+retail platforms.
+
+### EPUB structure requirements
+
+- A valid table of contents as a navigation document (NCX or NAV-based TOC)
+- Cover image embedded within the EPUB and listed in the manifest
+- Chapters accessible from the TOC (readers expect chapter navigation on Kindle)
+- No password protection or DRM already applied to the file
+- No unsupported media types embedded in the file that can't render on Kindle devices
+
+### Text and formatting requirements
+
+- **Fonts**: standard web-safe fonts (Georgia, Times New Roman, Arial, etc.) or properly embedded fonts. KDP
+  strips embedded fonts in some cases unless marked as subset-embedded correctly.
+- **Images**: JPEG or PNG, embedded within the EPUB. Resolution of 300 DPI or higher is recommended; images will
+  be downsampled if significantly larger.
+- **Special characters**: use Unicode encoding throughout. Special characters should be encoded as UTF-8 characters,
+  not as images.
+- **No headers or footers**: ebooks reflow based on reader settings; fixed headers/footers (like those in a Word
+  document) don't carry over meaningfully.
+- **Justified text**: standard on Kindle, though KDP's rendering engine handles this automatically.
+
+### Cover image (ebook)
+
+| Specification | Requirement |
+| --- | --- |
+| Dimensions | 2,560 x 1,600 pixels recommended (1.6:1 ratio) |
+| Minimum dimensions | 1,000 pixels on the shortest side |
+| Maximum dimensions | 10,000 pixels on either side |
+| File format | JPEG or TIFF |
+| Maximum file size | 50 MB |
+| Color mode | RGB (not CMYK) |
+
+The cover image for an ebook is a single flat image (front cover only, no spine or back). A higher-resolution image
+performs better on retina displays. The ebook cover is separate from the print cover.
+
+## Print (paperback) formatting requirements
+
+Print formatting has more variables than ebook formatting because the specifications depend on your chosen trim
+size and page count.
+
+### Trim sizes
+
+KDP Print supports a range of trim sizes. The most commonly used for fiction and nonfiction:
+
+| Trim size (inches) | Common use |
+| --- | --- |
+| 5 x 8 | Fiction, poetry, standard-length novels |
+| 5.06 x 7.81 | Mass market paperback style |
+| 5.5 x 8.5 | Many nonfiction books |
+| 6 x 9 | Nonfiction, self-help, textbooks, longer fiction |
+| 8.5 x 11 | Workbooks, journals, technical manuals |
+
+Choose your trim size before formatting. Your manuscript PDF must be exactly sized to the chosen trim size; images,
+margins, and page numbers must all be positioned relative to that size.
+
+### Margins
+
+Margins ensure text doesn't fall into the spine or get cut off during printing. Minimum requirements vary by page
+count:
+
+**Gutter (inside margin):** the gutter is the inner margin that accommodates the spine binding. KDP requires a
+minimum gutter based on page count:
+
+| Page count | Minimum gutter |
+| --- | --- |
+| 24 to 150 pages | 0.375 inches |
+| 151 to 300 pages | 0.5 inches |
+| 301 to 500 pages | 0.625 inches |
+| 501 to 700 pages | 0.75 inches |
+| 701 to 828 pages | 0.875 inches |
+
+**Outside, top, and bottom margins:** KDP recommends a minimum of 0.25 inches on all outside edges, though many
+books use 0.5 inches or more for a cleaner look. Text and images that extend to within 0.125 inches of the edge
+risk being trimmed.
+
+### Bleed
+
+"Bleed" refers to content that intentionally extends to the edge of the page, useful for full-page images or
+colored backgrounds that should reach the paper edge. If you're using bleed:
+
+- Extend bleed elements 0.125 inches beyond the trim line on all affected sides
+- Set your PDF to "include bleed marks" or add 0.125 inches to the trim dimensions when exporting
+- KDP accepts bleed content but requires that you confirm your PDF includes bleed when uploading
+
+Most text-only books don't use bleed.
+
+### Interior PDF specifications
+
+| Specification | Requirement |
+| --- | --- |
+| File format | PDF (version 1.3 or higher) |
+| Fonts | All fonts must be embedded in the PDF |
+| Color mode | Grayscale or CMYK for black-and-white books; CMYK for color books |
+| Image resolution | 300 DPI minimum; 600 DPI recommended for sharp text in image elements |
+| Page size | Exactly matches your chosen trim size (or trim + bleed where applicable) |
+| Single pages (not spreads) | Each page is its own page in the PDF, not arranged as reader spreads |
+| Page count limits | Between 24 and 828 pages for most trim sizes |
+
+### Black and white vs. color interiors
+
+| Option | Use | Cost per page for printing |
+| --- | --- | --- |
+| Black and white, white paper | Standard nonfiction, most fiction | Lowest |
+| Black and white, cream paper | Fiction, especially longer literary works | Slightly higher |
+| Standard color | Books with full-color images, cookbooks, children's picture books | Significantly higher |
+| Premium color | Professional-quality color reproduction | Highest |
+
+Color printing significantly increases the per-copy printing cost, which reduces the royalty available at a given
+retail price. Most authors of text-only books choose black and white.
+
+## Cover (print) specifications
+
+The print cover is a single flat PDF that includes the front cover, spine, and back cover. Because the spine width
+depends on your page count and paper type, cover design needs to happen after your page count is finalized.
+
+### Spine width calculation
+
+KDP provides a spine width calculator: enter your page count and paper type, and it returns the spine width in
+inches. General approximate values:
+
+| Paper type | Approximate spine width per 100 pages |
+| --- | --- |
+| White paper (60# text) | 0.225 inches per 100 pages |
+| Cream paper (60# text) | Similar to white, may vary slightly |
+
+For a 300-page book on white paper: 3 x 0.225 = approximately 0.675 inches of spine width.
+
+### Cover image specifications
+
+| Specification | Requirement |
+| --- | --- |
+| File format | PDF |
+| Color mode | CMYK |
+| Resolution | 300 DPI minimum across the full cover |
+| Total width | Front cover + spine + back cover, all measured in your trim size dimensions |
+| Bleed | Extend all outer edges 0.125 inches beyond the trim line |
+| Safe zone | Keep text and important images at least 0.125 inches inside the trim line on all edges |
+
+## Pre-upload checklist
+
+Before uploading your files to KDP, check the following:
+
+### Ebook checklist
+
+- [ ] EPUB validates without errors (use EPUBCheck or your formatting tool's built-in validation)
+- [ ] Table of contents is present and links to every chapter
+- [ ] Cover image is included at 2,560 x 1,600 pixels (or close to that ratio)
+- [ ] All fonts used are web-safe or properly embedded
+- [ ] No headers or footers that won't translate to ebook format
+- [ ] Book opens to the correct starting page (front matter doesn't prevent readers from reaching chapter 1)
+
+### Print checklist
+
+- [ ] Interior PDF page size exactly matches your chosen trim size
+- [ ] All fonts are embedded in the PDF (not just referenced)
+- [ ] Gutter (inside margin) meets the minimum for your page count
+- [ ] Page numbers are on the correct pages (not on the cover page, blank pages, or part pages)
+- [ ] Running headers, if present, are consistent throughout
+- [ ] No text or images within 0.25 inches of the outer edges on any page
+- [ ] Cover PDF is in CMYK, includes a 0.125-inch bleed, and spine width matches your page count and paper type
+- [ ] KDP's print previewer shows no red-flagged pages
+
+## Hardcover formatting on KDP
+
+KDP offers hardcover publishing as well as paperback. Interior formatting requirements for hardcovers are broadly
+similar to paperbacks, with the same trim size support and PDF specifications, but hardcover has different minimum
+page counts and printing cost structures that affect the minimum viable retail price.
+
+The key practical note for formatting: the same interior PDF you produce for your paperback can typically be used
+for a hardcover edition as well, since the interior specifications are the same for a given trim size. The
+hardcover cover, however, requires a separate file sized to KDP's hardcover cover specifications, which differ from
+the paperback cover in spine width and overall dimensions.
+
+## Common issues caught by KDP's automated review
+
+KDP's automated file-checking system reviews both interior and cover files on upload. Common flags and their fixes:
+
+| Issue | Common cause | Fix |
+| --- | --- | --- |
+| Page dimensions don't match trim size | Interior PDF exported at a different size than the chosen trim | Re-export from your formatting tool at the exact trim size |
+| Fonts not embedded | PDF exported without font embedding enabled | Re-export with "embed all fonts" enabled |
+| Cover spine width mismatch | Page count changed after the cover was designed | Recalculate spine width and update the cover file |
+| Content outside safe zone | Text or images too close to the trim edge | Move content at least 0.25 inches from outer edges |
+| Transparent cover elements | Transparency in cover PDF not flattened | Flatten transparency before exporting to PDF |
+| Low resolution images | Images below 300 DPI in the interior | Replace with higher-resolution versions or scale images down |
+| Missing NCX/NAV table of contents | EPUB doesn't include a navigable TOC | Regenerate EPUB using a tool that builds the TOC automatically |
+
+## How formatting tools help
+
+Manually producing a KDP-compliant PDF in Word or Google Docs is possible but error-prone. The most common issues,
+incorrect gutter sizes, text too close to the trim edge, embedded-font failures, and incorrect page dimensions, are
+largely prevented by using a dedicated book formatting tool.
+
+LiberScript's design mode shows a live, paginated preview at your chosen trim size with running headers and page
+numbers, so you can check the layout visually before exporting. It sets margins and gutter to safe defaults, and
+its print PDF export includes embedded fonts. Our full guide on [how to self-publish on Amazon KDP](/guides/how-to-self-publish-on-kdp)
+covers the publishing process once your files are ready.
+
+## Frequently asked questions
+
+**What happens if my file doesn't meet KDP's requirements?**
+
+KDP reviews your files after upload, usually within a few hours. If the interior or cover fails a technical check,
+KDP will email you a rejection notice describing the issue. Common rejections include incorrect page dimensions,
+fonts not embedded in the PDF, and cover spine width that doesn't match the uploaded interior's page count.
+
+**Do I need to format separately for Kindle ebooks and print?**
+
+Yes. Kindle ebooks use a reflowable format (EPUB or DOCX) where readers control font size, while print books
+require a fixed-size PDF sized to your chosen trim size. Many formatting tools, including LiberScript, produce both
+from the same project.
+
+**Can I use a Word document for print?**
+
+KDP's upload system will accept DOCX for print books, but the conversion quality varies significantly. For a
+reliable result with correct margins, embedded fonts, and consistent chapter formatting, a print-ready PDF from a
+dedicated formatting tool is strongly preferred.
+
+**How do I know what spine width to use for my cover?**
+
+Use KDP's spine-width calculator, available in the cover upload section of the book setup process. You'll need your
+final page count and your chosen paper type. Your cover designer (or design tool) uses this measurement to position
+the front cover, spine text, and back cover correctly.
+
+**Should I design the cover before or after formatting the interior?**
+
+After. Your cover's spine width depends on your final page count, which is determined by your interior's trim size,
+font size, line spacing, and chapter structure. Even a minor change to the interior can shift the page count by
+enough to require a spine adjustment. Finalizing and approving your interior PDF, noting the final page count, and
+then building or ordering your cover prevents this.
+
+**Is it better to embed fonts or use system-standard fonts for print PDFs?**
+
+Embedding fonts is strongly preferred and required by KDP. System fonts that aren't embedded can reflow or be
+substituted during PDF rendering, resulting in unexpected appearance differences. Any formatting tool that exports
+print PDFs should embed fonts by default; verify this in your PDF export settings if you're using general-purpose
+software like Word or Adobe Acrobat.
+
+## The bottom line
+
+Meeting KDP's formatting requirements consistently is a matter of following the technical specifications for your
+chosen trim size and paper type, checking your files in KDP's previewer before publishing, and fixing any flagged
+issues before you approve for publication. A dedicated formatting tool handles most of the technical constraints
+automatically, leaving you focused on the content and design of the book rather than margin arithmetic.
+
+LiberScript's live preview at your chosen trim size lets you spot layout issues, margin problems, and running
+header inconsistencies before exporting. Its print PDF and EPUB exports are built to meet KDP's technical
+requirements by default, including embedded fonts and correctly sized pages, so you're checking for content and
+design quality rather than specification compliance.
+
+See our [complete KDP publishing guide](/guides/how-to-self-publish-on-kdp) for the full process from account
+setup to a live book on Amazon.
+
+Ready to format your manuscript to KDP's specifications? [Get started](/get-started?plan=DAY) in LiberScript
+or [see pricing](/pricing) for all plans.

@@ -1,0 +1,344 @@
+---
+title: "EPUB Formatting Best Practices for Fiction and Nonfiction"
+description: "A practical guide to building well-structured EPUB files for self-published books: semantic markup, CSS and font embedding, images, accessibility, and how fiction and nonfiction EPUBs differ."
+category: design
+keywords:
+  - epub formatting best practices
+  - how to format an epub
+  - epub for self publishing
+  - ebook formatting guide
+  - epub accessibility
+publishedAt: "2026-06-13"
+updatedAt: "2026-06-13"
+---
+
+EPUB is the format underlying nearly every ebook platform, even Amazon, which converts EPUB to
+its proprietary KFX format internally. A well-built EPUB renders cleanly across Kindle, Kobo,
+Apple Books, and the dozens of retailers reached through aggregators like Draft2Digital. A
+poorly built one can look fine in one reading app and break in another, missing chapters in the
+table of contents, fonts that don't display, images that overflow the screen, or text that
+doesn't reflow properly when a reader changes font size.
+
+This guide covers what makes an EPUB well-built, from its underlying structure to the details
+that matter for fiction and nonfiction specifically.
+
+## What an EPUB actually is
+
+An EPUB file is a ZIP archive containing a specific folder structure: XHTML files (your actual
+content, one or more per chapter or section), CSS files (styling), image files, font files (if
+embedded), and several metadata and navigation files that describe the book's structure to
+reading apps.
+
+The two files that matter most for navigation and reader experience:
+
+**The OPF (package) file**: lists every file in the EPUB and their reading order (the "spine").
+This tells reading apps what order to present your content in.
+
+**The navigation document (nav.xhtml in EPUB 3, or the NCX file in EPUB 2)**: defines your
+table of contents, the list readers see when they tap "Contents" in their reading app, and
+that some apps use for "go to chapter" navigation.
+
+Most authors never need to edit these files directly, formatting tools generate them
+automatically, but understanding that they exist explains why certain things (like a missing
+table of contents entry) happen: usually, a heading wasn't marked with the right tag, so it
+wasn't picked up when the navigation document was generated.
+
+## Reflowable vs. fixed-layout EPUB
+
+**Reflowable EPUB** is the format used for the vast majority of books: text flows based on the
+reader's screen size, font size preference, and orientation. A reflowable EPUB might display 2
+paragraphs per "page" on a phone and 5 on a tablet, the content adapts to the device.
+
+**Fixed-layout EPUB** preserves exact page layouts, similar to a PDF but still using EPUB's
+underlying format. This is used for children's picture books, heavily illustrated books, and
+comics, where the precise placement of text relative to images matters and can't be left to
+reflow.
+
+For standard fiction and nonfiction (the vast majority of self-published books), reflowable
+EPUB is the right choice. Fixed-layout EPUB requires a fundamentally different design approach
+and is generally only necessary for illustrated children's books and similar visually-precise
+formats.
+
+## Semantic markup: the foundation of a good EPUB
+
+The single most important practice in EPUB formatting is using semantic HTML tags correctly,
+meaning tags that describe what content is, not just how it should look.
+
+**Headings**: chapter titles should be marked with heading tags (`<h1>` for the book title or
+top-level division, `<h2>` for chapter titles, depending on your structure). This is what
+allows reading apps to automatically generate a working table of contents and "go to chapter"
+navigation. If a chapter title is just a large, bold paragraph of text rather than a heading
+tag, it won't appear in the navigation, even if it looks identical on the page.
+
+**Paragraphs**: body text should be in `<p>` tags, not line breaks (`<br>`) used to simulate
+paragraph breaks. This affects how text reflows and how assistive technology (screen readers)
+interprets your content.
+
+**Emphasis vs. styling**: use `<em>` for emphasized text (which typically renders as italic)
+and `<strong>` for strongly emphasized text (typically bold), rather than wrapping text in
+`<span>` tags with CSS styling applied directly. Semantic tags carry meaning that styling-only
+tags don't, which matters for accessibility and for how some reading apps handle text-to-speech.
+
+**Why this matters across platforms**: Amazon's KFX conversion, Kobo's renderer, and Apple
+Books' renderer all rely on this semantic structure to generate navigation, apply default
+styling consistently, and support accessibility features. An EPUB built on semantic markup
+"just works" across platforms; one built on visual hacks (using paragraph styling to fake
+headings, for instance) breaks in ways that are hard to predict and debug.
+
+## CSS best practices for EPUB
+
+CSS controls the visual presentation of your EPUB's content, fonts, sizes, spacing, alignment,
+and more. A few principles keep your CSS working well across reading environments:
+
+**Use relative units, not fixed pixel values**: font sizes, margins, and spacing should use
+relative units (em, rem, percentages) rather than fixed pixels. Reflowable EPUB needs to adapt
+to different screen sizes and reader font-size preferences; fixed pixel values don't scale with
+those preferences and can produce text that's too large or too small relative to the rest of
+the page.
+
+**Avoid absolute positioning**: CSS properties that position elements at fixed coordinates
+don't translate well to reflowable content, which by definition doesn't have fixed coordinates.
+Reserve absolute positioning for fixed-layout EPUBs only.
+
+**Keep your CSS simple and well-organized**: a single, well-organized stylesheet that defines
+styles for your headings, body text, block quotes, scene breaks, and other recurring elements
+is easier to maintain and debug than scattered inline styles throughout your content files.
+
+**Test your CSS across multiple readers**: a style that renders perfectly in one reading app
+might render slightly differently in another due to differences in how each app's renderer
+interprets CSS. This is normal and expected; the goal is "looks good and is readable
+everywhere," not "renders pixel-identically everywhere."
+
+## Font embedding
+
+Embedding custom fonts in your EPUB ensures readers see your chosen typography rather than
+their device's default font. But font embedding has more nuance than it might first appear.
+
+**Licensing**: most commercial fonts require an embedding license, separate from a license to
+use the font in design software. Before embedding any font in a published EPUB, confirm its
+license explicitly permits embedding in distributed ebook files. Many fonts designed for web
+or print use don't automatically include ebook embedding rights.
+
+**Font formats**: EPUB supports several font file formats (OTF, TTF, WOFF). Most modern EPUB
+creation tools handle the appropriate format automatically; if you're embedding fonts manually,
+check which formats your target platforms support.
+
+**Font fallbacks**: always specify a fallback font family in your CSS (a generic serif or
+sans-serif) in case the embedded font fails to load on a particular device for any reason. This
+ensures readers see reasonable typography even in edge cases.
+
+**When not to embed fonts**: if your book uses entirely standard fonts that reading devices
+already provide good equivalents for, font embedding may not be necessary, and skipping it
+keeps your file size smaller. Embedding matters most when your design relies on a specific,
+non-standard typeface for its intended effect.
+
+## Images in EPUB
+
+**Cover image**: your EPUB's cover image is typically referenced in the OPF file with a
+specific metadata flag identifying it as the cover, which reading apps use for library display
+and store listings. Most formatting tools handle this automatically when you designate your
+cover during export.
+
+**Image resolution and file size**: images should be high enough resolution to look sharp on
+high-density displays (retina-class tablets and phones) but not so large that they bloat your
+EPUB's file size unnecessarily. A balance of roughly 1,500-2,000 pixels on the longer dimension
+for interior images, compressed to a reasonable file size, works well for most purposes.
+
+**Image scaling in CSS**: images should be set to scale relative to their container (using
+percentage-based width in CSS) rather than fixed pixel dimensions, so they display
+appropriately across different screen sizes without overflowing or appearing too small.
+
+**Alt text**: every image should have descriptive alternative text (the `alt` attribute),
+which is read aloud by screen readers and displayed if an image fails to load. For decorative
+images that convey no informational content (a simple divider graphic, for instance), an empty
+alt attribute (`alt=""`) is appropriate, signaling to assistive technology that the image can
+be skipped.
+
+## Table of contents and navigation
+
+EPUB 3's navigation document defines your table of contents. A well-structured nav document
+should:
+
+- List every chapter (and major front/back matter section) in reading order
+- Use the same heading text that appears in the book itself, so readers recognize the
+  correspondence
+- Not include every minor subheading (a TOC with 200 entries because every scene break got a
+  heading is unwieldy; reserve TOC entries for chapter-level and major section divisions)
+
+**Front matter and back matter in the TOC**: whether to include front matter (title page,
+copyright page, dedication) and back matter (acknowledgments, about the author) in your visible
+table of contents is a stylistic choice. Many fiction EPUBs list only chapters plus key
+back-matter items (like "About the Author" or a link to the next book), keeping the front
+matter present in the file (and in the reading order) but not cluttering the navigation.
+
+## Special formatting in EPUB
+
+### Scene breaks
+
+Scene breaks (a visual indicator of a shift in time, location, or point of view within a
+chapter, without a full chapter break) are typically rendered as a centered symbol or set of
+characters (asterisks, a small ornament, or simply extra white space). In EPUB, scene breaks
+should be marked with a distinct CSS class so they render consistently and don't get confused
+with paragraph breaks during reflow.
+
+### Drop caps
+
+Drop caps (an enlarged first letter of a chapter) can be implemented in EPUB CSS using the
+`::first-letter` pseudo-element, though support and rendering quality vary across reading apps.
+Apple Books tends to render CSS drop caps with high fidelity; some e-ink readers render them
+less precisely. Testing your drop cap implementation across a few reading environments before
+finalizing is worthwhile if drop caps are part of your design.
+
+### Block quotes and extracts
+
+Longer quoted passages, epigraphs, or extracts (common in nonfiction, and in fiction for
+epigraphs at the start of chapters) should use the `<blockquote>` tag with appropriate styling,
+not manual indentation via spaces or tabs, which doesn't translate to EPUB's reflowable
+structure.
+
+### Footnotes and endnotes
+
+EPUB supports linked footnotes and endnotes using internal hyperlinks: a superscript number or
+symbol in the text links to the note's content elsewhere in the file (often at the chapter end
+or in a dedicated notes section), and the note links back to the text. EPUB 3 also has a
+specific semantic structure for footnotes (using `epub:type` attributes) that some reading apps
+use to display footnotes in a popup rather than navigating away from the page, a much better
+reading experience for footnote-heavy nonfiction.
+
+## Accessibility in EPUB
+
+EPUB accessibility has become increasingly important, both because it's the right thing to do
+for readers with visual or other impairments, and because some retailers and library platforms
+increasingly check for accessibility features.
+
+**Reading order**: your EPUB's content should follow a logical reading order matching how a
+sighted reader would experience the book, which screen readers rely on for narration.
+
+**Heading structure**: proper heading hierarchy (covered above) is also an accessibility
+feature, screen reader users can navigate by headings, jumping between chapters efficiently.
+
+**Alt text for images**: as covered above, meaningful alt text for informational images and
+empty alt text for decorative images.
+
+**Language metadata**: your EPUB's metadata should specify the language of the content, which
+screen readers use to select the correct pronunciation rules.
+
+**Color contrast**: if your design uses custom colors for text (uncommon in standard fiction
+and nonfiction, but used in some specialty books), ensure sufficient contrast between text and
+background colors for readers with low vision.
+
+Most of these accessibility practices are also simply good EPUB practices; following the
+structural and semantic guidance throughout this guide largely produces an accessible EPUB as a
+byproduct, rather than requiring separate accessibility-specific work.
+
+## Fiction-specific EPUB considerations
+
+**Chapter structure**: most fiction EPUBs use one XHTML file per chapter (or sometimes group
+several short chapters into one file), each starting with a chapter heading marked as `<h2>` (or
+appropriate level), followed by the chapter's body text.
+
+**Dialogue formatting**: standard fiction dialogue conventions (quotation marks, new paragraph
+for each speaker change) translate directly to EPUB without special handling, as long as
+paragraphs are properly tagged.
+
+**Series information**: many fiction EPUBs include a "Also by [Author]" page in the back
+matter, often with links to other books' product pages (though linking to external retail pages
+from within an EPUB has platform-specific considerations; some platforms restrict outbound
+links in certain contexts).
+
+## Nonfiction-specific EPUB considerations
+
+**Tables**: EPUB supports HTML tables, and most modern reading apps render them reasonably
+well, though complex tables (many columns, nested structure) can be challenging on small
+screens. For nonfiction with data-heavy tables, consider whether the information could also be
+presented as a list or simplified for better small-screen readability, in addition to the table.
+
+**Sidebars and callout boxes**: nonfiction often includes sidebars, tips, or callout boxes
+visually distinguished from body text. In EPUB, these are typically implemented as a `<div>`
+with a distinct CSS class and styling (a border, background color, or different font), which
+reflows along with the rest of the content.
+
+**Index**: a traditional back-of-book index (with page numbers) doesn't translate meaningfully
+to EPUB, since EPUB has no fixed page numbers. Some nonfiction EPUBs omit the index entirely,
+include the index as linked terms, or note that an index is available in the print edition.
+
+**Numbered lists and procedures**: how-to and instructional nonfiction often relies on numbered
+steps; EPUB's ordered list (`<ol>`) tag handles this natively and reflows correctly.
+
+## Validating and testing your EPUB
+
+**EPUBCheck**: an open-source validation tool used (in some form) by many platforms internally
+to check EPUB files for structural errors. Running your EPUB through EPUBCheck before uploading
+catches issues that might not be visible in a casual preview but could cause platform-specific
+rejections or rendering problems.
+
+**Kindle Previewer**: Amazon's free tool shows how your EPUB will look after conversion to KFX
+for various Kindle devices and apps. This is the closest approximation to how your book will
+appear on Kindle without uploading to KDP directly.
+
+**Platform-specific previews**: KDP, Kobo Writing Life, and other platforms typically offer a
+preview step before final publication, showing how your file renders within their system. Use
+these previews as a final check even after validating with EPUBCheck and Kindle Previewer.
+
+## Common EPUB errors and how to avoid them
+
+| Issue | Likely cause | Fix |
+| --- | --- | --- |
+| Missing table of contents entries | Chapter titles not marked with heading tags | Use proper `<h1>`/`<h2>` tags for chapter titles |
+| Text too large or too small on some devices | Fixed pixel font sizes in CSS | Use relative units (em, rem, %) |
+| Images overflowing the screen | Fixed pixel image dimensions | Use percentage-based widths in CSS |
+| Embedded font not displaying | Font format unsupported by a platform, or licensing issue | Use widely-supported formats and confirm embedding license |
+| Inconsistent scene break appearance | Scene breaks styled inconsistently or via manual spacing | Use a dedicated CSS class for scene breaks |
+| EPUB rejected during upload | Structural validation errors | Run EPUBCheck before uploading |
+
+## Frequently asked questions
+
+**Do I need to learn HTML and CSS to create a good EPUB?**
+
+Not necessarily. Formatting tools like LiberScript generate semantically correct, well-styled
+EPUB files from your manuscript without requiring you to write code. Understanding the
+principles in this guide helps you recognize issues and communicate with formatting tools or
+services, but hand-coding isn't required for most authors.
+
+**Why does my EPUB look different on different devices?**
+
+This is expected and normal. Reflowable EPUB adapts to each device's screen size and the
+reader's font preferences. As long as the text is readable, properly structured, and your
+design elements (headings, scene breaks, etc.) render consistently in their intended style, minor
+visual differences between devices aren't a problem.
+
+**Can I include hyperlinks in my EPUB?**
+
+Yes, internal links (to other parts of your book, like footnotes or a table of contents) and
+external links (to a website) are both supported. Some platforms have policies about what kinds
+of external links are permitted (particularly links to other retailers or competing
+storefronts), so check current platform policies if your links point outside your own website
+or email signup.
+
+**What's the difference between EPUB 2 and EPUB 3?**
+
+EPUB 3 is the current standard and supports more features (better accessibility support, more
+robust navigation, support for audio/video in some contexts, though rarely used in standard
+books). Most modern formatting tools produce EPUB 3 files, which are backward-compatible with
+EPUB 2 readers for standard text content.
+
+**Should my EPUB and print interior have the same chapter structure?**
+
+Yes, the underlying content structure (chapters, sections, front and back matter) should be
+consistent between your EPUB and print interior, even though the visual styling differs by
+medium. This consistency also makes future updates easier, since both versions are built from
+the same source content.
+
+## The bottom line
+
+A well-built EPUB comes down to using semantic markup correctly, writing CSS that adapts to
+reflow rather than fighting it, embedding fonts and images responsibly, and validating before
+you publish. These practices produce files that render well across Kindle, Kobo, Apple Books,
+and every other major platform, and that are more accessible to readers using assistive
+technology as a natural consequence of being well-structured.
+
+For how your EPUB fits into a broader multi-platform strategy, see our guide on [multi-platform
+formatting](/guides/multi-platform-formatting). For the differences between print and ebook
+formatting more broadly, see our guide on [KDP print vs. ebook formatting](/guides/kdp-print-vs-ebook-formatting).
+To generate a well-structured EPUB from your manuscript automatically, [get started](/get-started?plan=DAY)
+in LiberScript.

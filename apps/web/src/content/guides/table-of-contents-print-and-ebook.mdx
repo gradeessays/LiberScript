@@ -1,0 +1,276 @@
+---
+title: "How to Create a Table of Contents That Works in Print and Ebook"
+description: "How to build a table of contents for self-published books that functions correctly in both print and ebook editions, including what to include, how ebook navigation works, and common mistakes to avoid."
+category: design
+keywords:
+  - book table of contents
+  - ebook navigation toc
+  - how to format table of contents
+  - kdp table of contents
+  - epub navigation document
+publishedAt: "2026-06-13"
+updatedAt: "2026-06-13"
+---
+
+A table of contents seems like one of the simplest elements of a book, a list of chapters with
+where to find them, but it behaves quite differently in print and ebook, and getting it wrong
+in either format creates a poor reader experience. In print, a table of contents is a static
+list with page numbers. In ebook, it's an interactive navigation tool that readers use to jump
+directly to chapters, and it's also what populates the "Go to" menu in reading apps. Building a
+table of contents that works correctly in both formats requires understanding these different
+roles.
+
+This guide covers what belongs in your table of contents, how it functions differently in print
+vs. ebook, and the common mistakes that cause TOC problems during platform review.
+
+## What a table of contents is for, in each format
+
+**In print**: a table of contents is a reference list, readers can flip to it to find a
+chapter's starting page, but most readers don't use it as their primary navigation (they use
+bookmarks, page corners, or simply remember roughly where they are). It's expected, conventional,
+and useful, but not load-bearing for the reading experience.
+
+**In ebook**: a table of contents is functional navigation. Readers tap a chapter in the TOC to
+jump directly there. It's also what populates the "Go to" or "Contents" menu that's a standard
+feature of every ebook reading app, often the primary way readers navigate a long ebook
+without flipping through pages (which "pages" don't meaningfully exist in reflowable EPUB in
+the print sense). A missing or broken ebook TOC is a significant usability problem, not just a
+cosmetic one.
+
+This difference in function is why the same content, your list of chapters, needs to be
+implemented differently for each format.
+
+## The print table of contents
+
+A print TOC typically appears in the front matter, after the title page and copyright page
+(and sometimes after a dedication), listing chapter titles (or numbers, if your book doesn't
+use titles, in which case some books omit a TOC entirely) with corresponding page numbers.
+
+**What to include**:
+- Chapters (by title if titled, or sometimes omitted if chapters are numbered only and your
+  genre convention doesn't include a TOC at all, common in some fiction)
+- Major back matter sections that readers might want to navigate to directly (an appendix, a
+  glossary, an index, particularly in nonfiction)
+- Part dividers, if your book uses them, often as top-level entries with chapters nested
+  beneath
+
+**What to typically exclude**:
+- Front matter itself (the TOC doesn't usually list "Title Page" or "Copyright Page" as entries
+  pointing to themselves)
+- Minor subsections within chapters, unless your nonfiction book specifically benefits from
+  that level of granularity (discussed below)
+- Acknowledgments, dedication, and similarly minor back matter, though some nonfiction does
+  include these
+
+**Many novels omit a TOC entirely**: it's increasingly common, especially for fiction with
+numbered-only chapters, to skip a print TOC altogether. A TOC that just says "Chapter 1... 1,
+Chapter 2... 14, Chapter 3... 27" and so on for 30 chapters doesn't add much value for most
+fiction readers. Whether to include one is a stylistic choice; if your genre's comparable
+titles commonly include or omit a TOC, that's a reasonable signal for your own book.
+
+### Page number accuracy in print
+
+The print TOC's page numbers must match the final, formatted interior exactly. This means the
+TOC is one of the last things finalized, after your interior layout is complete and page
+numbers are set, since any change to earlier content (adding a paragraph, adjusting spacing)
+shifts every subsequent page number. Most formatting tools generate the TOC automatically based
+on the final layout, eliminating the manual page-number-tracking that would otherwise be
+required (and that would need to be redone after every edit).
+
+## The ebook table of contents: the navigation document
+
+In EPUB, the table of contents is implemented through the navigation document (in EPUB 3, an
+XHTML file with a specific structure; in older EPUB 2 files, an NCX file). This document lists
+each navigable section (chapters, front matter sections you want navigable, back matter) as a
+link to the corresponding location in your content files.
+
+**How it's generated**: most formatting tools generate the navigation document automatically
+based on your manuscript's heading structure, every properly-tagged chapter heading (covered in
+our [EPUB formatting guide](/guides/epub-formatting-best-practices)) becomes a navigation entry.
+This is why semantic heading tags matter so much: a chapter title that isn't marked as a heading
+won't appear in the navigation document, even if it's visually styled to look like a heading.
+
+**What reading apps do with it**: when a reader opens the "Contents" or "Go to" menu in their
+reading app, they're seeing your navigation document's entries. Tapping an entry jumps directly
+to that location in the book. Some apps also use the navigation document to show reading
+progress (estimating how far through the book a reader is based on their current position
+relative to the navigation structure).
+
+**The "guide" landmarks**: EPUB 3's navigation document can also include "landmarks", special
+markers for things like the start of the main content (useful for "skip to content" navigation)
+and, in some cases, a reference to where page numbers would fall if the EPUB includes a
+page-list (covered below). These are optional but contribute to a more accessible and
+navigable ebook.
+
+## Visible TOC vs. navigation-only TOC in ebook
+
+There's a subtlety in ebooks: the navigation document (which populates the reading app's
+"Contents" menu) is somewhat separate from a visible "Table of Contents" page that appears as
+part of your book's actual content, a page readers see when reading through the book linearly,
+listing chapters as clickable links.
+
+**Many ebooks include both**: a visible TOC page early in the book (functioning as an
+in-content navigation page, similar to print, but with working links) and the navigation
+document (which populates the app's menu, generated from the same chapter structure).
+
+**Some ebooks omit the visible TOC page**: relying solely on the navigation document (the app's
+"Contents" menu) for navigation, particularly for fiction where, as in print, a visible TOC page
+listing only chapter numbers may not add much value. This is a stylistic choice similar to the
+print TOC omission discussed above.
+
+**If you include both**: ensure they're consistent, the visible TOC's chapter list should
+match the navigation document's chapter list. A formatting tool that generates the navigation
+document from the same heading structure as a visible TOC page (if included) keeps these
+synchronized automatically.
+
+## TOC structure for books with parts or sections
+
+For books organized into parts (Part One, Part Two) with chapters within each part, the TOC
+(both print and ebook navigation) can be structured with parts as top-level entries and
+chapters nested beneath them, or with all chapters listed at the same level with part titles
+interspersed as section headers.
+
+**Nested structure**: in ebook navigation, this often appears as an expandable/collapsible
+hierarchy in reading apps that support it (tapping "Part One" reveals chapters 1-10 beneath
+it). Not all reading apps render nested navigation the same way; some flatten it, displaying
+everything at one level regardless of the nesting in the navigation document.
+
+**Flat structure with section markers**: simpler to implement and displays consistently across
+reading apps, at the cost of not visually grouping chapters under their parts in the navigation
+menu itself (though the part divider still appears within the book's actual content as readers
+read through it).
+
+For most fiction with parts, either approach works; the flat structure is more predictable
+across the wide range of ebook reading environments.
+
+## TOC granularity for nonfiction
+
+Nonfiction often benefits from a more detailed TOC than fiction, since readers frequently use
+nonfiction books as references, jumping to specific topics rather than reading linearly start
+to finish.
+
+**Chapter-level TOC**: lists each chapter, sufficient for nonfiction that's meant to be read
+mostly in order (a narrative nonfiction book, a memoir).
+
+**Chapter-plus-subsection TOC**: for reference-style nonfiction (a how-to guide with multiple
+distinct topics per chapter), including major subsections in the TOC helps readers find specific
+information quickly. This requires marking subsections with appropriate heading levels (h3, for
+example, beneath chapter h2 headings) so they can be included in the navigation document at an
+appropriate nested level.
+
+**Balancing detail and usability**: a TOC with every subheading in a 20-chapter book might have
+100+ entries, which becomes unwieldy as a navigation menu. A practical balance: include
+subsections in the TOC for books where readers genuinely use it as a lookup tool (reference
+books, technical guides), and keep it chapter-level for books read more linearly.
+
+## Common TOC mistakes
+
+- **Chapter titles not marked as headings**: the single most common cause of missing TOC
+  entries in ebook; the heading exists visually but isn't tagged correctly, so it's invisible
+  to the navigation document generator.
+- **Print TOC page numbers that don't match the final layout**: happens when the TOC is built
+  early and the interior is edited afterward without updating page numbers; always finalize the
+  TOC after the interior layout is complete, or use a tool that generates it automatically from
+  the final layout.
+- **Inconsistent TOC between visible page and navigation document**: if both exist, they should
+  list the same content; a discrepancy (a chapter in one but not the other) is confusing.
+  
+- **Overly granular ebook navigation**: every subheading included as a separate navigation
+  entry, creating an unwieldy "Contents" menu with far more entries than is useful.
+- **TOC entries that don't link anywhere (broken links)**: in ebook, a TOC entry that doesn't
+  successfully jump to its target (due to a broken internal link) is a functional failure that
+  platform reviews may catch, and that readers will definitely notice.
+- **Including front matter as TOC entries pointing to themselves**: a TOC entry for "Table of
+  Contents" linking to the table of contents page itself is circular and unnecessary.
+
+## How formatting tools generate the TOC
+
+Most formatting tools, including LiberScript, generate both the print TOC (with accurate page
+numbers based on final layout) and the ebook navigation document (based on your manuscript's
+heading structure) automatically. This means:
+
+- Your TOC stays in sync with your actual chapter structure; add, remove, or rename a chapter,
+  and the TOC updates automatically.
+- Page numbers in the print TOC are always accurate to the final layout, since they're
+  generated after layout is finalized, not tracked manually.
+- The ebook navigation document is generated correctly as long as your headings are properly
+  tagged, which the tool handles as part of normal chapter formatting.
+
+This automation removes what would otherwise be a manual, error-prone, and tedious process,
+particularly for longer books or books that go through multiple editing rounds where chapter
+content (and therefore page counts) shifts.
+
+## Testing your table of contents before publishing
+
+Before uploading your final files, a quick TOC check catches most issues:
+
+**Print**: open your interior PDF and check that the TOC's page numbers correspond to the
+correct pages, spot-checking the first chapter, a middle chapter, and the last chapter is
+usually enough to catch a systemic offset (which would indicate the TOC was generated before a
+late change shifted page numbers).
+
+**Ebook**: open your EPUB in an EPUB reader (or use Kindle Previewer for the KFX-converted
+view) and tap through every entry in the "Contents" menu, confirming each one jumps to the
+correct chapter. For a long book, at minimum check the first few chapters, a few from the
+middle, and the last few, along with any back matter entries, since these are the locations
+most likely to have heading-tag issues if something was formatted differently than the rest of
+the book.
+
+**Validation tools**: running your EPUB through EPUBCheck (mentioned in our EPUB formatting
+guide) will flag certain navigation document errors, such as links that point to non-existent
+locations, though it won't catch a heading that was simply never tagged (which produces a valid
+but incomplete navigation document, not an error).
+
+## Frequently asked questions
+
+**Does every book need a table of contents?**
+
+Not strictly. Many novels, particularly with numbered-only chapters, omit a print TOC and rely
+on the ebook's navigation document alone for ebook navigation (which is effectively required,
+readers need some way to jump between chapters in an ebook, even if there's no visible "Table
+of Contents" page). Nonfiction benefits from a TOC more consistently, given its more reference-
+oriented reading patterns.
+
+**My ebook's table of contents is missing some chapters. What went wrong?**
+
+The most common cause is that the missing chapters' headings weren't marked with the correct
+heading tag, so they weren't picked up when the navigation document was generated. Check that
+every chapter title uses a consistent heading style (the same heading level as your other
+chapters) in your manuscript.
+
+**Can readers turn off the table of contents in their reading app?**
+
+Readers can't remove your navigation document, but they're not required to use it either; it's
+simply available via the app's "Contents" menu whenever they want it. A visible TOC page within
+your book's content (if you include one) is part of the book itself and appears in reading
+order like any other page.
+
+**Should my table of contents include the front matter sections (copyright page, dedication)?**
+
+Generally no for the visible/print TOC. Some ebook navigation documents do include front matter
+sections as navigation entries (so readers can jump to the copyright page or dedication if they
+want), which is a reasonable inclusion since it doesn't clutter a visible TOC page, just adds an
+entry to the app's "Contents" menu.
+
+**What about a TOC for a multi-book box set or anthology?**
+
+Box sets and anthologies need a TOC that reflects the multi-book structure, typically with each
+included book or story as a top-level section, and that book's own chapters nested beneath (if
+included at that level of detail) or simply listed as one entry per book/story. This is one of
+the cases where a detailed, navigable TOC is particularly valuable, since readers are navigating
+between distinct works, not just chapters of one continuous narrative.
+
+## The bottom line
+
+A table of contents serves a mostly reference role in print and a functional navigation role in
+ebook, and building one that works in both starts with the same foundation: properly structured,
+semantically tagged headings throughout your manuscript. From that foundation, a print TOC with
+accurate page numbers and an ebook navigation document both follow, ideally generated
+automatically by your formatting tool rather than built and maintained by hand.
+
+For the heading structure and styling decisions that underpin a working TOC, see our guide on
+[chapter headings and section breaks](/guides/chapter-headings-and-section-breaks). For what
+else belongs in your front matter alongside the TOC, see our guide on [front matter and back
+matter](/guides/front-matter-back-matter-every-book-needs). To generate an accurate, working
+table of contents for print and ebook automatically, [get started](/get-started?plan=DAY) in
+LiberScript.

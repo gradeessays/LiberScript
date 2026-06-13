@@ -2,31 +2,10 @@
 
 import { Suspense, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@liberscript/ui';
-import { PaymentProvider, PLAN_PRICING, PlanInterval } from '@liberscript/core';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@liberscript/ui';
+import { PaymentProvider, PLAN_PRICING, type PlanInterval } from '@liberscript/core';
 import { trpc } from '@/lib/trpc/client';
-
-const PLAN_ORDER = [PlanInterval.DAY, PlanInterval.WEEK, PlanInterval.MONTH, PlanInterval.YEAR] as const;
-
-const PLAN_CADENCE: Record<PlanInterval, string> = {
-  DAY: 'Full access for 24 hours',
-  WEEK: 'Full access for 7 days',
-  MONTH: 'Full access for 30 days',
-  YEAR: 'Full access for 365 days',
-};
-
-const PLAN_FEATURES = [
-  'Unlimited books',
-  'All export formats (EPUB, PDF, DOCX)',
-  'BYO-AI writing, critique & KDP metadata',
-  'Custom fonts & premium themes',
-  'No watermark on exports',
-  'Unlimited collaborators',
-];
-
-function formatPrice(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
+import { PlanGrid } from '@/components/plan-grid';
 
 function BillingSettingsInner() {
   const router = useRouter();
@@ -42,6 +21,14 @@ function BillingSettingsInner() {
     },
   });
   const providers = trpc.billing.listProviders.useQuery();
+
+  // Checkout completed and the plan is now active — send the user straight
+  // into the app instead of leaving them on the billing page.
+  useEffect(() => {
+    if (status === 'success' && sub.data?.limits.projects === null) {
+      router.replace('/dashboard');
+    }
+  }, [status, sub.data, router]);
 
   const checkout = trpc.billing.checkout.useMutation({
     onSuccess: (data) => {
@@ -74,9 +61,8 @@ function BillingSettingsInner() {
   const paypalProvider = activeProviders.find((p) => p.provider === PaymentProvider.PAYPAL);
 
   const planGrid = (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {PLAN_ORDER.map((interval) => {
-        const pricing = PLAN_PRICING[interval];
+    <PlanGrid
+      footer={(interval) => {
         const showCard = Boolean(cardProvider);
         const showPaypal = Boolean(paypalProvider);
         const isCardPending =
@@ -89,50 +75,35 @@ function BillingSettingsInner() {
           checkout.variables.provider === PaymentProvider.PAYPAL;
 
         return (
-          <Card key={interval}>
-            <CardHeader>
-              <CardTitle>
-                {pricing.label} — {formatPrice(pricing.amountCents)}
-              </CardTitle>
-              <CardDescription>{PLAN_CADENCE[interval]}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="list-disc space-y-1 pl-4 text-sm text-muted-foreground">
-                {PLAN_FEATURES.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-2">
-              {showCard && (
-                <Button
-                  className="w-full"
-                  disabled={checkout.isPending}
-                  onClick={() => checkout.mutate({ provider: cardProvider!.provider, interval })}
-                >
-                  {isCardPending ? 'Redirecting…' : 'Pay with card'}
-                </Button>
-              )}
-              {showPaypal && (
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  disabled={checkout.isPending}
-                  onClick={() => checkout.mutate({ provider: PaymentProvider.PAYPAL, interval })}
-                >
-                  {isPaypalPending ? 'Redirecting…' : 'PayPal'}
-                </Button>
-              )}
-              {!showCard && !showPaypal && (
-                <p className="text-center text-sm text-muted-foreground">
-                  Check back soon — this plan isn&apos;t available yet.
-                </p>
-              )}
-            </CardFooter>
-          </Card>
+          <>
+            {showCard && (
+              <Button
+                className="w-full"
+                disabled={checkout.isPending}
+                onClick={() => checkout.mutate({ provider: cardProvider!.provider, interval })}
+              >
+                {isCardPending ? 'Redirecting…' : 'Pay with card'}
+              </Button>
+            )}
+            {showPaypal && (
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={checkout.isPending}
+                onClick={() => checkout.mutate({ provider: PaymentProvider.PAYPAL, interval })}
+              >
+                {isPaypalPending ? 'Redirecting…' : 'PayPal'}
+              </Button>
+            )}
+            {!showCard && !showPaypal && (
+              <p className="text-center text-sm text-muted-foreground">
+                This plan isn&apos;t available yet. Check back soon.
+              </p>
+            )}
+          </>
         );
-      })}
-    </div>
+      }}
+    />
   );
 
   return (
@@ -144,7 +115,7 @@ function BillingSettingsInner() {
 
       {isAdmin && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-          Admin account — all plan limits are bypassed regardless of subscription status.
+          Admin account: all plan limits are bypassed regardless of subscription status.
         </div>
       )}
 
@@ -158,13 +129,13 @@ function BillingSettingsInner() {
 
       {status === 'success' && !token && (
         <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-          Payment received — activating your plan… this usually takes just a few seconds.
+          Payment received. Activating your plan, this usually takes just a few seconds.
         </div>
       )}
 
       {status === 'cancelled' && (
         <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
-          Checkout cancelled — you weren&apos;t charged.
+          Checkout cancelled. You weren&apos;t charged.
         </div>
       )}
 
@@ -194,8 +165,8 @@ function BillingSettingsInner() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Plans don&apos;t auto-renew. Buy another pass below anytime — it stacks on top of your
-                remaining time.
+                Plans don&apos;t auto-renew. Buy another pass below any time, it stacks on top of your remaining
+                time.
               </p>
             </CardContent>
           </Card>
@@ -210,8 +181,8 @@ function BillingSettingsInner() {
       {!hasAccess && sub.data && (
         <>
           <p className="text-sm text-muted-foreground">
-            Choose a plan to start creating and exporting your books. Every plan unlocks the same full feature set —
-            pick whatever fits how you write.
+            Choose a plan to start creating and exporting your books. Every plan unlocks the same full feature
+            set, so pick whatever fits how you write.
           </p>
           {planGrid}
         </>

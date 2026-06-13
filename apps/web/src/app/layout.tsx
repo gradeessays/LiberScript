@@ -1,7 +1,14 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Fraunces } from 'next/font/google';
 import { TRPCProvider } from '@/lib/trpc/Provider';
 import './globals.css';
+
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Liberscript',
@@ -10,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={fraunces.variable}>
       <head>
         <script
           // Set the theme class before paint to avoid a flash of the wrong theme.

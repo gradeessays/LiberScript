@@ -1,0 +1,283 @@
+---
+title: "Multi-Platform Publishing: Formatting Once for KDP, D2D, IngramSpark, and Kobo"
+description: "How to format your manuscript once and produce print and ebook files that work cleanly across Amazon KDP, Draft2Digital, IngramSpark, and Kobo Writing Life, without maintaining separate versions for each platform."
+category: platforms
+keywords:
+  - format book for multiple platforms
+  - kdp ingramspark kobo formatting
+  - one epub for all platforms
+  - multi platform self publishing
+  - formatting for wide distribution
+publishedAt: "2026-06-13"
+updatedAt: "2026-06-13"
+---
+
+If you're publishing wide, across Amazon KDP, Draft2Digital, IngramSpark, and Kobo Writing
+Life, the question of how many separate files you need can feel overwhelming. The good news:
+for most books, the answer is two files. One EPUB for ebook platforms, and one print-ready PDF
+for print platforms. The same EPUB works on KDP, Kobo, Apple Books, and through D2D to dozens
+of other retailers. The same print PDF, with minor adjustments, works on KDP Print and
+IngramSpark.
+
+This guide walks through how to format once and deploy everywhere, where the genuine
+differences between platforms lie, and how to manage updates across multiple platforms without
+losing your sanity.
+
+## The case for formatting once
+
+Maintaining separate files per platform is tempting when you notice small differences between
+how Amazon, Kobo, and Apple Books render the same EPUB. But chasing platform-specific
+perfection at the file level creates a maintenance burden that scales badly: every future edit
+to your manuscript (a typo fix, a new author note, an updated "also by" list) means updating
+multiple files, multiple uploads, and tracking which version is live where.
+
+The practical approach: build one well-structured EPUB that follows EPUB standards closely, and
+one print interior PDF built to a trim size that both KDP Print and IngramSpark support. Both
+files will render correctly on the vast majority of platforms without platform-specific
+versions. Reserve platform-specific tweaks for the rare cases where a real rendering issue
+exists, not for hypothetical differences.
+
+## EPUB as the universal ebook format
+
+EPUB is the format every major ebook platform accepts, either directly or after their own
+internal conversion:
+
+- **Amazon KDP**: accepts EPUB directly (in addition to DOCX, though EPUB gives you more
+  control over the final result)
+- **Kobo Writing Life**: accepts EPUB and MOBI; EPUB is recommended
+- **Apple Books**: requires EPUB
+- **Draft2Digital**: accepts EPUB, DOCX, or their own document format, and distributes to dozens
+  of retailers and library platforms from a single upload
+- **Barnes & Noble Press**: accepts EPUB and DOCX; EPUB recommended
+
+When you export an EPUB from LiberScript or another formatting tool, that single file is your
+master ebook file. Amazon converts it internally to their proprietary KFX format for Kindle
+devices; Kobo and Apple Books render the EPUB more directly. As long as your EPUB follows
+standard structure (proper heading hierarchy, embedded fonts referenced correctly, valid CSS,
+a working table of contents in the EPUB's nav document), it converts cleanly everywhere.
+
+### What "EPUB done right" means in practice
+
+A small number of structural choices make the biggest difference in cross-platform
+compatibility:
+
+- **Use semantic heading tags** (`<h1>`, `<h2>`) for chapter titles and section headings, not
+  bold or large-font paragraph text. Every platform's table of contents and navigation depends
+  on this.
+- **Embed fonts properly** with correct font-face declarations and licensing that permits
+  embedding. A font that isn't embedded correctly may fall back to a generic serif on some
+  devices and display as intended on others, creating an inconsistent reading experience.
+- **Avoid fixed pixel widths and absolute positioning** in your CSS. Reflowable EPUB needs to
+  adapt to different screen sizes, font size settings, and orientation changes. Fixed-layout
+  EPUB (used for picture books and heavily designed nonfiction) is a different format choice
+  and has its own constraints, covered in our [EPUB formatting guide](/guides/epub-formatting-best-practices).
+- **Keep image file sizes reasonable.** A 20MB cover image bloats your EPUB and can cause
+  upload issues on some platforms. Compress images to a sensible resolution (covers around
+  1.5-3MB at 2,560 x 1,600 pixels are typical).
+- **Validate your EPUB** before uploading anywhere. Tools like the EPUBCheck validator (used
+  internally by many platforms) catch structural errors that might not show up in a casual
+  preview but cause rejections or rendering problems on specific devices.
+
+## The print PDF: one file, two platforms
+
+For print, KDP Print and IngramSpark both accept a print-ready interior PDF and a separate
+full-wrap cover PDF. The technical specifications are close enough that one interior file
+typically works for both, with attention to a few details.
+
+### Trim size compatibility
+
+Both platforms support the most common trim sizes used by indie authors: 5" x 8", 5.5" x 8.5",
+6" x 9", and others. Choose a trim size both platforms support (nearly all standard sizes are
+supported by both) and build your interior PDF to that exact trim size with matching margins,
+bleed, and gutter settings.
+
+### Margins and bleed
+
+KDP Print and IngramSpark both calculate minimum margins based on page count (more pages need a
+wider inside margin to account for the gutter). If you set your margins to accommodate your
+book's page count using the more conservative of the two platforms' requirements, the file
+works on both. IngramSpark's specifications tend to be slightly more particular about bleed
+area on covers; building to IngramSpark's cover template specifications, then verifying it
+also meets KDP's requirements, is a reliable order of operations since IngramSpark's
+requirements are generally a superset.
+
+### Font embedding in print PDFs
+
+Unlike ebooks, print PDFs don't have a "device rendering" concern, the PDF is the final visual
+record. But fonts still need to be embedded in the PDF (not just referenced) so that the
+printer's systems render your exact typography rather than substituting a default font. Most
+PDF export tools embed fonts by default; confirm this is enabled in your export settings.
+
+### Color profile considerations
+
+KDP Print and IngramSpark both expect specific color profiles for interior and cover files
+(typically a particular CMYK profile for print to avoid unexpected color shifts). If your
+interior is black-and-white text only, this matters less. If you have color images, illustrations,
+or a color cover, check both platforms' current color profile requirements; a small mismatch
+can cause colors to print darker or with a different cast than expected on-screen.
+
+## Platform-specific quirks worth knowing
+
+While the core files are shared, each platform has small quirks that are worth understanding
+even if they don't require separate files.
+
+| Platform | Quirk | What it means for you |
+| --- | --- | --- |
+| Amazon KDP | Converts EPUB to KFX internally | Use Kindle Previewer to check how your EPUB renders after KFX conversion; occasional spacing differences appear |
+| Kobo | Strict on EPUB validation | A file with minor EPUB errors that Amazon tolerates may trigger Kobo review delays |
+| Apple Books | High-fidelity rendering | Drop caps, embedded fonts, and CSS spacing render closer to your design intent than on some other platforms |
+| IngramSpark | Particular about cover bleed and barcode placement | Use IngramSpark's cover template as your baseline even if also publishing on KDP Print |
+| Draft2Digital | Runs its own formatting/conversion tool | If uploading DOCX, D2D's converter applies its own styling; uploading a pre-formatted EPUB skips this |
+| B&N Press | Simpler description formatting | Plain-text-friendly descriptions render more reliably than heavily formatted HTML |
+
+None of these require a separate master file. They're things to check during the preview step
+on each platform before hitting publish, the same five-minute check regardless of how many
+platforms you're distributing to.
+
+## Metadata: one source, multiple forms
+
+Your book's title, subtitle, description, categories, and keywords need to be entered
+separately on each platform's dashboard (there's no single metadata sync across KDP, D2D,
+IngramSpark, and Kobo). But the content itself should come from one source document.
+
+**Keep a metadata sheet**: a simple document (spreadsheet or text file) with your final title,
+subtitle, author name as it should appear, full book description (in both plain text and any
+HTML-formatted version for platforms that support it), your chosen BISAC categories, and your
+keyword list. When you set up a new platform or update an existing one, copy from this sheet
+rather than retyping or trying to remember your exact wording. This also ensures consistency:
+a reader who sees your book on Amazon and then searches for it on Kobo sees matching
+descriptions and categorization, reinforcing recognition.
+
+**Platform-specific category mapping**: BISAC categories are largely standardized, but each
+platform's category browsing structure differs slightly. Choose your closest BISAC match on
+each platform; exact equivalents aren't always available, and that's fine. See our guide on
+[choosing KDP categories and keywords](/guides/kdp-categories-and-keywords) for the underlying
+strategy, which applies (with platform-specific category lists) across all retailers.
+
+## Cover files across platforms
+
+Your ebook cover image (JPEG or PNG, roughly 1.6:1 height-to-width ratio, 2,560 x 1,600 pixels
+or similar) works as-is across KDP, Kobo, Apple Books, B&N, and through D2D. No platform-specific
+ebook cover versions are needed.
+
+Your print cover is different: it's a full wrap (back cover, spine, front cover) sized to your
+exact trim size, page count, and paper type, since the spine width depends on how thick your
+book is. KDP Print and IngramSpark both provide cover template generators that calculate the
+exact dimensions for your book's specifications. Because spine width is a function of paper
+type and page count (which can differ slightly between KDP Print and IngramSpark's printing
+specifications even at the "same" page count), it's common to generate two cover files, one
+per platform's template, even though the front and back cover artwork themselves are identical.
+This is the one place where having two file versions is normal and expected.
+
+## Managing updates across platforms
+
+Once your book is live everywhere, the real test of a multi-platform setup comes when you need
+to update it: fixing a typo, adding a new "also by" page for a new release, updating your
+author bio, or adjusting pricing.
+
+**For ebook updates**: re-export your updated EPUB from your master manuscript, then upload the
+revised file to each platform where you publish directly (KDP, Kobo, Apple Books if direct,
+B&N). If you distribute through D2D, update the file there once; D2D pushes the update to all
+retailers it serves. This means your update workflow is: update direct platforms individually,
+update D2D once for everything else.
+
+**For print updates**: re-export your interior PDF (and cover PDF if anything on the cover
+changed) and upload to KDP Print and IngramSpark separately. Both platforms review revised
+files before they go live (typically 24-72 hours), so existing customer orders placed before
+the update may receive the old version; this is normal and not something to worry about for
+minor corrections.
+
+**Track your update history**: keep a simple log of what changed and when, especially for
+significant updates (a new edition, an added chapter, a corrected major error). This helps you
+answer reader questions about which version they have and confirms your changes have actually
+propagated when you spot-check each platform a few days later.
+
+## Building your master files: a practical workflow
+
+1. **Finalize your manuscript** in your writing tool, complete with all front matter and back
+   matter content.
+2. **Format in a tool that exports both EPUB and print PDF from the same source**, like
+   LiberScript, so your print and ebook versions stay in sync structurally (same chapter
+   titles, same front/back matter content, consistent styling intent even though print and
+   ebook styling differs by medium).
+3. **Export your EPUB** and validate it. Preview it in Kindle Previewer (for the KDP/KFX
+   check) and, if possible, in Apple Books or Kobo's preview tools.
+4. **Export your print interior PDF** at your chosen trim size, with margins set for your
+   actual page count.
+5. **Generate your print cover** using each platform's cover template tool (KDP's cover
+   calculator and IngramSpark's cover template generator), using the same front/back artwork
+   and spine text.
+6. **Upload to your direct platforms** (KDP, Kobo Writing Life, IngramSpark, B&N Press if used
+   directly) and to D2D for everything else.
+7. **Preview on each platform** before publishing; this is the step where you catch any
+   platform-specific rendering quirks from the table above.
+8. **Keep your master files** (manuscript source, exported EPUB, exported PDFs, cover files)
+   organized and version-dated, so future updates start from the right baseline.
+
+## When platform-specific files actually make sense
+
+There are a few legitimate reasons to maintain a platform-specific variant, though they're less
+common than authors sometimes assume:
+
+- **KDP Select exclusivity**: if a book is enrolled in KDP Select, its ebook can't be
+  distributed elsewhere during the enrollment period. This isn't a file difference, it's a
+  distribution decision, but it means your D2D-distributed wide version and your KDP Select
+  version are mutually exclusive at any given time, not simultaneous variants.
+- **Territory-restricted content**: if you have rights restrictions that apply to certain
+  territories (less common for self-published authors who hold full rights), platform-specific
+  metadata might be needed, though the file itself usually doesn't change.
+- **A platform-exclusive bonus**: some authors include a bonus chapter or content exclusive to
+  one retailer as a promotional tactic. This does require a separate file for that platform,
+  but it's a deliberate marketing choice, not a formatting necessity.
+
+For the overwhelming majority of indie authors, none of these apply, and a single EPUB plus a
+single print interior PDF (with platform-specific cover wraps) is the complete file set.
+
+## Frequently asked questions
+
+**Do I need a different EPUB for Kindle Unlimited vs. wide distribution?**
+
+No. The file is the same; KU enrollment is a distribution and exclusivity setting in KDP, not a
+different file format or structure.
+
+**Why does my book look slightly different on Kobo than on Kindle?**
+
+Small rendering differences between platforms are normal and expected, different reading apps
+and devices apply slightly different default styles, font substitutions, and spacing rules.
+As long as your EPUB is well-structured, these differences are cosmetic and don't indicate a
+problem with your file.
+
+**Can I use the same DOCX file for D2D and KDP?**
+
+Yes, both accept DOCX, but DOCX gives you less control over the final formatting than EPUB,
+since each platform's converter interprets DOCX styling somewhat differently. For more
+formatting consistency across platforms, export to EPUB once and upload that EPUB everywhere
+that accepts it.
+
+**What if IngramSpark rejects my file but KDP accepted it?**
+
+IngramSpark's file checks tend to be stricter on bleed, barcode placement, and color profiles.
+Use IngramSpark's specifications as your baseline (build to their requirements first), since a
+file that passes IngramSpark's check will virtually always also pass KDP's slightly more
+permissive check.
+
+**How often do I need to re-upload files across platforms?**
+
+Only when you make a substantive change: a content correction, a new edition, updated back
+matter (like a new book announcement), or a metadata change that requires a file update (rare;
+most metadata changes don't require a new file). Routine price changes and promotional
+scheduling don't require file updates at all.
+
+## The bottom line
+
+A well-built EPUB and a well-built print interior PDF, formatted once to standards that satisfy
+the strictest platform in each category, work across the entire wide-distribution landscape.
+The differences between KDP, D2D, IngramSpark, and Kobo that matter to your formatting workflow
+are small and manageable with a short platform-by-platform preview check, not a reason to
+maintain separate file libraries. Spend your formatting effort on getting the master files
+right once; spend your platform-management effort on metadata consistency and update tracking.
+
+For platform-specific deep dives, see our guides on [Draft2Digital](/guides/how-to-publish-on-draft2digital),
+[IngramSpark](/guides/ingramspark-for-indie-authors), and [Kobo Writing Life](/guides/kobo-writing-life-guide).
+To build your master EPUB and print files from one manuscript, [get started](/get-started?plan=DAY)
+in LiberScript.

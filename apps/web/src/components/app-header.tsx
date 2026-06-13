@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@liberscript/ui';
 import { organization, signOut } from '@liberscript/auth/client';
 import { trpc } from '@/lib/trpc/client';
+import { Logo } from './logo';
 import { ThemeToggle } from './theme-toggle';
 
 export function AppHeader({ userName }: { userName: string }) {
@@ -24,8 +25,8 @@ export function AppHeader({ userName }: { userName: string }) {
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
       <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6 lg:px-10 xl:px-16">
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="font-semibold tracking-tight">
-            Liberscript
+          <Link href="/dashboard">
+            <Logo />
           </Link>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
             <Link href="/dashboard" className="hover:text-foreground">

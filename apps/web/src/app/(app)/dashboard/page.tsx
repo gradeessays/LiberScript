@@ -21,17 +21,17 @@ function relativeDate(d: Date | string): string {
 /** Shown whenever the workspace has no active plan and can't create books yet. */
 function ChoosePlanCard() {
   return (
-    <Card>
+    <Card className="border-t-2 border-t-gold">
       <CardHeader>
-        <CardTitle>Choose a plan to start your first book</CardTitle>
+        <CardTitle className="font-display">Pick a plan to unlock your library</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Every plan unlocks unlimited books, all export formats, and the full toolkit — pick whatever fits how you
-          write.
+          Every plan unlocks unlimited books, every export format, and the full writing and design toolkit. Plans
+          don&apos;t auto-renew, so there&apos;s nothing to cancel.
         </p>
         <Link href="/settings/billing" className={buttonVariants({ size: 'sm' })}>
-          View plans
+          Choose a plan
         </Link>
       </CardContent>
     </Card>
