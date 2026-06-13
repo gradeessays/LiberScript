@@ -144,6 +144,9 @@ importers:
       '@liberscript/analysis':
         specifier: workspace:*
         version: link:../../packages/analysis
+      '@liberscript/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@liberscript/core':
         specifier: workspace:*
         version: link:../../packages/core

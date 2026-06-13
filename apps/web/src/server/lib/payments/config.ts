@@ -1,4 +1,4 @@
-import { PAYMENT_PROVIDERS, type PaymentProvider, type PlanFieldKey, type PlanInterval } from '@liberscript/core';
+import { PAYMENT_PROVIDERS, type PaymentProvider } from '@liberscript/core';
 import { prisma } from '@liberscript/db';
 import { decryptJson } from '../crypto';
 import type { PaymentConfigRow } from './types';
@@ -26,21 +26,19 @@ export async function listActivePaymentProviders(): Promise<PaymentProvider[]> {
   for (const row of rows) {
     const provider = row.provider as PaymentProvider;
     const def = PAYMENT_PROVIDERS[provider];
-    const secrets = decryptSecrets(row);
+    let secrets: Record<string, string>;
+    try {
+      secrets = decryptSecrets(row);
+    } catch {
+      // Unreadable secrets (e.g. ENCRYPTION_KEY changed since saved) — skip this
+      // provider rather than failing the whole list for every provider.
+      continue;
+    }
     if (def.secretFields.every((f) => Boolean(secrets[f.key]))) {
       active.push(provider);
     }
   }
   return active;
-}
-
-/**
- * Maps a recurring interval to the `config.plans` key used by PayPal/Paystack
- * (Stripe needs no plan codes — it uses inline price_data for every interval).
- * Only MONTH/YEAR are recurring; never called for DAY/WEEK.
- */
-export function planKeyFor(interval: PlanInterval): PlanFieldKey {
-  return interval.toLowerCase() as PlanFieldKey;
 }
 
 /** Reads a required secret field, throwing if the provider is misconfigured. */

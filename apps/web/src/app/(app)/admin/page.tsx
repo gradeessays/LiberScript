@@ -93,7 +93,7 @@ export default function AdminPage() {
                 <CardTitle>Payments</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Configure Stripe, PayPal, and Paystack credentials and recurring plan IDs.
+                Configure Stripe, PayPal, and Paystack credentials.
               </CardContent>
             </Card>
           </Link>
@@ -127,7 +127,7 @@ export default function AdminPage() {
           <li>Grants stack on top of remaining time — they don&apos;t reset the clock.</li>
           <li>Revoking access expires the plan immediately and starts a 7-day deletion window.</li>
           <li>After 7 days past expiry the account&apos;s projects are hard-deleted by the nightly cleanup job (3 AM).</li>
-          <li>Day and Week pass holders have no recurring subscription — their plan expires automatically.</li>
+          <li>All plans are one-time fixed-price passes — nothing auto-renews. Plans expire automatically.</li>
           <li>Run <code className="font-mono bg-muted px-1 rounded">pnpm ensure-keys</code> on deploy to validate the ENCRYPTION_KEY.</li>
         </ul>
       </div>

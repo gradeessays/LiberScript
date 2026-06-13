@@ -11,6 +11,7 @@ export const JobName = {
   GENERATE_EXPORT: 'generate-export',
   GENERATE_AI_METADATA: 'generate-ai-metadata',
   CLEANUP_EXPIRED: 'cleanup-expired',
+  SEND_RENEWAL_REMINDERS: 'send-renewal-reminders',
 } as const;
 export type JobName = (typeof JobName)[keyof typeof JobName];
 
@@ -45,6 +46,8 @@ export const generateAiMetadataPayload = z.object({
 
 export const cleanupExpiredPayload = z.object({}).default({});
 
+export const sendRenewalRemindersPayload = z.object({}).default({});
+
 /** Map each job name to its payload schema. */
 export const jobPayloadSchemas = {
   [JobName.PING]: pingPayload,
@@ -53,6 +56,7 @@ export const jobPayloadSchemas = {
   [JobName.GENERATE_EXPORT]: generateExportPayload,
   [JobName.GENERATE_AI_METADATA]: generateAiMetadataPayload,
   [JobName.CLEANUP_EXPIRED]: cleanupExpiredPayload,
+  [JobName.SEND_RENEWAL_REMINDERS]: sendRenewalRemindersPayload,
 } as const;
 
 export type JobPayloadMap = {

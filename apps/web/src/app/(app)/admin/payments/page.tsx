@@ -12,24 +12,8 @@ import {
   Input,
   Label,
 } from '@liberscript/ui';
-import {
-  PAYMENT_PROVIDERS,
-  PLAN_FIELD_KEYS,
-  PLAN_PRICING,
-  PlanInterval,
-  type PaymentProvider,
-  type PlanFieldKey,
-} from '@liberscript/core';
+import { PAYMENT_PROVIDERS, type PaymentProvider } from '@liberscript/core';
 import { trpc } from '@/lib/trpc/client';
-
-function formatPrice(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-const PLAN_FIELD_LABELS: Record<PlanFieldKey, string> = {
-  month: `Monthly (${formatPrice(PLAN_PRICING[PlanInterval.MONTH].amountCents)}/mo)`,
-  year: `Annual (${formatPrice(PLAN_PRICING[PlanInterval.YEAR].amountCents)}/yr)`,
-};
 
 interface ProviderData {
   provider: PaymentProvider;
@@ -48,8 +32,8 @@ export default function AdminPaymentsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Payment providers</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Configure Stripe, PayPal, and Paystack credentials and plan IDs. Only enabled providers
-          with all required fields set appear on the billing page.
+          Configure Stripe, PayPal, and Paystack credentials. Only enabled providers with all
+          required fields set appear on the billing page.
         </p>
       </div>
 
@@ -84,12 +68,6 @@ function ProviderCard({ data, onSaved }: { data: ProviderData; onSaved: () => vo
     }
     return initial;
   });
-  const [plans, setPlans] = useState<Record<string, string>>(() => {
-    const existingPlans = (data.config.plans as Record<string, string> | undefined) ?? {};
-    const initial: Record<string, string> = {};
-    for (const key of PLAN_FIELD_KEYS) initial[key] = existingPlans[key] ?? '';
-    return initial;
-  });
 
   const [origin, setOrigin] = useState('');
   useEffect(() => {
@@ -97,12 +75,7 @@ function ProviderCard({ data, onSaved }: { data: ProviderData; onSaved: () => vo
   }, []);
 
   function handleSave() {
-    save.mutate({
-      provider: data.provider,
-      enabled,
-      secrets,
-      config: { ...config, plans },
-    });
+    save.mutate({ provider: data.provider, enabled, secrets, config });
   }
 
   return (
@@ -167,26 +140,6 @@ function ProviderCard({ data, onSaved }: { data: ProviderData; onSaved: () => vo
             ),
           )}
         </div>
-
-        {def.planLabel && (
-          <div className="space-y-1.5">
-            <p className="text-sm font-medium">Plans ({def.planLabel})</p>
-            <p className="text-xs text-muted-foreground">
-              Day and Week passes are charged automatically — no plan ID needed. Monthly and Annual require a{' '}
-              {def.planLabel.toLowerCase()} from your {def.label} dashboard.
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {PLAN_FIELD_KEYS.map((key) => (
-                <Input
-                  key={key}
-                  placeholder={PLAN_FIELD_LABELS[key]}
-                  value={plans[key] ?? ''}
-                  onChange={(e) => setPlans((p) => ({ ...p, [key]: e.target.value }))}
-                />
-              ))}
-            </div>
-          </div>
-        )}
       </CardContent>
       <CardFooter className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={save.isPending}>

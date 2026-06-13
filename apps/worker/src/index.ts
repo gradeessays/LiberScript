@@ -5,6 +5,7 @@ import { handlePing } from './handlers/ping';
 import { handleParseManuscript } from './handlers/parse-manuscript';
 import { handleGenerateExport } from './handlers/generate-export';
 import { handleCleanupExpired } from './handlers/cleanup-expired';
+import { handleSendRenewalReminders } from './handlers/send-renewal-reminders';
 
 /**
  * The single Liberscript background worker. Routes each job by name to its
@@ -20,6 +21,8 @@ async function processor(job: Job): Promise<unknown> {
       return handleGenerateExport(job.data);
     case JobName.CLEANUP_EXPIRED:
       return handleCleanupExpired();
+    case JobName.SEND_RENEWAL_REMINDERS:
+      return handleSendRenewalReminders();
     default:
       throw new Error(`No handler registered for job "${job.name}"`);
   }
@@ -40,6 +43,7 @@ logger.info(`Liberscript worker listening on queue "${QUEUE_NAME}"`);
 /** Register recurring jobs (idempotent — BullMQ dedupes by jobId). */
 async function scheduleRecurringJobs() {
   await getQueue().add(JobName.CLEANUP_EXPIRED, {}, { repeat: { pattern: '0 3 * * *' }, jobId: 'cleanup-expired-daily' });
+  await getQueue().add(JobName.SEND_RENEWAL_REMINDERS, {}, { repeat: { pattern: '0 9 * * *' }, jobId: 'send-renewal-reminders-daily' });
 }
 void scheduleRecurringJobs().catch((err) => logger.error({ err }, 'failed to schedule recurring jobs'));
 

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@liberscript/analysis": "workspace:*",
+    "@liberscript/auth": "workspace:*",
     "@liberscript/core": "workspace:*",
     "@liberscript/db": "workspace:*",
     "@liberscript/exports": "workspace:*",

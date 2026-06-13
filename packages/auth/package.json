@@ -8,7 +8,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
-    "./rbac": "./src/rbac.ts"
+    "./rbac": "./src/rbac.ts",
+    "./mailer": "./src/mailer.ts",
+    "./emails": "./src/emails.ts"
   },
   "scripts": {
     "lint": "eslint .",

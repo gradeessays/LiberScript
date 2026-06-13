@@ -1,24 +1,13 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { OwnerType, PaymentProvider, PLAN_PRICING, PlanInterval } from '@liberscript/core';
+import { computeRenewedPeriodEnd, OwnerType, PaymentProvider, PLAN_PRICING, PlanInterval } from '@liberscript/core';
 import { prisma, SubscriptionStatus } from '@liberscript/db';
 import { getPaymentProviderConfig } from '@/server/lib/payments';
-
-const STRIPE_STATUS_MAP: Record<string, SubscriptionStatus> = {
-  active: SubscriptionStatus.ACTIVE,
-  trialing: SubscriptionStatus.TRIALING,
-  past_due: SubscriptionStatus.PAST_DUE,
-  canceled: SubscriptionStatus.CANCELED,
-  incomplete: SubscriptionStatus.INCOMPLETE,
-  incomplete_expired: SubscriptionStatus.CANCELED,
-  unpaid: SubscriptionStatus.PAST_DUE,
-};
 
 function isPlanInterval(value: string | undefined): value is PlanInterval {
   return Boolean(value) && Object.values(PlanInterval).includes(value as PlanInterval);
 }
 
-/** Checkout completed: links our owner to the Stripe customer + activates their plan. */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const { metadata } = session;
   if (!metadata?.ownerType || !metadata.ownerId || !isPlanInterval(metadata.interval)) return;
@@ -28,38 +17,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const ownerId = metadata.ownerId;
   const interval = metadata.interval;
   const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
-  const subscriptionId =
-    typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
+  const pricing = PLAN_PRICING[interval];
 
-  if (session.mode === 'payment') {
-    // One-time Day/Week pass: activate immediately for its fixed duration.
-    const pricing = PLAN_PRICING[interval];
-    const currentPeriodEnd = new Date(Date.now() + (pricing.durationDays ?? 0) * 24 * 60 * 60 * 1000);
-    await prisma.subscription.upsert({
-      where: { ownerType_ownerId: { ownerType, ownerId } },
-      create: {
-        ownerType,
-        ownerId,
-        interval,
-        status: SubscriptionStatus.ACTIVE,
-        provider: PaymentProvider.STRIPE,
-        providerCustomerId: customerId ?? null,
-        providerSubscriptionId: null,
-        currentPeriodEnd,
-      },
-      update: {
-        interval,
-        status: SubscriptionStatus.ACTIVE,
-        provider: PaymentProvider.STRIPE,
-        providerSubscriptionId: null,
-        currentPeriodEnd,
-        ...(customerId ? { providerCustomerId: customerId } : {}),
-      },
-    });
-    return;
-  }
+  const existing = await prisma.subscription.findUnique({ where: { ownerType_ownerId: { ownerType, ownerId } } });
+  const currentPeriodEnd = computeRenewedPeriodEnd(existing?.currentPeriodEnd, pricing.durationDays);
 
-  // Recurring Month/Year: currentPeriodEnd is filled in by the subscription.created/updated event.
   await prisma.subscription.upsert({
     where: { ownerType_ownerId: { ownerType, ownerId } },
     create: {
@@ -69,69 +31,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       status: SubscriptionStatus.ACTIVE,
       provider: PaymentProvider.STRIPE,
       providerCustomerId: customerId ?? null,
-      providerSubscriptionId: subscriptionId ?? null,
+      providerSubscriptionId: null,
+      currentPeriodEnd,
+      reminderStage: 0,
     },
     update: {
       interval,
       status: SubscriptionStatus.ACTIVE,
       provider: PaymentProvider.STRIPE,
+      providerSubscriptionId: null,
+      currentPeriodEnd,
+      reminderStage: 0,
       ...(customerId ? { providerCustomerId: customerId } : {}),
-      ...(subscriptionId ? { providerSubscriptionId: subscriptionId } : {}),
     },
-  });
-}
-
-/** Subscription created/updated: keep status, interval, and renewal date in sync. */
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  const sub = await prisma.subscription.findUnique({
-    where: {
-      provider_providerSubscriptionId: { provider: PaymentProvider.STRIPE, providerSubscriptionId: subscription.id },
-    },
-  });
-  if (!sub) return;
-
-  const status = STRIPE_STATUS_MAP[subscription.status] ?? SubscriptionStatus.ACTIVE;
-  const interval = subscription.metadata?.interval;
-  const periodEnd = subscription.current_period_end;
-
-  await prisma.subscription.update({
-    where: { id: sub.id },
-    data: {
-      status,
-      ...(isPlanInterval(interval) ? { interval } : {}),
-      ...(periodEnd ? { currentPeriodEnd: new Date(periodEnd * 1000) } : {}),
-    },
-  });
-}
-
-/** Subscription cancelled: revoke access immediately (starts the deletion grace period). */
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  const sub = await prisma.subscription.findUnique({
-    where: {
-      provider_providerSubscriptionId: { provider: PaymentProvider.STRIPE, providerSubscriptionId: subscription.id },
-    },
-  });
-  if (!sub) return;
-
-  await prisma.subscription.update({
-    where: { id: sub.id },
-    data: { status: SubscriptionStatus.CANCELED },
-  });
-}
-
-/** Renewal payment failed. */
-async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
-  const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
-  if (!subscriptionId) return;
-
-  const sub = await prisma.subscription.findUnique({
-    where: { provider_providerSubscriptionId: { provider: PaymentProvider.STRIPE, providerSubscriptionId: subscriptionId } },
-  });
-  if (!sub) return;
-
-  await prisma.subscription.update({
-    where: { id: sub.id },
-    data: { status: SubscriptionStatus.PAST_DUE },
   });
 }
 
@@ -163,16 +75,6 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
-        break;
-      case 'customer.subscription.deleted':
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
-        break;
-      case 'invoice.payment_failed':
-        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
-        break;
       default:
         break;
     }
@@ -180,6 +82,5 @@ export async function POST(req: NextRequest) {
     console.error('Stripe webhook handling error', err);
   }
 
-  // Always 200 quickly so Stripe doesn't retry-storm us.
   return NextResponse.json({ received: true });
 }

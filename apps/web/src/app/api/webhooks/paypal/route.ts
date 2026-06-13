@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { OwnerType, PaymentProvider, PLAN_PRICING, PlanInterval } from '@liberscript/core';
+import { computeRenewedPeriodEnd, OwnerType, PaymentProvider, PLAN_PRICING, PlanInterval } from '@liberscript/core';
 import { prisma, SubscriptionStatus } from '@liberscript/db';
 import { getPaymentProviderConfig, verifyPayPalWebhookSignature } from '@/server/lib/payments';
 
@@ -7,10 +7,7 @@ interface PayPalWebhookEvent {
   event_type: string;
   resource: {
     id?: string;
-    plan_id?: string;
     custom_id?: string;
-    subscriber?: { payer_id?: string };
-    billing_info?: { next_billing_time?: string };
   };
 }
 
@@ -18,83 +15,10 @@ function isPlanInterval(value: string | undefined): value is PlanInterval {
   return Boolean(value) && Object.values(PlanInterval).includes(value as PlanInterval);
 }
 
-/** Subscription approved + activated: links our owner to the PayPal subscription. */
-async function handleSubscriptionActivated(resource: PayPalWebhookEvent['resource']) {
-  if (!resource.custom_id || !resource.id) return;
-  let custom: { ownerType?: string; ownerId?: string; interval?: string };
-  try {
-    custom = JSON.parse(resource.custom_id) as { ownerType?: string; ownerId?: string; interval?: string };
-  } catch {
-    return;
-  }
-  if (!custom.ownerType || !custom.ownerId || !isPlanInterval(custom.interval)) return;
-  if (custom.ownerType !== OwnerType.USER && custom.ownerType !== OwnerType.ORGANIZATION) return;
-
-  const ownerType = custom.ownerType;
-  const ownerId = custom.ownerId;
-  const interval = custom.interval;
-  const subscriptionId = resource.id;
-
-  await prisma.subscription.upsert({
-    where: { ownerType_ownerId: { ownerType, ownerId } },
-    create: {
-      ownerType,
-      ownerId,
-      interval,
-      status: SubscriptionStatus.ACTIVE,
-      provider: PaymentProvider.PAYPAL,
-      providerCustomerId: resource.subscriber?.payer_id ?? null,
-      providerSubscriptionId: subscriptionId,
-      providerPlanId: resource.plan_id ?? null,
-    },
-    update: {
-      interval,
-      status: SubscriptionStatus.ACTIVE,
-      provider: PaymentProvider.PAYPAL,
-      providerSubscriptionId: subscriptionId,
-      ...(resource.subscriber?.payer_id ? { providerCustomerId: resource.subscriber.payer_id } : {}),
-      ...(resource.plan_id ? { providerPlanId: resource.plan_id } : {}),
-    },
-  });
-}
-
-/** Renewal date refreshed. */
-async function handleSubscriptionUpdated(resource: PayPalWebhookEvent['resource']) {
-  if (!resource.id) return;
-  const sub = await prisma.subscription.findUnique({
-    where: {
-      provider_providerSubscriptionId: { provider: PaymentProvider.PAYPAL, providerSubscriptionId: resource.id },
-    },
-  });
-  if (!sub) return;
-
-  if (!resource.billing_info?.next_billing_time) return;
-  await prisma.subscription.update({
-    where: { id: sub.id },
-    data: { currentPeriodEnd: new Date(resource.billing_info.next_billing_time) },
-  });
-}
-
-/** Subscription cancelled (revoke now) or suspended (mark past due, keep access until expiry). */
-async function handleSubscriptionEnded(resource: PayPalWebhookEvent['resource'], downgradeNow: boolean) {
-  if (!resource.id) return;
-  const sub = await prisma.subscription.findUnique({
-    where: {
-      provider_providerSubscriptionId: { provider: PaymentProvider.PAYPAL, providerSubscriptionId: resource.id },
-    },
-  });
-  if (!sub) return;
-
-  await prisma.subscription.update({
-    where: { id: sub.id },
-    data: { status: downgradeNow ? SubscriptionStatus.CANCELED : SubscriptionStatus.PAST_DUE },
-  });
-}
-
 /**
- * One-time Day/Week pass captured via the Orders v2 flow. This is an
- * idempotent backup to the client-driven `billing.capturePaypalOrder`
- * mutation — both upsert the same row from the same `custom_id`.
+ * One-time pass captured via the Orders v2 flow. Idempotent backup to the
+ * client-driven `billing.capturePaypalOrder` mutation — both upsert the same
+ * row from the same `custom_id` and stack on remaining time.
  */
 async function handlePaymentCaptureCompleted(resource: PayPalWebhookEvent['resource']) {
   if (!resource.custom_id) return;
@@ -111,7 +35,9 @@ async function handlePaymentCaptureCompleted(resource: PayPalWebhookEvent['resou
   const ownerId = custom.ownerId;
   const interval = custom.interval;
   const pricing = PLAN_PRICING[interval];
-  const currentPeriodEnd = new Date(Date.now() + (pricing.durationDays ?? 0) * 24 * 60 * 60 * 1000);
+
+  const existing = await prisma.subscription.findUnique({ where: { ownerType_ownerId: { ownerType, ownerId } } });
+  const currentPeriodEnd = computeRenewedPeriodEnd(existing?.currentPeriodEnd, pricing.durationDays);
 
   await prisma.subscription.upsert({
     where: { ownerType_ownerId: { ownerType, ownerId } },
@@ -123,6 +49,7 @@ async function handlePaymentCaptureCompleted(resource: PayPalWebhookEvent['resou
       provider: PaymentProvider.PAYPAL,
       providerSubscriptionId: null,
       currentPeriodEnd,
+      reminderStage: 0,
     },
     update: {
       interval,
@@ -130,6 +57,7 @@ async function handlePaymentCaptureCompleted(resource: PayPalWebhookEvent['resou
       provider: PaymentProvider.PAYPAL,
       providerSubscriptionId: null,
       currentPeriodEnd,
+      reminderStage: 0,
     },
   });
 }
@@ -165,18 +93,6 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.event_type) {
-      case 'BILLING.SUBSCRIPTION.ACTIVATED':
-        await handleSubscriptionActivated(event.resource);
-        break;
-      case 'BILLING.SUBSCRIPTION.UPDATED':
-        await handleSubscriptionUpdated(event.resource);
-        break;
-      case 'BILLING.SUBSCRIPTION.CANCELLED':
-        await handleSubscriptionEnded(event.resource, true);
-        break;
-      case 'BILLING.SUBSCRIPTION.SUSPENDED':
-        await handleSubscriptionEnded(event.resource, false);
-        break;
       case 'PAYMENT.CAPTURE.COMPLETED':
         await handlePaymentCaptureCompleted(event.resource);
         break;
@@ -187,6 +103,5 @@ export async function POST(req: NextRequest) {
     console.error('PayPal webhook handling error', err);
   }
 
-  // Always 200 quickly so PayPal doesn't retry-storm us.
   return NextResponse.json({ received: true });
 }

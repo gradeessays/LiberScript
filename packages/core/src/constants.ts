@@ -170,20 +170,18 @@ export const NO_ACCESS_LIMITS: PlanLimits = {
   premiumThemes: false,
 };
 
-/** Pricing for the single paid plan, by billing interval (USD cents). */
+/** Pricing for the single paid plan, by billing interval (USD cents). Every plan is a one-time fixed-price pass. */
 export interface PlanPricing {
   amountCents: number;
-  /** Recurring (Stripe subscription / PayPal billing plan / Paystack plan) vs one-time pass. */
-  recurring: boolean;
-  /** One-time passes only: how long access lasts after purchase/capture. */
-  durationDays?: number;
+  /** How long access lasts after purchase/capture. */
+  durationDays: number;
   label: string;
 }
 export const PLAN_PRICING: Record<PlanInterval, PlanPricing> = {
-  DAY: { amountCents: 199, recurring: false, durationDays: 1, label: 'Day pass' },
-  WEEK: { amountCents: 499, recurring: false, durationDays: 7, label: 'Week pass' },
-  MONTH: { amountCents: 999, recurring: true, label: 'Monthly' },
-  YEAR: { amountCents: 9599, recurring: true, label: 'Annual' },
+  DAY: { amountCents: 199, durationDays: 1, label: 'Day pass' },
+  WEEK: { amountCents: 499, durationDays: 7, label: 'Week pass' },
+  MONTH: { amountCents: 999, durationDays: 30, label: 'Monthly' },
+  YEAR: { amountCents: 9599, durationDays: 365, label: 'Annual' },
 };
 
 /** Flat daily export cap — fair-use guard now that exportsPerMonth is unlimited. */
@@ -200,6 +198,12 @@ export function hasActivePlanAccess(
   if (!sub) return false;
   if (sub.status !== 'ACTIVE' && sub.status !== 'TRIALING') return false;
   return sub.currentPeriodEnd === null || sub.currentPeriodEnd.getTime() > Date.now();
+}
+
+/** New purchases extend from the later of "now" or any remaining active period. */
+export function computeRenewedPeriodEnd(existingEnd: Date | null | undefined, durationDays: number): Date {
+  const base = existingEnd && existingEnd.getTime() > Date.now() ? existingEnd.getTime() : Date.now();
+  return new Date(base + durationDays * 24 * 60 * 60 * 1000);
 }
 
 /** Reading-speed constant used by stats (words per minute, adult prose). */

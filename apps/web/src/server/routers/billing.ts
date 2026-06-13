@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import {
+  computeRenewedPeriodEnd,
   getServerEnv,
   isAdminEmail,
   MemberRole,
@@ -16,13 +17,7 @@ import { asRole } from '@liberscript/auth/rbac';
 import { protectedProcedure, router } from '../trpc';
 import { currentOwner, type Owner } from '../lib/ownership';
 import { resolvePlanLimits } from '../lib/plan';
-import {
-  capturePaypalOrder,
-  getPaymentProviderConfig,
-  listActivePaymentProviders,
-  planKeyFor,
-  PAYMENT_CLIENTS,
-} from '../lib/payments';
+import { capturePaypalOrder, getPaymentProviderConfig, listActivePaymentProviders, PAYMENT_CLIENTS } from '../lib/payments';
 
 interface BillingCtx {
   prisma: PrismaClient;
@@ -55,14 +50,7 @@ export const billingRouter = router({
   /** Active (enabled + fully configured) payment providers, for the billing page's buttons. */
   listProviders: protectedProcedure.query(async () => {
     const providers = await listActivePaymentProviders();
-    const result: { provider: PaymentProvider; label: string; supportsRecurring: boolean }[] = [];
-    for (const provider of providers) {
-      const cfg = await getPaymentProviderConfig(provider);
-      const plans = (cfg?.config.plans as Record<string, string> | undefined) ?? {};
-      const supportsRecurring = provider === PaymentProvider.STRIPE || Boolean(plans.month && plans.year);
-      result.push({ provider, label: PAYMENT_PROVIDERS[provider].label, supportsRecurring });
-    }
-    return result;
+    return providers.map((provider) => ({ provider, label: PAYMENT_PROVIDERS[provider].label }));
   }),
 
   /** Starts a checkout with the given provider for the chosen plan and returns the redirect URL. */
@@ -85,17 +73,6 @@ export const billingRouter = router({
         });
       }
 
-      const pricing = PLAN_PRICING[input.interval];
-      if (pricing.recurring && input.provider !== PaymentProvider.STRIPE) {
-        const plans = (cfg.config.plans as Record<string, string> | undefined) ?? {};
-        if (!plans[planKeyFor(input.interval)]) {
-          throw new TRPCError({
-            code: 'PRECONDITION_FAILED',
-            message: `${pricing.label} via ${PAYMENT_PROVIDERS[input.provider].label} isn't set up yet — try paying with card.`,
-          });
-        }
-      }
-
       const appUrl = getServerEnv().APP_URL;
       const result = await PAYMENT_CLIENTS[input.provider].checkout(cfg, {
         email: ctx.user.email,
@@ -108,7 +85,7 @@ export const billingRouter = router({
       return { url: result.url };
     }),
 
-  /** Captures a PayPal Orders v2 order (one-time Day/Week pass) and activates the plan. */
+  /** Captures a PayPal Orders v2 order and activates the plan, stacking on remaining time. */
   capturePaypalOrder: protectedProcedure
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -126,7 +103,10 @@ export const billingRouter = router({
       }
 
       const pricing = PLAN_PRICING[captured.interval];
-      const currentPeriodEnd = new Date(Date.now() + (pricing.durationDays ?? 0) * 24 * 60 * 60 * 1000);
+      const existing = await ctx.prisma.subscription.findUnique({
+        where: { ownerType_ownerId: { ownerType: owner.ownerType, ownerId: owner.ownerId } },
+      });
+      const currentPeriodEnd = computeRenewedPeriodEnd(existing?.currentPeriodEnd, pricing.durationDays);
 
       await ctx.prisma.subscription.upsert({
         where: { ownerType_ownerId: { ownerType: owner.ownerType, ownerId: owner.ownerId } },
@@ -139,6 +119,7 @@ export const billingRouter = router({
           providerCustomerId: captured.payerId,
           providerSubscriptionId: null,
           currentPeriodEnd,
+          reminderStage: 0,
         },
         update: {
           interval: captured.interval,
@@ -146,57 +127,10 @@ export const billingRouter = router({
           provider: PaymentProvider.PAYPAL,
           providerSubscriptionId: null,
           currentPeriodEnd,
+          reminderStage: 0,
           ...(captured.payerId ? { providerCustomerId: captured.payerId } : {}),
         },
       });
       return { ok: true };
     }),
-
-  /** Returns a hosted link the customer can use to update their card / manage their plan. */
-  manageSubscription: protectedProcedure.mutation(async ({ ctx }) => {
-    const owner = currentOwner(ctx);
-    await requireBillingAccess(ctx, owner);
-
-    const subscription = await ctx.prisma.subscription.findUnique({
-      where: { ownerType_ownerId: { ownerType: owner.ownerType, ownerId: owner.ownerId } },
-    });
-    if (!subscription?.provider || !subscription.providerSubscriptionId) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'No active subscription to manage.' });
-    }
-    const cfg = await getPaymentProviderConfig(subscription.provider);
-    if (!cfg) {
-      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Payment provider is not configured.' });
-    }
-    const result = await PAYMENT_CLIENTS[subscription.provider].manageSubscription(cfg, subscription);
-    if (!result) {
-      throw new TRPCError({
-        code: 'PRECONDITION_FAILED',
-        message: 'Manage your subscription from your PayPal account.',
-      });
-    }
-    return { url: result.url };
-  }),
-
-  /** Cancels the active subscription. Access is revoked immediately. */
-  cancelSubscription: protectedProcedure.mutation(async ({ ctx }) => {
-    const owner = currentOwner(ctx);
-    await requireBillingAccess(ctx, owner);
-
-    const subscription = await ctx.prisma.subscription.findUnique({
-      where: { ownerType_ownerId: { ownerType: owner.ownerType, ownerId: owner.ownerId } },
-    });
-    if (!subscription?.provider || !subscription.providerSubscriptionId) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'No active subscription to cancel.' });
-    }
-    const cfg = await getPaymentProviderConfig(subscription.provider);
-    if (!cfg) {
-      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Payment provider is not configured.' });
-    }
-    await PAYMENT_CLIENTS[subscription.provider].cancelSubscription(cfg, subscription);
-    await ctx.prisma.subscription.update({
-      where: { id: subscription.id },
-      data: { status: SubscriptionStatus.CANCELED },
-    });
-    return { ok: true };
-  }),
 });

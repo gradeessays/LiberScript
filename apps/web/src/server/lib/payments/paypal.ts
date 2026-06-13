@@ -1,5 +1,5 @@
 import { PLAN_PRICING, type OwnerType, type PlanInterval } from '@liberscript/core';
-import { planKeyFor, requireSecret } from './config';
+import { requireSecret } from './config';
 import type { CheckoutParams, PaymentConfigRow, PaymentProviderClient } from './types';
 
 const PAYPAL_BASE_URLS: Record<'sandbox' | 'live', string> = {
@@ -47,42 +47,10 @@ async function paypalFetch<T>(cfg: PaymentConfigRow, path: string, init?: Reques
   return (await res.json()) as T;
 }
 
-interface PayPalSubscription {
-  id: string;
-  links: { rel: string; href: string }[];
-}
-
 interface PayPalOrder {
   id: string;
   status: string;
   links: { rel: string; href: string }[];
-}
-
-async function checkoutRecurring(cfg: PaymentConfigRow, params: CheckoutParams): Promise<{ url: string }> {
-  const plans = (cfg.config.plans as Record<string, string> | undefined) ?? {};
-  const planId = plans[planKeyFor(params.interval)];
-  if (!planId) {
-    throw new Error(`PayPal is not configured for ${params.interval}.`);
-  }
-  const sub = await paypalFetch<PayPalSubscription>(cfg, '/v1/billing/subscriptions', {
-    method: 'POST',
-    body: JSON.stringify({
-      plan_id: planId,
-      subscriber: { email_address: params.email },
-      custom_id: JSON.stringify({
-        ownerType: params.ownerType,
-        ownerId: params.ownerId,
-        interval: params.interval,
-      }),
-      application_context: {
-        return_url: params.successUrl,
-        cancel_url: params.cancelUrl,
-      },
-    }),
-  });
-  const approve = sub.links.find((l) => l.rel === 'approve');
-  if (!approve) throw new Error('PayPal did not return an approval link.');
-  return { url: approve.href };
 }
 
 async function checkoutOneTime(cfg: PaymentConfigRow, params: CheckoutParams): Promise<{ url: string }> {
@@ -114,22 +82,7 @@ async function checkoutOneTime(cfg: PaymentConfigRow, params: CheckoutParams): P
 
 export const paypalClient: PaymentProviderClient = {
   async checkout(cfg, params) {
-    return PLAN_PRICING[params.interval].recurring ? checkoutRecurring(cfg, params) : checkoutOneTime(cfg, params);
-  },
-
-  // PayPal has no merchant-agnostic "manage subscription" portal link.
-  async manageSubscription() {
-    return null;
-  },
-
-  async cancelSubscription(cfg, sub) {
-    if (!sub.providerSubscriptionId) {
-      throw new Error('No PayPal subscription to cancel.');
-    }
-    await paypalFetch<void>(cfg, `/v1/billing/subscriptions/${sub.providerSubscriptionId}/cancel`, {
-      method: 'POST',
-      body: JSON.stringify({ reason: 'Cancelled by customer' }),
-    });
+    return checkoutOneTime(cfg, params);
   },
 };
 

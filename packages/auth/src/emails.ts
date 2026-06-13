@@ -37,3 +37,31 @@ export function sendInvitationEmail(to: string, org: string, url: string) {
     text: `You've been invited to join ${org} on Liberscript: ${url}`,
   });
 }
+
+export function sendPlanExpiringEmail(to: string, opts: { planLabel: string; expiresAt: Date; renewUrl: string }) {
+  return sendEmail({
+    to,
+    subject: 'Your LiberScript plan expires soon',
+    html: wrap(
+      'Your plan is expiring soon',
+      `Your <strong>${opts.planLabel}</strong> plan ends on ${opts.expiresAt.toLocaleDateString()}. Renew manually to keep full access — plans don't auto-renew.`,
+      'Renew now',
+      opts.renewUrl,
+    ),
+    text: `Your ${opts.planLabel} plan ends on ${opts.expiresAt.toLocaleDateString()}. Renew here: ${opts.renewUrl}`,
+  });
+}
+
+export function sendPlanExpiredEmail(to: string, opts: { planLabel: string; renewUrl: string; graceDays: number }) {
+  return sendEmail({
+    to,
+    subject: 'Your LiberScript plan has expired',
+    html: wrap(
+      'Your plan has expired',
+      `Your <strong>${opts.planLabel}</strong> plan has ended and your account no longer has full access. Renew within ${opts.graceDays} days to avoid your books being deleted.`,
+      'Renew now',
+      opts.renewUrl,
+    ),
+    text: `Your ${opts.planLabel} plan has expired. Renew within ${opts.graceDays} days: ${opts.renewUrl}`,
+  });
+}
